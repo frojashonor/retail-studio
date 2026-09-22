@@ -8,6 +8,13 @@
 # Cargar librerías necesarias
 library(writexl)
 
+# Carpeta de salida:
+# - Si ejecutas el script desde la carpeta del curso (la que contiene
+#   "datasets/"), los archivos se guardan dentro de datasets/.
+# - Si lo ejecutas desde la propia carpeta datasets/, se guardan ahí mismo.
+carpeta_salida <- if (dir.exists("datasets")) "datasets" else "."
+ruta <- function(archivo) file.path(carpeta_salida, archivo)
+
 # Configurar semilla para reproducibilidad
 set.seed(123)
 
@@ -36,7 +43,7 @@ ventas_retail$mes <- format(ventas_retail$fecha, "%Y-%m")
 ventas_retail$trimestre <- paste0("Q", ceiling(as.numeric(format(ventas_retail$fecha, "%m")) / 3))
 
 # Guardar
-write.csv(ventas_retail, "ventas_retail.csv", row.names = FALSE)
+write.csv(ventas_retail, ruta("ventas_retail.csv"), row.names = FALSE)
 print("✓ ventas_retail.csv creado")
 
 # ============================================================================
@@ -76,7 +83,7 @@ clientes$segmento <- cut(clientes$edad,
                          breaks = c(0, 25, 40, 60, 100),
                          labels = c("Joven", "Adulto", "Maduro", "Senior"))
 
-write.csv(clientes, "clientes.csv", row.names = FALSE)
+write.csv(clientes, ruta("clientes.csv"), row.names = FALSE)
 print("✓ clientes.csv creado")
 
 # ============================================================================
@@ -88,7 +95,7 @@ categorias <- c("Electrónica", "Ropa", "Alimentos", "Hogar", "Deportes",
 
 productos <- data.frame(
   producto_id = 1:50,
-  nombre_producto = paste("Producto", LETTERS[1:50]),
+  nombre_producto = paste("Producto", sprintf("%02d", 1:50)),
   categoria = sample(categorias, 50, replace = TRUE),
   subcategoria = paste("Sub", sample(1:5, 50, replace = TRUE)),
   marca = sample(c("Marca A", "Marca B", "Marca C", "Marca D", "Marca E"),
@@ -111,7 +118,7 @@ productos$estado_stock <- ifelse(productos$stock_actual == 0, "Sin Stock",
                                 ifelse(productos$stock_actual < productos$stock_minimo,
                                       "Stock Bajo", "Stock OK"))
 
-write.csv(productos, "productos.csv", row.names = FALSE)
+write.csv(productos, ruta("productos.csv"), row.names = FALSE)
 print("✓ productos.csv creado")
 
 # ============================================================================
@@ -148,7 +155,7 @@ empleados$antiguedad_anos <- round(empleados$antiguedad_anos, 1)
 # Salario anual
 empleados$salario_anual <- empleados$salario_mensual * 12
 
-write.csv(empleados, "empleados.csv", row.names = FALSE)
+write.csv(empleados, ruta("empleados.csv"), row.names = FALSE)
 print("✓ empleados.csv creado")
 
 # ============================================================================
@@ -182,7 +189,7 @@ transacciones$mes <- format(transacciones$fecha, "%Y-%m")
 transacciones$trimestre <- paste0("Q", ceiling(as.numeric(format(transacciones$fecha, "%m")) / 3))
 transacciones$dia_semana <- weekdays(transacciones$fecha)
 
-write.csv(transacciones, "transacciones.csv", row.names = FALSE)
+write.csv(transacciones, ruta("transacciones.csv"), row.names = FALSE)
 print("✓ transacciones.csv creado")
 
 # ============================================================================
@@ -206,7 +213,7 @@ tiendas <- data.frame(
           "Principal", "Estándar", "Outlet", "Premium", "Express")
 )
 
-write.csv(tiendas, "tiendas.csv", row.names = FALSE)
+write.csv(tiendas, ruta("tiendas.csv"), row.names = FALSE)
 print("✓ tiendas.csv creado")
 
 # ============================================================================
@@ -221,7 +228,7 @@ lista_datos <- list(
   "Tiendas" = tiendas
 )
 
-write_xlsx(lista_datos, "datos_empresa.xlsx")
+write_xlsx(lista_datos, ruta("datos_empresa.xlsx"))
 print("✓ datos_empresa.xlsx creado")
 
 # ============================================================================

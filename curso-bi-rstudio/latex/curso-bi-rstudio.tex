@@ -1,0 +1,52 @@
+% ============================================================================
+% CURSO PRÁCTICO DE BUSINESS INTELLIGENCE CON R Y RSTUDIO
+% De principiante a avanzado
+% ----------------------------------------------------------------------------
+% Archivo principal. Compílalo con pdfLaTeX:
+%   - Overleaf: sube la carpeta completa y pulsa "Recompile".
+%   - Local:    latexmk -pdf curso-bi-rstudio.tex
+% ============================================================================
+\documentclass[11pt,oneside,openany]{book}
+
+\input{preambulo}
+
+\begin{document}
+
+% ---------------------------------------------------------------------------
+% Portada, contenido e introducción
+% ---------------------------------------------------------------------------
+\frontmatter
+\input{portada}
+\tableofcontents
+\input{capitulos/00-introduccion}
+
+% ---------------------------------------------------------------------------
+% Módulos del curso
+% ---------------------------------------------------------------------------
+\mainmatter
+
+\part{Nivel principiante}
+\input{capitulos/01-fundamentos}
+\input{capitulos/02-manipulacion-datos}
+\input{capitulos/03-visualizacion}
+
+\part{Nivel intermedio}
+\input{capitulos/04-analisis-exploratorio}
+\input{capitulos/05-bases-datos}
+\input{capitulos/06-dashboards-shiny}
+
+\part{Nivel avanzado}
+\input{capitulos/07-machine-learning}
+\input{capitulos/08-reportes}
+
+\part{Proyecto integrador}
+\input{capitulos/09-proyecto-final}
+
+% ---------------------------------------------------------------------------
+% Apéndices
+% ---------------------------------------------------------------------------
+\appendix
+\input{apendices/A-soluciones}
+\input{apendices/B-referencia-rapida}
+
+\end{document}

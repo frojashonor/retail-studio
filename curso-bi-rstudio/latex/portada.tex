@@ -1,0 +1,68 @@
+% ============================================================================
+% PORTADA
+% ============================================================================
+\begin{titlepage}
+\begin{tikzpicture}[remember picture, overlay]
+  % Fondo superior
+  \fill[primario] (current page.north west) rectangle
+    ([yshift=-11.5cm]current page.north east);
+  % Franja de acento
+  \fill[acento] ([yshift=-11.5cm]current page.north west) rectangle
+    ([yshift=-11.9cm]current page.north east);
+
+  % Pequeño gráfico de barras decorativo
+  \begin{scope}[shift={([xshift=-6.2cm,yshift=-9.8cm]current page.north east)}]
+    \foreach \x/\h in {0/1.2, 0.7/1.9, 1.4/1.5, 2.1/2.6, 2.8/2.2, 3.5/3.3, 4.2/3.9}
+      \fill[white, opacity=0.18] (\x,0) rectangle ++(0.5,\h);
+    \draw[white, opacity=0.55, line width=1.5pt]
+      (0.25,1.4) -- (0.95,2.1) -- (1.65,1.7) -- (2.35,2.8) -- (3.05,2.4)
+      -- (3.75,3.5) -- (4.45,4.1);
+    \foreach \x/\h in {0.25/1.4, 0.95/2.1, 1.65/1.7, 2.35/2.8, 3.05/2.4,
+                       3.75/3.5, 4.45/4.1}
+      \fill[white, opacity=0.8] (\x,\h) circle (2.2pt);
+  \end{scope}
+
+  % Título
+  \node[anchor=north west, text width=15cm, align=left]
+    at ([xshift=2.5cm,yshift=-2.6cm]current page.north west) {%
+      {\sffamily\large\color{white!80!primario} CURSO PRÁCTICO}\\[0.5cm]
+      {\sffamily\bfseries\fontsize{34}{40}\selectfont\color{white}
+        Business Intelligence}\\[0.2cm]
+      {\sffamily\bfseries\fontsize{34}{40}\selectfont\color{white}
+        con R y RStudio}\\[0.7cm]
+      {\sffamily\Large\color{white!85!primario}
+        Del primer script al dashboard ejecutivo}
+    };
+
+  % Nivel
+  \node[anchor=north west, text width=16cm, align=left]
+    at ([xshift=2.5cm,yshift=-13.3cm]current page.north west) {%
+      {\sffamily\large\color{primario}\bfseries
+        Principiante \enspace\textcolor{acento}{\ding{228}}\enspace
+        Intermedio \enspace\textcolor{acento}{\ding{228}}\enspace
+        Avanzado}\\[0.9cm]
+      {\sffamily\color{gristexto}
+      \begin{tabular}{@{}l@{\hspace{0.6cm}}l@{}}
+        \textcolor{acento}{\ding{110}} Fundamentos de R &
+        \textcolor{acento}{\ding{110}} Bases de datos y SQL\\[3pt]
+        \textcolor{acento}{\ding{110}} Manipulación con dplyr y tidyr &
+        \textcolor{acento}{\ding{110}} Dashboards con Shiny\\[3pt]
+        \textcolor{acento}{\ding{110}} Visualización con ggplot2 &
+        \textcolor{acento}{\ding{110}} Machine learning para negocio\\[3pt]
+        \textcolor{acento}{\ding{110}} Estadística y análisis exploratorio &
+        \textcolor{acento}{\ding{110}} Reportes automáticos\\
+      \end{tabular}}
+    };
+
+  % Pie
+  \node[anchor=south west, text width=16cm, align=left]
+    at ([xshift=2.5cm,yshift=2.2cm]current page.south west) {%
+      {\sffamily\color{gristexto}
+        Código comentado \textbullet{} Ejemplos de negocio resueltos
+        \textbullet{} Ejercicios con soluciones \textbullet{} Proyecto final}\\[4pt]
+      {\sffamily\small\color{gristexto!80}Edición 2026}
+    };
+  \fill[primario] ([yshift=1.2cm]current page.south west) rectangle
+    (current page.south east);
+\end{tikzpicture}
+\end{titlepage}
