@@ -1282,8 +1282,9 @@ ventas_tienda %>% mutate(across(c(ventas, ticket), round))
 # distinto número de tiendas)
 ventas_tienda %>%
   group_by(zona) %>%
-  summarise(tiendas = n(), ventas = round(sum(ventas)),
-            ventas_por_tienda = round(mean(ventas)), .groups = "drop") %>%
+  summarise(tiendas = n(),
+            ventas_por_tienda = round(mean(ventas)),   # antes de sumar
+            ventas_zona = round(sum(ventas)), .groups = "drop") %>%
   arrange(desc(ventas_por_tienda))
 \end{rcode}
 
@@ -1302,13 +1303,13 @@ ventas_tienda %>%
  9 Sucursal Oeste   Centro Está~       550  84672            95    891
 10 Sucursal Plaza B Norte  Está~       480  80236            85    944
 # A tibble: 5 x 4
-  zona   tiendas ventas ventas_por_tienda
-  <chr>    <int>  <dbl>             <dbl>
-1 Norte        4 388941            388941
-2 Centro       3 275878            275878
-3 Oeste        1 105216            105216
-4 Sur          1 101538            101538
-5 Este         1  88420             88420
+  zona   tiendas ventas_por_tienda ventas_zona
+  <chr>    <int>             <dbl>       <dbl>
+1 Oeste        1            105216      105216
+2 Sur          1            101538      101538
+3 Norte        4             97235      388941
+4 Centro       3             91959      275878
+5 Este         1             88420       88420
 \end{rsalida}
 
 \begin{rcode}
@@ -1378,7 +1379,7 @@ kruskal.test(total ~ metodo_pago, data = ventas)$p.value
 transacciones, 36.6\% de las ventas) y tiene el ticket más alto (\$1,003);
 la transferencia es el menos usado (8.8\%) y su ticket es el más bajo
 (\$826). Sin embargo, la prueba de Kruskal-Wallis da un valor~$p$ de
-P_KRUSKAL: la diferencia de tickets \emph{no es estadísticamente
+0.20: la diferencia de tickets \emph{no es estadísticamente
 significativa}. \textbf{Implicación:} no justifica, por sí sola, promociones
 para empujar el pago con crédito; sí vale la pena revisar las comisiones
 bancarias, porque 61\% de las ventas se paga con tarjeta.
@@ -1649,9 +1650,10 @@ ggplot(gasto_cliente, aes(x = grupo, y = gasto)) +
 \label{fig:m09-premium}
 \end{figure}
 
-\textbf{Hallazgo:} los clientes premium gastaron en promedio GASTO_PREM
-contra GASTO_NOPREM de los no premium, y compraron con la misma frecuencia.
-La prueba $t$ da $p = $ P_T y la de Wilcoxon $p = $ P_W: \emph{no hay
+\textbf{Hallazgo:} los clientes premium gastaron en promedio \$4,708
+contra \$4,929 de los no premium (sus medianas casi coinciden: \$4,517 y
+\$4,525) y compraron con la misma frecuencia (4.8 y 5.2 compras). La
+prueba $t$ da $p = 0.57$ y la de Wilcoxon $p = 0.89$: \emph{no hay
 diferencia significativa}. \textbf{Implicación:} el programa premium, tal
 como está, no se traduce en más gasto. Es una recomendación directa para la
 dirección: rediseñar los beneficios (atarlos a metas de compra) o medir si
@@ -1665,4 +1667,1030 @@ conclusión? Después compara el gasto por \codigo{segmento\_edad} con
 \codigo{kruskal.test()}.
 \end{hazlotu}
 
-%%FIN_PARTE_2
+% ============================================================================
+\section{Fase 3: segmentación y predicción}
+\label{sec:m09-modelos}
+% ============================================================================
+
+Las fases anteriores describen el pasado. Esta fase agrega dos modelos que la
+dirección suele pedir: \emph{¿qué tipos de clientes tenemos?} y
+\emph{¿cuánto vamos a vender?} Ambas técnicas se explicaron a fondo en el
+Módulo~\ref{cap:ml}; aquí nos concentramos en decidir, validar y comunicar.
+
+\subsection{Segmentación RFM con k-means}
+\label{sec:m09-rfm}
+
+El análisis \termino{RFM} describe a cada cliente con tres números:
+\emph{recencia} (días desde su última compra hasta la fecha de corte),
+\emph{frecuencia} (número de compras) y \emph{monto} (gasto total). Aquí se
+ve por qué importaba fijar \codigo{fecha\_corte}: con \codigo{Sys.Date()} la
+recencia cambiaría cada día y los segmentos también.
+
+\begin{rcode}
+rfm <- hechos_ventas %>%
+  group_by(cliente_id) %>%
+  summarise(recencia   = as.numeric(fecha_corte - max(fecha)),
+            frecuencia = n(),
+            monto      = sum(total), .groups = "drop")
+
+summary(select(rfm, -cliente_id))
+\end{rcode}
+
+\begin{rsalida}
+    recencia        frecuencia         monto        
+ Min.   :  1.00   Min.   : 1.000   Min.   :  152.6  
+ 1st Qu.: 21.00   1st Qu.: 3.000   1st Qu.: 3101.4  
+ Median : 48.00   Median : 5.000   Median : 4521.8  
+ Mean   : 69.19   Mean   : 5.051   Mean   : 4848.4  
+ 3rd Qu.: 98.75   3rd Qu.: 6.000   3rd Qu.: 6183.0  
+ Max.   :314.00   Max.   :13.000   Max.   :14680.1  
+\end{rsalida}
+
+La mitad de los clientes compró por última vez hace 48 días o menos y la
+mediana es de 5 compras en el año; el gasto va de \$153 a \$14,680. Las tres
+variables tienen escalas muy distintas (días, compras y pesos), así
+que las estandarizamos antes de k-means. Para elegir el número de grupos
+revisamos dos criterios del Módulo~\ref{cap:ml}: la suma de cuadrados dentro
+de los grupos (método del codo) y la silueta promedio.
+
+\begin{rcode}
+rfm_escalado <- scale(select(rfm, recencia, frecuencia, monto))
+
+set.seed(123)
+evaluacion_k <- map_dfr(2:7, function(k) {
+  modelo_k <- kmeans(rfm_escalado, centers = k, nstart = 25)
+  tibble(k = k,
+         suma_cuadrados = round(modelo_k$tot.withinss, 1),
+         silueta = round(mean(silhouette(modelo_k$cluster,
+                                         dist(rfm_escalado))[, 3]), 3))
+})
+evaluacion_k
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 6 x 3
+      k suma_cuadrados silueta
+  <int>          <dbl>   <dbl>
+1     2           344.   0.345
+2     3           239    0.337
+3     4           175.   0.328
+4     5           146.   0.325
+5     6           127.   0.292
+6     7           114    0.279
+\end{rsalida}
+
+La silueta es parecida entre 2 y 5 grupos (no hay un ganador claro) y el codo
+se suaviza a partir de 4. Cuando la estadística no decide, decide el negocio:
+\textbf{dos} grupos (``buenos'' y ``malos'') no le dicen nada nuevo a
+Marketing, mientras que \textbf{cuatro} permiten diseñar cuatro acciones
+distintas. Elegimos $k = 4$ y lo decimos explícitamente en el reporte.
+
+\begin{rcode}
+set.seed(123)
+km_rfm <- kmeans(rfm_escalado, centers = 4, nstart = 25)
+
+perfil <- rfm %>%
+  mutate(cluster = km_rfm$cluster) %>%
+  group_by(cluster) %>%
+  summarise(clientes = n(), recencia = mean(recencia),
+            frecuencia = mean(frecuencia), monto = mean(monto),
+            .groups = "drop")
+
+# Nombres de negocio a partir del perfil (no del número de cluster,
+# que puede cambiar entre versiones de R)
+perfil <- perfil %>%
+  mutate(segmento = case_when(
+    monto == max(monto)       ~ "Campeones",
+    recencia == max(recencia) ~ "En riesgo",
+    monto == max(monto[!monto == max(monto) &
+                         !recencia == max(recencia)]) ~ "Leales",
+    TRUE                      ~ "Ocasionales"))
+
+rfm <- rfm %>%
+  mutate(cluster = km_rfm$cluster) %>%
+  left_join(select(perfil, cluster, segmento), by = "cluster")
+
+perfil %>%
+  mutate(pct_clientes = percent(clientes / sum(clientes), 1),
+         pct_ventas   = percent(clientes * monto / sum(clientes * monto),
+                                1),
+         across(c(recencia, frecuencia), ~ round(.x, 1)),
+         monto = round(monto)) %>%
+  select(segmento, clientes, pct_clientes, recencia, frecuencia, monto,
+         pct_ventas) %>%
+  arrange(desc(monto))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 4 x 7
+  segmento  clientes pct_clientes recencia frecuencia monto pct_ventas
+  <chr>        <int> <chr>           <dbl>      <dbl> <dbl> <chr>     
+1 Campeones       22 11%              34.5        9.2 10159 23%       
+2 Leales          87 44%              41.8        5.9  5577 51%       
+3 Ocasiona~       60 30%              60.5        3.4  2879 18%       
+4 En riesgo       29 15%             196.         2.8  2708 8%        
+\end{rsalida}
+
+\begin{rcode}
+ggplot(rfm, aes(x = recencia, y = monto, color = segmento)) +
+  geom_point(size = 2, alpha = 0.8) +
+  scale_color_manual(values = c("Campeones" = paleta_libro[3],
+                                "Leales" = paleta_libro[1],
+                                "Ocasionales" = paleta_libro[4],
+                                "En riesgo" = paleta_libro[2])) +
+  scale_y_continuous(labels = dollar) +
+  labs(title = "Segmentos de clientes según RFM (k-means, k = 4)",
+       subtitle = "A la derecha, clientes que llevan meses sin comprar",
+       x = "Recencia (días desde la última compra)",
+       y = "Gasto en 2023", color = NULL) +
+  tema_libro()
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m09-rfm}
+\caption{Clientes por recencia y gasto, coloreados por segmento.}
+\label{fig:m09-rfm}
+\end{figure}
+
+El perfil convierte los grupos en acciones concretas
+(Tabla~\ref{tab:m09-acciones}). Observa que cada acción tiene un indicador
+para medir si funcionó: sin eso, la segmentación se queda en una gráfica
+bonita.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Segmentos RFM y acciones propuestas.}
+\label{tab:m09-acciones}
+\begin{tabularx}{\textwidth}{@{}l X X@{}}
+\toprule
+Segmento & Acción propuesta & Indicador de éxito \\
+\midrule
+Campeones & Programa de lealtad real (este sí, a diferencia del premium actual), acceso anticipado a lanzamientos & Retención del segmento y gasto por cliente \\
+Leales & Venta cruzada con categorías de alto margen (Mascotas, Alimentos) & Categorías por cliente y margen \\
+Ocasionales & Cupón de segunda compra con vigencia de 30 días & Tasa de recompra a 30 días \\
+En riesgo & Campaña de reactivación antes de que pasen a inactivos & \% reactivado en 60 días \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Hallazgo:} los 22 \emph{Campeones} (11\% de los clientes) compran
+en promedio 9.2 veces al año, gastan \$10,159 y generan 23\% de las ventas;
+junto con los 87 \emph{Leales} suman 74\% de las ventas. En el otro extremo,
+29 clientes \emph{En riesgo} (15\%) llevan en promedio 196 días sin comprar:
+compraron en la primera mitad del año y no volvieron. \textbf{Implicación:}
+retener a 109 clientes (Campeones y Leales) protege tres cuartas partes del
+negocio, y el segmento En riesgo es una lista concreta, con nombre y
+apellido, para una campaña de reactivación.
+
+\begin{hazlotu}
+Cruza el segmento RFM con \codigo{es\_premium} usando \codigo{count()}.
+¿Cuántos Campeones son premium? Si el programa premium no coincide con los
+mejores clientes, tienes un argumento más para rediseñarlo.
+\end{hazlotu}
+
+\subsection{Pronóstico de ventas: lo que un año permite (y lo que no)}
+\label{sec:m09-pronostico}
+
+La directora quiere saber cuánto venderán en las próximas semanas. Antes de
+elegir un modelo, sé honesto sobre los datos: tenemos \emph{un solo año}.
+Con 12 meses no se puede estimar la \termino{estacionalidad anual} (``enero
+siempre baja, diciembre siempre sube''), porque para saber que un patrón se
+\emph{repite} necesitas verlo al menos dos veces. R te lo dice sin rodeos:
+
+\begin{rcode}
+ventas_mes_ts <- ts(ventas_mes$ventas, start = c(2023, 1),
+                    frequency = 12)
+# Intentar descomponer tendencia + estacionalidad con 12 meses
+tryCatch(stl(ventas_mes_ts, s.window = "periodic"),
+         error = function(e) conditionMessage(e))
+\end{rcode}
+
+\begin{rsalida}
+[1] "series is not periodic or has less than two periods"
+\end{rsalida}
+
+El mensaje dice que la serie ``no es periódica o tiene menos de dos
+periodos''. Por eso trabajamos con \textbf{semanas} (más observaciones) y
+comparamos modelos sencillos, validando con las últimas 8 semanas como
+conjunto de prueba (Módulo~\ref{cap:ml}).
+
+\begin{rcode}
+# Semanas completas de lunes a domingo (el 1 de enero de 2023 fue
+# domingo: lo dejamos fuera para no tener una semana de un solo día)
+ventas_semana <- hechos_ventas %>%
+  filter(fecha >= as.Date("2023-01-02")) %>%
+  mutate(semana = floor_date(fecha, "week", week_start = 1)) %>%
+  count(semana, wt = total, name = "ventas")
+
+nrow(ventas_semana)
+round(c(promedio = mean(ventas_semana$ventas),
+        desv_est = sd(ventas_semana$ventas),
+        cv = sd(ventas_semana$ventas) / mean(ventas_semana$ventas)), 2)
+
+# ¿Hay autocorrelación? (si no, la serie se comporta como ruido)
+Box.test(ventas_semana$ventas, lag = 10, type = "Ljung-Box")$p.value
+\end{rcode}
+
+\begin{rsalida}
+[1] 52
+promedio desv_est       cv 
+18444.94  4591.29     0.25 
+[1] 0.5985765
+\end{rsalida}
+
+Tenemos 52 semanas con ventas promedio de \$18,445 y un coeficiente de
+variación de 25\%: una semana típica se aleja una cuarta parte del promedio.
+La prueba de Ljung-Box da $p = 0.60$, es decir, no hay evidencia de que la
+venta de una semana ayude a predecir la siguiente. En términos de negocio:
+la serie se comporta como \emph{ruido alrededor de un nivel constante}. Con
+esa sospecha, comparemos tres modelos:
+
+\begin{rcode}
+serie <- ts(ventas_semana$ventas)
+entrenamiento <- window(serie, end = 44)
+prueba        <- window(serie, start = 45)
+
+modelos <- list(
+  promedio = meanf(entrenamiento, h = 8),   # el promedio histórico
+  ingenuo  = naive(entrenamiento, h = 8),   # "igual que la última semana"
+  ets      = forecast(ets(entrenamiento), h = 8)
+)
+map_dfr(modelos, ~ as_tibble(t(accuracy(.x, prueba)["Test set",
+                                c("RMSE", "MAE", "MAPE")])),
+        .id = "modelo") %>%
+  mutate(across(-modelo, ~ round(.x, 1)))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 3 x 4
+  modelo    RMSE   MAE  MAPE
+  <chr>    <dbl> <dbl> <dbl>
+1 promedio 3606. 3318.  17.5
+2 ingenuo  8140. 7370.  43.1
+3 ets      3606. 3318.  17.5
+\end{rsalida}
+
+El modelo ingenuo (``la próxima semana venderemos lo mismo que esta'') es el
+peor: su error porcentual medio (MAPE) es de 43\%. El promedio histórico y
+ETS empatan con un MAPE de 17.5\%, y no es casualidad: al ver una serie sin
+tendencia ni patrón, ETS elige un modelo de nivel constante con suavizamiento
+casi nulo, que es\ldots{} el promedio. Cuando un modelo sofisticado no le gana
+al promedio, \textbf{reporta el modelo sencillo}: es igual de preciso y
+cualquiera en la junta lo entiende.
+
+\begin{rcode}
+# Pronóstico final con todas las semanas
+modelo_final <- ets(serie)
+pronostico <- forecast(modelo_final, h = 8, level = c(80, 95))
+modelo_final$method
+
+tabla_pronostico <- tibble(
+  semana   = max(ventas_semana$semana) + weeks(1:8),
+  estimado = as.numeric(pronostico$mean),
+  inf_80 = as.numeric(pronostico$lower[, "80%"]),
+  sup_80 = as.numeric(pronostico$upper[, "80%"]),
+  inf_95 = as.numeric(pronostico$lower[, "95%"]),
+  sup_95 = as.numeric(pronostico$upper[, "95%"]))
+
+tabla_pronostico %>%
+  mutate(across(-semana, round)) %>%
+  slice(1:3)
+\end{rcode}
+
+\begin{rsalida}
+[1] "ETS(M,N,N)"
+# A tibble: 3 x 6
+  semana     estimado inf_80 sup_80 inf_95 sup_95
+  <date>        <dbl>  <dbl>  <dbl>  <dbl>  <dbl>
+1 2024-01-01    18315  12370  24261   9222  27408
+2 2024-01-08    18315  12370  24261   9222  27408
+3 2024-01-15    18315  12370  24261   9222  27408
+\end{rsalida}
+
+\begin{rcode}
+ggplot() +
+  geom_ribbon(data = tabla_pronostico,
+              aes(x = semana, ymin = inf_95, ymax = sup_95),
+              fill = color_resalte, alpha = 0.15) +
+  geom_ribbon(data = tabla_pronostico,
+              aes(x = semana, ymin = inf_80, ymax = sup_80),
+              fill = color_resalte, alpha = 0.25) +
+  geom_line(data = ventas_semana, aes(x = semana, y = ventas),
+            color = color_principal, linewidth = 0.8) +
+  geom_line(data = tabla_pronostico, aes(x = semana, y = estimado),
+            color = color_resalte, linewidth = 0.8) +
+  annotate("text", x = as.Date("2024-01-20"), y = 30500, size = 3.2,
+           color = color_resalte, label = "Pronóstico e\nintervalos 80% y 95%") +
+  scale_y_continuous(labels = dollar, limits = c(0, NA)) +
+  scale_x_date(date_labels = "%b", date_breaks = "2 months") +
+  labs(title = "Ventas semanales y pronóstico a 8 semanas",
+       subtitle = "Sin tendencia ni patrón: el pronóstico es un nivel constante",
+       x = NULL, y = "Ventas por semana") +
+  tema_libro()
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m09-pronostico}
+\caption{Ventas semanales de 2023 (azul) y pronóstico ETS con intervalos de
+80\% y 95\% (naranja).}
+\label{fig:m09-pronostico}
+\end{figure}
+
+\textbf{Hallazgo:} el modelo elegido es ETS(M,N,N), un nivel constante sin
+tendencia ni estacionalidad. Pronostica \$18,315 por semana, con un
+intervalo de 80\% entre \$12,370 y \$24,261 y de 95\% entre \$9,222 y
+\$27,408. \textbf{Implicación:} para planear, la dirección puede usar unos
+\$18,300 semanales (unos \$80,000 al mes), pero debe prepararse para semanas
+un tercio por encima o por debajo. Lo que \emph{no} debe hacer es usar este
+pronóstico para decidir el inventario de temporada navideña: con un año de
+datos el modelo no sabe que existe una temporada.
+
+\begin{negocio}{Qué datos harían falta para un mejor pronóstico}
+Cuando el modelo no alcanza, el entregable honesto es \emph{qué necesitas}
+para mejorarlo: (1) al menos dos o tres años de historia para estimar
+estacionalidad anual; (2) un calendario de promociones y días festivos (Buen
+Fin, Navidad, regreso a clases) como variables explicativas; (3) datos de
+inventario, para distinguir ``no se vendió porque no había'' de ``no se
+vendió porque nadie lo quiso''; y (4) pronósticos por tienda o categoría,
+donde los patrones suelen ser más claros que en el total. Presentar esta
+lista es mucho más profesional que presentar un modelo complicado que no le
+gana al promedio.
+\end{negocio}
+
+\begin{advertencia}
+Un intervalo de confianza amplio no es un error del modelo: es información.
+Decir ``venderemos \$18,300 por semana'' sin intervalo hace creer a la
+dirección que la cifra es precisa; decir ``entre \$12,400 y \$24,300 en 8 de
+cada 10 semanas'' le permite planear inventario y flujo de caja con el
+riesgo a la vista.
+\end{advertencia}
+
+% ============================================================================
+\section{Fase 4: el tablero ejecutivo}
+\label{sec:m09-dashboard}
+% ============================================================================
+
+Con los hallazgos en la mano, diseña el tablero que los gerentes consultarán
+cada lunes. El orden importa: \textbf{primero se diseña en papel, después se
+programa}. Un tablero ejecutivo sigue la jerarquía de lectura en ``Z'':
+arriba los KPIs (la respuesta a ``¿cómo vamos?''), luego los filtros y
+después las gráficas que explican los números
+(Figura~\ref{fig:m09-maqueta}).
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    kpi/.style={draw=primario, fill=primario!8, rounded corners=2pt,
+                minimum width=3.3cm, minimum height=1.2cm, align=center,
+                font=\scriptsize\sffamily},
+    filtro/.style={draw=gristexto, fill=white, rounded corners=2pt,
+                   minimum width=3.3cm, minimum height=0.6cm,
+                   font=\scriptsize\sffamily},
+    graf/.style={draw=secundario, fill=secundario!5, rounded corners=2pt,
+                 minimum width=6.9cm, minimum height=2.9cm, align=center,
+                 font=\scriptsize\sffamily}]
+  % Marco del tablero
+  \draw[gristexto, rounded corners=4pt] (-0.4,0.9) rectangle (14.4,-9.5);
+  \node[font=\small\sffamily\bfseries, color=primario, anchor=west]
+    at (-0.2,0.5) {TechRetail México -- Tablero ejecutivo de ventas};
+  % Fila de KPIs
+  \foreach \x/\t/\v in {1.65/Ventas/\$959,993, 5.25/Ticket promedio/\$959.99,
+                        8.85/Clientes activos/198, 12.45/Margen estimado/46.3\%}
+    \node[kpi] at (\x,-0.5) {\t\\ {\normalsize\bfseries \v}\\ {\color{exito}vs. periodo previo}};
+  % Fila de filtros
+  \foreach \x/\t in {1.65/Periodo, 5.25/Zona y sucursal, 8.85/Categoría,
+                     12.45/Método de pago}
+    \node[filtro] at (\x,-1.7) {\t\ \ $\blacktriangledown$};
+  % Cuatro gráficas
+  \node[graf] at (3.45,-3.75) {\textbf{1. Ventas por mes}\\ línea + promedio\\ ¿Vamos mejor o peor?};
+  \node[graf] at (10.65,-3.75) {\textbf{2. Ventas y margen por categoría}\\ barras, margen bajo resaltado\\ ¿Dónde ganamos dinero?};
+  \node[graf] at (3.45,-7.3) {\textbf{3. Ventas por sucursal}\\ barras ordenadas, ventas por m\textsuperscript{2}\\ ¿Qué tienda necesita atención?};
+  \node[graf] at (10.65,-7.3) {\textbf{4. Segmentos de clientes}\\ barras por segmento RFM\\ ¿A quién le hablamos esta semana?};
+\end{tikzpicture}
+\caption{Maqueta del tablero: KPIs arriba, filtros en una fila y cuatro
+gráficas, cada una con la pregunta que responde.}
+\label{fig:m09-maqueta}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Cada elemento del tablero y la pregunta que responde.}
+\label{tab:m09-tablero}
+\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\toprule
+Elemento & Pregunta de la dirección & Hallazgo que lo motivó \\
+\midrule
+KPIs (4 tarjetas) & ¿Cómo vamos en el periodo? & Preguntas 1 y 6 \\
+Filtros & ¿Y en mi zona, mi tienda o mi categoría? & Gerentes de tienda \\
+Ventas por mes & ¿Hay tendencia o solo variación? & Sec.~\ref{sec:m09-mensual} \\
+Categorías y margen & ¿Vendemos lo que deja margen? & Sec.~\ref{sec:m09-categorias} \\
+Ventas por sucursal & ¿Qué tienda rinde más por m\textsuperscript{2}? & Sec.~\ref{sec:m09-tiendas} \\
+Segmentos RFM & ¿Cuántos clientes están en riesgo? & Sec.~\ref{sec:m09-rfm} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+No necesitas empezar desde cero. En el Módulo~\ref{cap:shiny} construiste la
+app \archivo{latex/codigo/apps/03-dashboard-ejecutivo/app.R}, que ya tiene
+fila de KPIs, filtros globales, pestañas y descargas, con toda la lógica en
+\archivo{R/funciones\_dashboard.R}. Para adaptarla al proyecto haz tres
+cambios:
+
+\begin{enumerate}
+  \item \textbf{Leer el modelo de la Fase 1} en lugar de los CSV: así el
+        tablero y el reporte muestran exactamente los mismos números.
+  \item \textbf{Agregar el filtro de zona} y la tarjeta de margen estimado.
+  \item \textbf{Agregar la pestaña de segmentos} con el resultado RFM
+        guardado en la Fase 3.
+\end{enumerate}
+
+\begin{rnoejecutar}[title=Adaptación de funciones\_dashboard.R al proyecto]
+# ---- Cambio 1: cargar el modelo en estrella de la Fase 1 ----
+cargar_datos_dashboard <- function(ruta = "resultados/modelo_techretail.rds") {
+  modelo <- readRDS(ruta)
+  modelo$hechos_ventas %>%
+    left_join(select(modelo$dim_producto, producto_id, nombre_producto,
+                     categoria), by = "producto_id") %>%
+    left_join(transmute(modelo$dim_tienda, tienda_id, zona, ciudad,
+                        tienda = sub("Sucursal ", "", nombre_tienda)),
+              by = "tienda_id") %>%
+    left_join(select(modelo$dim_cliente, cliente_id,
+                     nombre_cliente = nombre, segmento = segmento_edad,
+                     es_premium), by = "cliente_id") %>%
+    mutate(mes = floor_date(fecha, "month")) %>%
+    rename(total_transaccion = total, costo = costo_unitario)
+}
+
+# ---- Cambio 2: filtro de zona (en app.R, dentro de dashboardSidebar) ----
+selectizeInput("zonas", "Zonas:", choices = sort(unique(datos$zona)),
+               multiple = TRUE, options = list(placeholder = "Todas"))
+
+# ... y en filtrar_datos(), un argumento más:
+filtrar_datos <- function(datos, fechas, tiendas = NULL,
+                          categorias = NULL, zonas = NULL) {
+  datos <- filter(datos, fecha >= fechas[1], fecha <= fechas[2])
+  if (length(zonas) > 0)      datos <- filter(datos, zona %in% zonas)
+  if (length(tiendas) > 0)    datos <- filter(datos, tienda %in% tiendas)
+  if (length(categorias) > 0) datos <- filter(datos, categoria %in% categorias)
+  datos
+}
+
+# ---- Cambio 3: segmentos RFM guardados en la Fase 3 ----
+segmentos_rfm <- readRDS("resultados/segmentos_rfm.rds")
+output$graf_rfm <- renderPlot({
+  datos_validos() %>%
+    distinct(cliente_id) %>%
+    inner_join(segmentos_rfm, by = "cliente_id") %>%
+    count(segmento) %>%
+    ggplot(aes(x = n, y = reorder(segmento, n))) +
+    geom_col(fill = color_principal) +
+    labs(x = "Clientes", y = NULL) +
+    tema_dashboard()
+}, res = 96)
+\end{rnoejecutar}
+
+Para que el cambio 3 funcione, la Fase 3 debe guardar los segmentos. Es una
+línea, pero es la que conecta el modelo con el producto:
+
+\begin{rcode}
+saveRDS(select(rfm, cliente_id, recencia, frecuencia, monto, segmento),
+        "resultados/segmentos_rfm.rds")
+saveRDS(tabla_pronostico, "resultados/pronostico_semanal.rds")
+file.exists(c("resultados/segmentos_rfm.rds",
+              "resultados/pronostico_semanal.rds"))
+\end{rcode}
+
+\begin{rsalida}
+[1] TRUE TRUE
+\end{rsalida}
+
+\begin{consejo}
+Un tablero ejecutivo tiene \emph{pocos} elementos. Si alguien pide ``una
+gráfica más'', pregunta qué decisión tomará con ella. Los análisis de
+detalle (vendedores, horas, Pareto) viven mejor en pestañas secundarias o en
+el reporte, no en la portada del tablero.
+\end{consejo}
+
+% ============================================================================
+\section{Fase 5: el reporte ejecutivo}
+\label{sec:m09-reporte}
+% ============================================================================
+
+La dirección no abrirá tu script ni navegará el tablero durante una hora.
+Leerá, si acaso, una o dos páginas. El \termino{reporte ejecutivo} sigue una
+estructura fija:
+
+\begin{enumerate}
+  \item \textbf{Situación} (2--3 líneas): qué se analizó y el resultado
+        principal en un número.
+  \item \textbf{Hallazgos} (3--5 viñetas): cada uno con su cifra y su
+        implicación.
+  \item \textbf{Recomendaciones} (3 máximo): acción, responsable e impacto
+        esperado.
+  \item \textbf{Próximos pasos}: qué sigue y qué datos faltan.
+\end{enumerate}
+
+En el Módulo~\ref{cap:reportes} automatizaste reportes con R Markdown; la
+plantilla \archivo{latex/codigo/reportes/02-reporte-ejecutivo.Rmd} ya genera
+un reporte por tienda y mes con parámetros. Para el proyecto la adaptarías
+para leer \archivo{resultados/modelo\_techretail.rds} y agregar las
+secciones de hallazgos. Lo más valioso que aprendiste ahí es a
+\textbf{redactar las frases con código}: si los datos cambian, el texto se
+actualiza solo y nunca queda un número viejo en el reporte.
+
+\begin{rcode}
+# Insumos del resumen: todos salen de objetos calculados antes
+mejor_mes <- ventas_mes %>% slice_max(ventas, n = 1)
+peor_mes  <- ventas_mes %>% slice_min(ventas, n = 1)
+top_cat   <- ventas_categoria %>% slice_max(ventas, n = 1)
+top_tienda <- ventas_tienda %>% slice_max(ventas, n = 1)
+p_premium <- t.test(gasto ~ grupo, data = gasto_cliente)$p.value
+en_riesgo <- perfil %>% filter(segmento == "En riesgo")
+meses_largos <- c("enero", "febrero", "marzo", "abril", "mayo", "junio",
+                  "julio", "agosto", "septiembre", "octubre",
+                  "noviembre", "diciembre")
+
+resumen_ejecutivo <- c(
+  str_glue("SITUACIÓN. En 2023 TechRetail vendió {pesos(kpis$ventas_totales)} ",
+           "en {comma(kpis$transacciones)} transacciones (ticket promedio ",
+           "de {pesos(kpis$ticket_promedio)}) a {kpis$clientes} clientes, ",
+           "con un margen bruto estimado de ",
+           "{percent(kpis$margen / kpis$ventas_totales, 0.1)}."),
+  str_glue("VENTAS. Sin tendencia anual: el mejor mes fue ",
+           "{meses_largos[mejor_mes$mes]} ({pesos(mejor_mes$ventas)}) y el ",
+           "peor {meses_largos[peor_mes$mes]} ({pesos(peor_mes$ventas)})."),
+  str_glue("PRODUCTOS. {top_cat$categoria} lidera con ",
+           "{percent(top_cat$participacion, 0.1)} de las ventas, pero con ",
+           "margen de {percent(top_cat$pct_margen, 0.1)}; ",
+           "{sum(productos$margen_pct < 0)} productos tienen costo mayor ",
+           "al precio de catálogo."),
+  str_glue("TIENDAS. La que más vende es {top_tienda$nombre_tienda} ",
+           "({pesos(top_tienda$ventas)}) con solo {top_tienda$tamano_m2} m²."),
+  str_glue("CLIENTES. Los clientes premium no gastan más que el resto ",
+           "(p = {round(p_premium, 2)}); {en_riesgo$clientes} clientes ",
+           "están en riesgo (en promedio {round(en_riesgo$recencia)} días ",
+           "sin comprar).")
+)
+cat(strwrap(resumen_ejecutivo, width = 68, exdent = 2), sep = "\n")
+\end{rcode}
+
+\begin{rsalida}
+SITUACIÓN. En 2023 TechRetail vendió $959,993 en 1,000
+  transacciones (ticket promedio de $960) a 198 clientes, con un
+  margen bruto estimado de 46.3%.
+VENTAS. Sin tendencia anual: el mejor mes fue diciembre ($96,394) y
+  el peor abril ($57,038).
+PRODUCTOS. Belleza lidera con 19.0% de las ventas, pero con margen
+  de 30.8%; 10 productos tienen costo mayor al precio de catálogo.
+TIENDAS. La que más vende es Sucursal Outlet ($114,377) con solo
+  350 m².
+CLIENTES. Los clientes premium no gastan más que el resto (p =
+  0.57); 29 clientes están en riesgo (en promedio 195 días sin
+  comprar).
+\end{rsalida}
+
+Con esas frases, el reporte de una página para la dirección queda así (las
+recomendaciones y próximos pasos sí son redacción tuya, porque requieren
+criterio):
+
+\begin{negocio}{Reporte ejecutivo -- TechRetail México, resultados 2023}
+\textbf{Situación.} En 2023 TechRetail vendió \$959,993 en 1,000
+transacciones a 198 clientes, con ticket promedio de \$960 y margen bruto
+estimado de 46.3\%. Las ventas no muestran tendencia: oscilaron entre
+\$57,038 (abril) y \$96,394 (diciembre).
+
+\textbf{Hallazgos.}
+\begin{itemize}
+  \item \textbf{Margen en riesgo.} 10 de 50 productos tienen costo mayor al
+        precio de catálogo y 252 ventas (25\%) se cobraron por debajo del
+        costo.
+  \item \textbf{Categoría líder con margen bajo.} Belleza aporta 19.0\% de las
+        ventas con 30.8\% de margen; Mascotas y Alimentos superan el 60\%.
+  \item \textbf{Formatos chicos productivos.} La Outlet (350~m\textsuperscript{2})
+        es la sucursal que más vende (\$114,377); la Premium
+        (800~m\textsuperscript{2}) es quinta.
+  \item \textbf{Clientes.} Los premium no gastan más ($p = 0.57$); 109
+        clientes (Campeones y Leales) generan 74\% de las ventas y 29 están
+        en riesgo.
+\end{itemize}
+
+\textbf{Recomendaciones.}
+\begin{enumerate}
+  \item \emph{Corregir costos y precios (Compras y Sistemas, 30 días).}
+        Revisar los 10 productos con margen negativo y bloquear en el punto
+        de venta precios fuera de un rango del catálogo. Es la acción con
+        mayor impacto directo en margen.
+  \item \emph{Rediseñar el programa premium (Marketing, 60 días).} Hoy no
+        genera más gasto; atar beneficios a metas de compra y medirlo con un
+        grupo de control.
+  \item \emph{Reactivar clientes en riesgo (Marketing, 30 días).} Campaña
+        dirigida al segmento ``En riesgo'' con un indicador de reactivación.
+\end{enumerate}
+
+\textbf{Próximos pasos.} Validar la llave de vendedores con Recursos
+Humanos, acumular historia para pronosticar con estacionalidad y publicar el
+tablero semanal para los gerentes.
+\end{negocio}
+
+\begin{hazlotu}
+Agrega al vector \codigo{resumen\_ejecutivo} una frase sobre la sucursal con
+\emph{menos} ventas y otra sobre el método de pago más usado. Usa
+\codigo{slice\_min()} y \codigo{str\_glue()} como en el código anterior.
+\end{hazlotu}
+
+% ============================================================================
+\section{Fase 6: presentar los resultados}
+\label{sec:m09-presentacion}
+% ============================================================================
+
+Tienes 20 minutos con el comité directivo. Es el momento en que un proyecto
+de seis semanas se gana o se pierde. La técnica que mejor funciona es el
+\termino{storytelling con datos}: contar los resultados como una historia de
+tres actos.
+
+\begin{concepto}{Contexto, conflicto y resolución}
+\begin{itemize}
+  \item \textbf{Contexto:} dónde estamos. ``En 2023 vendimos \$960 mil en
+        10 sucursales, con un margen estimado de 46\%.''
+  \item \textbf{Conflicto:} qué problema u oportunidad encontramos. ``Pero
+        uno de cada cuatro tickets se cobró por debajo del costo, nuestra
+        categoría líder tiene el margen más bajo y el programa premium no
+        genera más gasto.''
+  \item \textbf{Resolución:} qué proponemos y qué ganaremos. ``Tres
+        acciones en 60 días: corregir precios, rediseñar el premium y
+        reactivar a los clientes en riesgo.''
+\end{itemize}
+\end{concepto}
+
+La Tabla~\ref{tab:m09-diapositivas} propone una estructura de 9
+diapositivas. Nota que la recomendación aparece en la segunda: los
+directivos quieren saber \emph{desde el inicio} qué les vas a pedir.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Estructura de la presentación al comité directivo.}
+\label{tab:m09-diapositivas}
+\begin{tabularx}{\textwidth}{@{}c l X@{}}
+\toprule
+\# & Diapositiva & Contenido \\
+\midrule
+1 & Título & ``Resultados 2023 y tres decisiones para 2024'' \\
+2 & Resumen ejecutivo & Situación en un número y las 3 recomendaciones \\
+3 & Contexto & KPIs globales (4 tarjetas, como el tablero) \\
+4 & Ventas en el tiempo & Figura~\ref{fig:m09-ventas-mensuales}: sin tendencia, mucha variación \\
+5 & Conflicto 1: margen & Auditoría: márgenes negativos y ventas bajo costo; Figura~\ref{fig:m09-categorias} \\
+6 & Conflicto 2: clientes & Premium sin efecto (Figura~\ref{fig:m09-premium}) y clientes en riesgo \\
+7 & Tiendas & Los formatos chicos venden tanto como los grandes (Figura~\ref{fig:m09-tiendas}) \\
+8 & Resolución & Tres acciones, responsable, plazo e indicador \\
+9 & Próximos pasos & Datos que faltan y calendario del tablero \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Cada diapositiva lleva un \termino{título de acción}: una frase con la
+conclusión, no un tema. ``Ventas por categoría'' es un tema; ``Belleza vende
+más pero deja menos margen'' es una conclusión. Si el comité solo lee los
+títulos, debe entender toda la historia.
+
+\begin{advertencia}
+Errores comunes al presentar resultados:
+\begin{itemize}
+  \item \textbf{Mostrar el proceso en lugar del resultado.} A la dirección
+        no le importa cuántos \codigo{left\_join()} hiciste; le importa qué
+        decidir. El método va en un anexo.
+  \item \textbf{Saturar las diapositivas.} Una idea por diapositiva y una
+        gráfica por idea.
+  \item \textbf{Exagerar la certeza.} Si el margen es estimado o el
+        pronóstico tiene un intervalo amplio, dilo. Tu credibilidad vale más
+        que un hallazgo espectacular.
+  \item \textbf{Esconder los resultados ``negativos''.} ``El premium no
+        funciona'' o ``no hay productos estrella'' son hallazgos que ahorran
+        dinero.
+  \item \textbf{No terminar con una petición concreta.} Cierra con qué
+        necesitas que aprueben hoy.
+\end{itemize}
+\end{advertencia}
+
+\begin{hazlotu}
+Escribe los títulos de acción de las 9 diapositivas de la
+Tabla~\ref{tab:m09-diapositivas} usando tus propios números. Léelos en
+voz alta en orden: ¿cuentan la historia completa sin ver las gráficas?
+\end{hazlotu}
+
+% ============================================================================
+\section{El script maestro y la reproducibilidad}
+\label{sec:m09-maestro}
+% ============================================================================
+
+A lo largo del módulo ejecutamos todo en un solo documento, pero un proyecto
+real se organiza en carpetas y scripts numerados, uno por fase. Así
+cualquier persona (incluido tú dentro de seis meses) puede reconstruir todos
+los resultados con un solo comando.
+
+\begin{textocodigo}[title=Estructura del proyecto]
+techretail-bi/
+|-- techretail-bi.Rproj        # proyecto de RStudio (fija el directorio)
+|-- README.md                  # qué es, cómo ejecutarlo, hallazgos
+|-- datasets/                  # datos crudos: NUNCA se modifican
+|   |-- transacciones.csv
+|   |-- clientes.csv  productos.csv  tiendas.csv  empleados.csv
+|   `-- ventas_retail.csv
+|-- R/
+|   |-- 00_ejecutar_todo.R     # script maestro
+|   |-- 01_etl.R               # Fase 1: auditoría, limpieza, modelo
+|   |-- 02_kpis_eda.R          # Fase 2: KPIs y figuras
+|   |-- 03_modelos.R           # Fase 3: RFM y pronóstico
+|   `-- funciones.R            # auditar(), tema_libro(), pesos()...
+|-- dashboard/
+|   |-- app.R                  # Fase 4 (adaptada del Módulo 6)
+|   `-- R/funciones_dashboard.R
+|-- reportes/
+|   `-- reporte_ejecutivo.Rmd  # Fase 5 (adaptado del Módulo 8)
+|-- datos/
+|   `-- techretail.sqlite      # modelo en estrella para SQL
+`-- resultados/
+    |-- modelo_techretail.rds
+    |-- segmentos_rfm.rds
+    |-- pronostico_semanal.rds
+    |-- figuras/               # PNG/PDF de cada gráfica
+    `-- bitacora_decisiones.csv
+\end{textocodigo}
+
+El script maestro ejecuta las fases en orden, mide cuánto tarda cada una y se
+detiene si alguna falla:
+
+\begin{rnoejecutar}[title=R/00\_ejecutar\_todo.R]
+# ========================================================================
+# 00_ejecutar_todo.R - Reconstruye TODO el proyecto TechRetail
+# Ejecuta con el directorio de trabajo en la raíz del proyecto
+# (abre techretail-bi.Rproj y corre: source("R/00_ejecutar_todo.R"))
+# ========================================================================
+inicio <- Sys.time()
+
+# Un solo lugar para los parámetros del proyecto
+fecha_corte <- as.Date("2024-01-01")   # fija: resultados reproducibles
+set.seed(123)                          # k-means y cualquier muestreo
+
+fases <- c("R/funciones.R",            # funciones compartidas
+           "R/01_etl.R",               # -> resultados/modelo_techretail.rds
+           "R/02_kpis_eda.R",          # -> resultados/figuras/
+           "R/03_modelos.R")           # -> segmentos y pronóstico
+
+for (fase in fases) {
+  cat("\n==>", fase, "\n")
+  t0 <- Sys.time()
+  source(fase, encoding = "UTF-8", echo = FALSE)
+  cat("    listo en", round(difftime(Sys.time(), t0, units = "secs"), 1),
+      "segundos\n")
+}
+
+# Fase 5: el reporte se genera con los resultados recién calculados
+rmarkdown::render("reportes/reporte_ejecutivo.Rmd",
+                  output_dir = "resultados",
+                  knit_root_dir = getwd())
+
+# Registro de la sesión: versiones de R y paquetes usados
+writeLines(capture.output(sessionInfo()), "resultados/session_info.txt")
+cat("\nProyecto completo en",
+    round(difftime(Sys.time(), inicio, units = "mins"), 1), "minutos\n")
+
+# Fase 4: el tablero se abre aparte (queda esperando en el navegador)
+# shiny::runApp("dashboard")
+\end{rnoejecutar}
+
+\begin{consejo}
+Reglas de reproducibilidad que aplicaste en este proyecto: (1) rutas
+relativas, nunca \codigo{setwd("C:/Users/...")}; (2) fecha de corte fija,
+nunca \codigo{Sys.Date()} en los cálculos; (3) \codigo{set.seed()} antes de
+cualquier proceso aleatorio; (4) los datos crudos no se editan, todo cambio
+queda en código; (5) controles \codigo{stopifnot()} que detienen el proceso
+si algo no cuadra; (6) \codigo{sessionInfo()} guardado junto a los
+resultados. Si quieres ir más lejos, el paquete \paquete{renv} congela las
+versiones exactas de los paquetes del proyecto.
+\end{consejo}
+
+% ============================================================================
+\section{Errores comunes en un proyecto de BI}
+\label{sec:m09-errores}
+% ============================================================================
+
+\begin{table}[H]
+\centering
+\small
+\caption{Errores frecuentes en proyectos integradores y cómo evitarlos.}
+\label{tab:m09-errores}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{4.2cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+Error & Síntoma & Cómo evitarlo \\
+\midrule
+Join que duplica filas & Las ventas totales del tablero no cuadran con contabilidad & \codigo{stopifnot(nrow(...) == nrow(...))} después de cada join \\
+Usar \codigo{Sys.Date()} & Los números cambian cada vez que corres el script & Fecha de corte fija en un solo lugar \\
+Sumar dos fuentes de ventas & Ventas infladas o ``dos verdades'' & Documentar qué fuente es oficial para cada pregunta \\
+Borrar filas ``raras'' & Totales que nadie reconoce & Marcar con banderas y decidir por análisis \\
+Promediar promedios & Ticket por zona incorrecto & Calcular desde la tabla de hechos: suma / conteo \\
+Comparar totales de grupos de distinto tamaño & ``La zona Norte es la mejor'' (tiene 4 tiendas) & Normalizar: por tienda, por m\textsuperscript{2}, por empleado \\
+Afirmar estacionalidad con un año & Promesas que no se cumplen & Pedir 2--3 años o decir la limitación \\
+Días de la semana dependientes del idioma & El tablero mezcla ``Monday'' y ``lunes'' & Vectores propios de nombres (\codigo{dias\_es}, \codigo{meses\_es}) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ============================================================================
+\section{Checklist de entrega y portafolio}
+\label{sec:m09-checklist}
+% ============================================================================
+
+Antes de entregar (a tu jefe, a tu profesor o a un reclutador), revisa la
+Tabla~\ref{tab:m09-checklist}.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Checklist final de entrega.}
+\label{tab:m09-checklist}
+\begin{tabularx}{\textwidth}{@{}l X c@{}}
+\toprule
+Área & Punto a revisar & \ding{51} \\
+\midrule
+Datos & Los datos crudos están intactos y el ETL corre desde cero & $\square$ \\
+ & La auditoría de calidad y la bitácora de decisiones están incluidas & $\square$ \\
+ & Hay controles de conciliación (filas y totales) & $\square$ \\
+Código & \codigo{00\_ejecutar\_todo.R} reconstruye todo sin pasos manuales & $\square$ \\
+ & Rutas relativas, fecha de corte fija y \codigo{set.seed()} & $\square$ \\
+ & Código comentado y funciones para lo que se repite & $\square$ \\
+Análisis & Las 20 preguntas tienen respuesta (o una razón para no tenerla) & $\square$ \\
+ & Cada gráfica tiene título de acción y formato de negocio en los ejes & $\square$ \\
+ & Los modelos se validaron y sus limitaciones están escritas & $\square$ \\
+Productos & El tablero abre, filtra y muestra los mismos números que el reporte & $\square$ \\
+ & El reporte ejecutivo cabe en 1--2 páginas y se genera con código & $\square$ \\
+ & La presentación tiene 8--10 diapositivas y cierra con una petición & $\square$ \\
+Documentación & README con objetivo, estructura, cómo ejecutar y hallazgos & $\square$ \\
+ & Sin datos personales (correos, teléfonos) en los archivos publicados & $\square$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Cómo presentar el proyecto en tu portafolio}
+
+Un proyecto integrador bien presentado es tu mejor carta para conseguir
+trabajo en BI, sobre todo si no tienes experiencia formal. Los reclutadores
+dedican menos de un minuto a cada portafolio, así que facilita la lectura:
+
+\begin{itemize}
+  \item \textbf{GitHub.} Sube el proyecto como repositorio público con la
+        estructura de la Sección~\ref{sec:m09-maestro}. El \archivo{README.md}
+        es tu portada: empieza con el problema de negocio en dos líneas, una
+        captura del tablero, los 3--4 hallazgos principales con sus números y
+        la instrucción para ejecutarlo. Agrega un \archivo{.gitignore} para
+        no subir archivos pesados o temporales.
+  \item \textbf{Tablero en línea.} Publica la app en
+        \texttt{shinyapps.io} (Módulo~\ref{cap:shiny}) y enlázala desde el
+        README: que el reclutador pueda \emph{usar} tu trabajo sin instalar
+        nada.
+  \item \textbf{Reporte en HTML.} Publica el reporte ejecutivo con GitHub
+        Pages o RPubs.
+  \item \textbf{LinkedIn.} Escribe una publicación con la historia (contexto,
+        conflicto, resolución), una gráfica y el enlace al repositorio. En
+        la sección de proyectos, describe el resultado, no la herramienta:
+        ``Detecté que 25\% de las ventas se cobraba por debajo del costo''
+        dice más que ``Usé dplyr y ggplot2''.
+  \item \textbf{Sé transparente.} Aclara que los datos son simulados. Los
+        reclutadores lo valoran; lo que evalúan es tu razonamiento.
+\end{itemize}
+
+\begin{negocio}{Cómo hablar del proyecto en una entrevista}
+Prepara una versión de dos minutos con el método \textbf{STAR}:
+\emph{Situación} (cadena de 10 tiendas sin una sola versión de la verdad),
+\emph{Tarea} (construir el sistema de BI y recomendar prioridades),
+\emph{Acción} (ETL auditado, modelo en estrella, KPIs, RFM, pronóstico,
+tablero y reporte automatizado) y \emph{Resultado} (tres recomendaciones con
+impacto en margen y clientes). Ten a la mano un hallazgo de calidad de datos:
+casi siempre te preguntarán ``¿qué problema encontraste en los datos y cómo
+lo resolviste?''.
+\end{negocio}
+
+\begin{resumen}
+En este proyecto final integraste todo el libro en un caso de negocio:
+\begin{itemize}
+  \item Convertiste un correo de la dirección en 20 preguntas, entregables,
+        cronograma y rúbrica.
+  \item Construiste un ETL auditable: elegiste la fuente oficial de ventas,
+        detectaste márgenes negativos, precios fuera de catálogo, productos
+        inactivos con ventas y llaves dudosas, y documentaste cada decisión
+        sin borrar datos.
+  \item Armaste un modelo en estrella, lo guardaste en RDS y SQLite y lo
+        protegiste con controles de conciliación.
+  \item Calculaste KPIs y convertiste cada tabla en un hallazgo con números,
+        incluidos los resultados ``negativos'' (sin tendencia, sin productos
+        estrella, premium sin efecto).
+  \item Segmentaste clientes con RFM y k-means y pronosticaste ventas
+        semanales, reconociendo que un año no basta para estimar
+        estacionalidad.
+  \item Diseñaste el tablero, redactaste el reporte con frases generadas por
+        código y estructuraste la presentación como una historia.
+\end{itemize}
+
+\begin{center}
+\small
+\begin{tabular}{@{}l l l@{}}
+\toprule
+Fase & Técnicas y funciones clave & Módulo \\
+\midrule
+ETL & \codigo{read\_csv()}, \codigo{anti\_join()}, \codigo{left\_join()}, \codigo{stopifnot()} & \ref{cap:manipulacion} \\
+Modelo & \codigo{saveRDS()}, \codigo{dbWriteTable()}, \codigo{dbGetQuery()} & \ref{cap:bases-datos} \\
+KPIs y EDA & \codigo{summarise()}, \codigo{lag()}, \codigo{cumsum()}, \codigo{ggplot()} & \ref{cap:visualizacion}, \ref{cap:eda} \\
+Pruebas & \codigo{t.test()}, \codigo{wilcox.test()}, \codigo{kruskal.test()}, \codigo{cor.test()} & \ref{cap:eda} \\
+Modelos & \codigo{scale()}, \codigo{kmeans()}, \codigo{silhouette()}, \codigo{ets()}, \codigo{forecast()} & \ref{cap:ml} \\
+Productos & \codigo{shinydashboard}, \codigo{str\_glue()}, \codigo{rmarkdown::render()} & \ref{cap:shiny}, \ref{cap:reportes} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{resumen}
+
+% ============================================================================
+\section{Retos de extensión}
+\label{sec:m09-retos}
+% ============================================================================
+
+Estos retos amplían el proyecto con preguntas que la dirección haría en la
+siguiente junta. Cada solución del Apéndice~\ref{ap:soluciones} es
+autocontenida: carga sus paquetes y datos desde \archivo{datasets/}.
+
+\begin{ejercicio}{p-1}{Tasa de recompra y días entre compras}
+\nivel{Intermedio}
+Con \archivo{transacciones.csv}, calcula: (a) qué porcentaje de los clientes
+activos compró dos veces o más en 2023; (b) la mediana de días entre
+compras consecutivas de un mismo cliente; y (c) cuántos clientes
+compraron dos veces o más en un plazo de 30 días. Interpreta qué implica
+para una campaña de ``segunda compra''.
+\end{ejercicio}
+
+\begin{ejercicio}{p-2}{Productividad por m\textsuperscript{2} y por empleado}
+\nivel{Intermedio}
+Calcula para cada sucursal las ventas por m\textsuperscript{2} y por
+empleado, y su ranking en cada medida. Haz una gráfica de barras de ventas
+por m\textsuperscript{2} resaltando la mejor sucursal. ¿Qué sucursal cambia
+más de posición entre ventas totales y ventas por m\textsuperscript{2}?
+\end{ejercicio}
+
+\begin{ejercicio}{p-3}{Alerta de stock bajo}
+\nivel{Intermedio}
+Con \archivo{productos.csv} y las unidades vendidas en 2023, calcula para
+cada producto \emph{activo} la venta promedio diaria y los días de cobertura
+(\codigo{stock\_actual} / venta diaria). Genera una lista de alerta con los
+productos que tienen menos de 30 días de cobertura o están por debajo del
+\codigo{stock\_minimo}, ordenada por urgencia.
+\end{ejercicio}
+
+\begin{ejercicio}{p-4}{Cohortes por mes de primera compra}
+\nivel{Avanzado}
+Como la fecha de registro no es confiable, define la cohorte de cada cliente
+por el mes de su \emph{primera compra}. Construye la matriz de cohortes: para
+cada cohorte, qué porcentaje de sus clientes volvió a comprar 1, 2 y 3 meses
+después. Muestra las cohortes del primer trimestre y comenta el resultado.
+\end{ejercicio}
+
+\begin{ejercicio}{p-5}{Transacciones atípicas}
+\nivel{Avanzado}
+Detecta transacciones atípicas con dos reglas: (a) total fuera del rango
+intercuartílico ampliado (regla de Tukey, $1.5 \times$ IQR); (b) precio de
+venta que se aleja más de 3 veces del precio mediano cobrado por ese mismo
+producto (hacia arriba o hacia abajo). ¿Cuántas marca cada regla? Arma la
+lista para que Auditoría las revise, con tienda y vendedor.
+\end{ejercicio}
+
+\begin{ejercicio}{p-6}{Simulación de una campaña de descuento}
+\nivel{Avanzado}
+Marketing propone un 10\% de descuento a todos durante un mes. Con
+\archivo{ventas\_retail.csv} (la fuente que registra descuentos), compara la
+cantidad promedio vendida con y sin descuento. Después, con los datos de
+\archivo{transacciones.csv} de diciembre, simula (1,000 repeticiones con
+\codigo{set.seed(123)}) el ingreso del mes si el descuento aumenta las
+unidades entre 0\% y 15\% (incremento uniforme aleatorio). ¿En qué
+porcentaje de las simulaciones la campaña pierde ingreso? ¿Qué incremento de
+unidades se necesita para no perder?
+\end{ejercicio}
+
+\begin{ejercicio}{p-7}{Ranking mensual de vendedores con funciones de ventana}
+\nivel{Avanzado}
+Calcula el ranking de los 25 vendedores en cada mes con
+\codigo{min\_rank()} y, con funciones de ventana, su venta acumulada en el
+año y el cambio de lugar respecto al mes anterior (\codigo{lag()}). ¿Qué
+vendedores estuvieron más meses en el top 5? ¿Quién tuvo la mayor subida de
+un mes a otro?
+\end{ejercicio}
+
+\begin{ejercicio}{p-8}{Paquete de Excel para cada gerente de tienda}
+\nivel{Reto}
+Escribe una función \codigo{paquete\_gerente(id)} que genere, en
+\archivo{resultados/gerentes/}, un archivo de Excel por sucursal con tres
+hojas: \emph{Resumen} (KPIs de la tienda contra el promedio de la cadena),
+\emph{Mensual} (ventas por mes y crecimiento) y \emph{Top productos} (10
+productos más vendidos en esa tienda). Genera los 10 archivos con
+\codigo{walk()} y comprueba cuántos se crearon.
+\end{ejercicio}

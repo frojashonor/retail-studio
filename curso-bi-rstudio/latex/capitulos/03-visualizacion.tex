@@ -1,0 +1,427 @@
+% ============================================================================
+% MÓDULO 3 - Visualización de datos con ggplot2
+% ============================================================================
+\chapter{Visualización de datos con ggplot2}
+\label{cap:visualizacion}
+
+\begin{objetivos}
+\begin{itemize}
+  \item Explicar por qué una gráfica revela cosas que una tabla de
+        estadísticas esconde (el cuarteto de Anscombe).
+  \item Construir cualquier gráfica con la \emph{gramática de gráficos} de
+        \paquete{ggplot2}: datos, estéticas, geometrías, escalas, facetas,
+        coordenadas y temas, capa por capa.
+  \item Elegir la gráfica correcta según la pregunta de negocio:
+        comparación, evolución, distribución, relación o composición.
+  \item Crear barras, líneas, dispersión, histogramas, boxplots, mapas de
+        calor y facetas con formato de negocio (\$, \%, miles, millones).
+  \item Aplicar reglas profesionales de diseño: un color por serie,
+        resaltar lo importante, sin doble eje, sin arcoíris, ejes honestos.
+  \item Construir tu propio tema corporativo \codigo{tema\_empresa()} y
+        exportar gráficas listas para PowerPoint, Word o correo.
+  \item Armar un tablero de ventas coherente para la dirección y
+        redactar conclusiones basadas en lo que los datos muestran.
+\end{itemize}
+\end{objetivos}
+
+Es jueves por la tarde y la directora general te pide ``tres o cuatro
+láminas'' con las ventas de 2023 para el consejo del lunes. En el
+Módulo~\ref{cap:manipulacion} aprendiste a obtener las cifras con
+\paquete{dplyr}: ingresos por mes, por categoría, por tienda. El problema es
+que nadie en el consejo va a leer una tabla de 12 filas y 5 columnas. Lo que
+sí van a hacer es mirar una gráfica durante diez segundos y quedarse con una
+idea. Tu trabajo es que esa idea sea la correcta.
+
+Visualizar datos no es ``hacer dibujos bonitos''. Es la parte del
+\termino{Business Intelligence} (BI) donde el análisis se convierte en una
+decisión: una gráfica bien hecha hace evidente que abril fue un mes malo, que
+una tienda pequeña está vendiendo más que la grande o que una categoría se
+desplomó en el segundo semestre. Una gráfica mal hecha (colores sin sentido,
+ejes recortados, pasteles con diez rebanadas) confunde o, peor, engaña.
+
+En este módulo aprenderás \paquete{ggplot2}, el paquete de gráficas más usado
+en R, y, sobre todo, aprenderás a \emph{pensar} como diseñador de
+visualizaciones de negocio. Cada gráfica seguirá la misma ruta: una pregunta
+de negocio, el código comentado línea por línea, la figura resultante, cómo
+leerla y un reto para que la hagas tú. Al final (sección~\ref{sec:m3-caso})
+armarás un tablero de ventas 2023 completo para la dirección.
+
+% ----------------------------------------------------------------------------
+\section{Por qué visualizar}
+\label{sec:m3-por-que}
+
+\subsection{El cuarteto de Anscombe}
+
+En 1973 el estadístico Francis Anscombe publicó cuatro pequeños conjuntos de
+datos, cada uno con 11 pares de valores $(x, y)$. Vienen incluidos en R con
+el nombre \codigo{anscombe}. Su gracia es que, si solo miras las
+estadísticas de resumen, los cuatro parecen idénticos. Empecemos cargando
+los paquetes que usaremos en todo el módulo.
+
+\begin{rcode}
+library(tidyverse)   # incluye ggplot2, dplyr, tidyr, forcats...
+library(scales)      # formatos de ejes: dólares, comas, porcentajes
+\end{rcode}
+
+\paquete{ggplot2} ya viene dentro de \paquete{tidyverse}, así que no hace
+falta cargarlo aparte. \paquete{scales} se instala junto con
+\paquete{ggplot2} pero hay que cargarlo para usar sus funciones de formato
+(\codigo{dollar()}, \codigo{percent()}\ldots). La tabla \codigo{anscombe}
+tiene las columnas \codigo{x1}, \codigo{x2}, \codigo{x3}, \codigo{x4},
+\codigo{y1}, \ldots, \codigo{y4}; la pasamos a formato largo (una fila por
+punto) con \codigo{pivot\_longer()}, que conociste en el
+Módulo~\ref{cap:manipulacion}.
+
+\begin{rcode}
+anscombe_largo <- anscombe %>%
+  pivot_longer(cols = everything(),
+               # ".value" = la 1a letra (x o y) será el nombre de columna
+               names_to = c(".value", "conjunto"),
+               # el patrón separa "x1" en "x" y "1"
+               names_pattern = "(.)(.)") %>%
+  mutate(conjunto = paste("Conjunto", conjunto))
+
+# Las estadísticas de cada conjunto
+anscombe_largo %>%
+  group_by(conjunto) %>%
+  summarise(media_x     = mean(x),
+            media_y     = mean(y),
+            desv_y      = sd(y),
+            correlacion = cor(x, y),
+            .groups = "drop") %>%
+  mutate(across(where(is.numeric), ~ round(.x, 2)))
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Las cuatro filas son prácticamente iguales: media de $x$ igual a 9, media de
+$y$ de 7.5, la misma desviación estándar y una correlación de 0.82 en todos
+los casos. Si esto fuera un reporte con solo la tabla, concluirías que los
+cuatro conjuntos ``se comportan igual''. Ahora grafiquémoslos.
+
+\begin{rcode}
+g_anscombe <- ggplot(anscombe_largo, aes(x = x, y = y)) +
+  geom_point(color = "#2a78d6", size = 2) +        # los 11 puntos
+  geom_smooth(method = "lm", formula = y ~ x,      # recta de regresión
+              se = FALSE, color = "#eb6834", linewidth = 0.8) +
+  facet_wrap(~ conjunto, ncol = 4) +               # un panel por conjunto
+  labs(title = "Mismas estadísticas, cuatro historias distintas",
+       subtitle = "Media, varianza, correlación y recta casi idénticas",
+       caption = "Fuente: datasets::anscombe (Anscombe, 1973)") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+g_anscombe
+\end{rcode}
+
+No te preocupes todavía por cada línea del código: en la siguiente sección
+lo construiremos pieza por pieza. Fíjate en el resultado
+(figura~\ref{fig:m03-anscombe}).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{m03-anscombe}
+\caption{El cuarteto de Anscombe: cuatro conjuntos con estadísticas
+idénticas y formas completamente distintas.}
+\label{fig:m03-anscombe}
+\end{figure}
+
+\textbf{Cómo leerla.} El conjunto 1 es una relación lineal con ruido: la
+recta sí lo describe. El conjunto 2 es una curva: una recta es el modelo
+equivocado. En el conjunto 3 todos los puntos caen sobre una recta perfecta
+salvo uno, un \termino{valor atípico} (\emph{outlier}) que jala la recta
+hacia arriba. En el conjunto 4 casi todos los puntos tienen el mismo $x$ y un
+solo punto extremo fabrica toda la ``correlación''. La lección para un
+analista de BI es directa: \textbf{antes de reportar un promedio o una
+correlación, grafica los datos}.
+
+\begin{negocio}{El promedio que escondía dos tiendas}
+Una cadena reporta que el ticket promedio de sus tiendas es de \$950 y que
+es ``estable''. Al graficar la distribución de tickets por tienda aparece que
+una sucursal tiene muchísimas compras pequeñas y unas cuantas enormes
+(clientes mayoristas). El promedio era el mismo, pero la operación, el
+riesgo y la estrategia comercial son completamente distintos. Solo la
+gráfica lo hizo evidente.
+\end{negocio}
+
+\subsection{Visualización exploratoria contra explicativa}
+
+En tu trabajo harás dos tipos de gráficas muy diferentes:
+
+\begin{itemize}
+  \item \termino{Visualización exploratoria}: gráficas rápidas que haces
+        \emph{para ti} mientras analizas. No necesitan título bonito ni
+        colores corporativos; necesitan ser rápidas. Harás decenas y
+        tirarás casi todas. El objetivo es \emph{descubrir}.
+  \item \termino{Visualización explicativa}: la gráfica que llevas a la
+        dirección. Tiene \emph{un} mensaje, un título que lo dice
+        (``Belleza cayó 41\% en el segundo semestre'' en vez de ``Ventas por
+        categoría''), formato de negocio en los ejes, la fuente de los datos
+        y nada que distraiga. El objetivo es \emph{comunicar}.
+\end{itemize}
+
+\begin{consejo}
+Un buen título explicativo es una \emph{conclusión}, no una descripción.
+Compara ``Ingresos mensuales 2023'' con ``7 de 12 meses superaron la meta''.
+El segundo le ahorra al director el trabajo de interpretar la gráfica. El
+subtítulo puede decir qué se mide (``Ingresos mensuales, MXN'').
+\end{consejo}
+
+% ----------------------------------------------------------------------------
+\section{La gramática de gráficos}
+\label{sec:m3-gramatica}
+
+\paquete{ggplot2} se basa en la \termino{gramática de gráficos}
+(\emph{grammar of graphics}), una idea de Leland Wilkinson que Hadley Wickham
+implementó en R: toda gráfica estadística se puede describir como la suma de
+unas cuantas piezas independientes. En vez de elegir ``un tipo de
+gráfica'' de un menú (como en Excel), \emph{construyes} la gráfica
+declarando cada pieza.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  capa/.style={draw=#1, fill=#1!10, rounded corners=2pt,
+               minimum width=4.2cm, minimum height=0.62cm,
+               font=\sffamily\small\bfseries, text=#1},
+  expl/.style={font=\sffamily\footnotesize, text=gristexto, anchor=west,
+               align=left},
+  fun/.style={font=\ttfamily\footnotesize, text=codigoinline, anchor=east}]
+  \node[capa=primario]   (dat) at (0,0)    {1. Datos};
+  \node[capa=secundario] (aes) at (0,0.75) {2. Estéticas (aes)};
+  \node[capa=exito]      (geo) at (0,1.5)  {3. Geometrías (geom)};
+  \node[capa=acento]     (esc) at (0,2.25) {4. Escalas (scale)};
+  \node[capa=morado]     (fac) at (0,3.0)  {5. Facetas (facet)};
+  \node[capa=peligro]    (coo) at (0,3.75) {6. Coordenadas (coord)};
+  \node[capa=gristexto]  (tem) at (0,4.5)  {7. Tema (theme, labs)};
+  \node[expl] at (2.4,0)    {La tabla: una fila por observación};
+  \node[expl] at (2.4,0.75) {Qué columna va a $x$, $y$, color, tamaño\ldots};
+  \node[expl] at (2.4,1.5)  {Cómo se dibuja: puntos, barras, líneas\ldots};
+  \node[expl] at (2.4,2.25) {Cómo se traduce el dato: \$, \%, colores, log};
+  \node[expl] at (2.4,3.0)  {Dividir en paneles pequeños};
+  \node[expl] at (2.4,3.75) {Sistema de ejes: normal, invertido, zoom};
+  \node[expl] at (2.4,4.5)  {Títulos, fuentes, cuadrícula, leyenda};
+  \node[fun] at (-2.3,0)    {ggplot(datos)};
+  \node[fun] at (-2.3,0.75) {aes(x, y)};
+  \node[fun] at (-2.3,1.5)  {geom\_col()};
+  \node[fun] at (-2.3,2.25) {scale\_y\_continuous()};
+  \node[fun] at (-2.3,3.0)  {facet\_wrap()};
+  \node[fun] at (-2.3,3.75) {coord\_cartesian()};
+  \node[fun] at (-2.3,4.5)  {theme\_minimal()};
+  \draw[-{Stealth[length=2.5mm]}, thick, acento] (8.9,0) -- (8.9,4.5)
+     node[midway, right, font=\sffamily\scriptsize, text=acento,
+          align=left] {se suman\\con \texttt{+}};
+\end{tikzpicture}
+\caption{Las siete capas de la gramática de gráficos. Solo las tres
+primeras son obligatorias; las demás tienen valores por defecto.}
+\label{fig:m3-capas}
+\end{figure}
+
+Las capas se combinan con el signo \codigo{+}. Una gráfica mínima necesita
+solo las tres primeras: \emph{datos}, \emph{estéticas} y al menos una
+\emph{geometría}. Todo lo demás (escalas, facetas, coordenadas, tema) tiene
+un valor por defecto razonable que puedes cambiar.
+
+\begin{concepto}{Estética (aes)}
+Una \termino{estética} es una propiedad visual que \emph{depende de los
+datos}: la posición en $x$, la posición en $y$, el color, el relleno
+(\codigo{fill}), el tamaño, la forma, la transparencia (\codigo{alpha}).
+Dentro de \codigo{aes()} dices ``esta columna controla esta propiedad''.
+Si quieres que \emph{todas} las barras sean azules, eso no depende de los
+datos y va \emph{fuera} de \codigo{aes()}:
+\codigo{geom\_col(fill = "\#2a78d6")}.
+\end{concepto}
+
+\subsection{Los datos del módulo}
+
+Trabajaremos sobre todo con \archivo{transacciones.csv} (1,000 tickets de
+2023), unida al catálogo de productos (para tener la categoría) y a las
+tiendas (para tener el nombre). Es el mismo \emph{join} que hiciste en el
+Módulo~\ref{cap:manipulacion}.
+
+\begin{rcode}
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+productos <- read_csv("datasets/productos.csv", show_col_types = FALSE)
+tiendas   <- read_csv("datasets/tiendas.csv", show_col_types = FALSE)
+
+ventas_detalle <- transacciones %>%
+  left_join(select(productos, producto_id, categoria),
+            by = "producto_id") %>%
+  left_join(select(tiendas, tienda_id, nombre_tienda),
+            by = "tienda_id") %>%
+  # "Sucursal Outlet" -> "Outlet": etiquetas más cortas para las gráficas
+  mutate(tienda = str_remove(nombre_tienda, "Sucursal "))
+
+ventas_detalle %>%
+  select(fecha, categoria, tienda, metodo_pago, total_transaccion) %>%
+  head(4)
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Para la primera gráfica necesitamos los ingresos de cada mes.
+\codigo{floor\_date(fecha, unit = "month")} (de \paquete{lubridate}) lleva
+cada fecha al primer día de su mes: así obtenemos una columna de tipo
+\emph{fecha}, no de texto, lo que será importante para el eje $x$.
+
+\begin{rcode}
+ventas_mes <- ventas_detalle %>%
+  mutate(mes = floor_date(fecha, unit = "month")) %>%
+  group_by(mes) %>%
+  summarise(ingresos = sum(total_transaccion),
+            tickets  = n(),
+            .groups  = "drop")
+ventas_mes
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\subsection{Tu primer gráfico, capa por capa}
+
+\textbf{Pregunta de negocio:} ¿cómo evolucionaron los ingresos mes a mes en
+2023? Construiremos la respuesta en cuatro pasos y guardaremos cada paso en
+un objeto para ver cómo cambia.
+
+\begin{rcode}
+# Paso 1: datos + estéticas. Solo el "lienzo" con los ejes
+paso1 <- ggplot(data = ventas_mes, mapping = aes(x = mes, y = ingresos))
+paso1
+\end{rcode}
+
+\codigo{ggplot()} crea el lienzo. Con \codigo{aes(x = mes, y = ingresos)}
+le dices qué columna va en cada eje. R ya calcula los rangos (de enero a
+diciembre; de unos \$57,000 a \$96,000) pero no dibuja nada, porque aún no
+hay geometría.
+
+\begin{rcode}
+# Paso 2: + una geometría de línea (color y grosor fijos, fuera de aes)
+paso2 <- paso1 + geom_line(color = "#2a78d6", linewidth = 0.8)
+paso2
+\end{rcode}
+
+Al \emph{sumar} \codigo{geom\_line()} aparece la línea. El color y el grosor
+(\codigo{linewidth}) son constantes, por eso van como argumentos de la
+geometría y no dentro de \codigo{aes()}.
+
+\begin{rcode}
+# Paso 3: + puntos en cada mes y + escala del eje y en dólares
+paso3 <- paso2 +
+  geom_point(color = "#2a78d6", size = 2) +
+  scale_y_continuous(labels = dollar)
+paso3
+\end{rcode}
+
+Las capas se apilan: \codigo{geom\_point()} dibuja encima de la línea. La
+\emph{escala} \codigo{scale\_y\_continuous(labels = dollar)} no cambia los
+datos, solo cómo se \emph{muestran} los números del eje: 90000 se vuelve
+\$90,000.
+
+\begin{rcode}
+# Paso 4: + títulos y + un tema limpio
+paso4 <- paso3 +
+  labs(title = "Ingresos mensuales 2023", x = NULL, y = "Ingresos") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+paso4
+\end{rcode}
+
+\codigo{labs()} pone los textos (\codigo{x = NULL} quita el título del eje
+$x$, porque ``mes'' es obvio). \codigo{theme\_minimal()} quita el fondo gris
+y \codigo{theme(panel.grid.minor = element\_blank())} elimina las líneas
+secundarias de la cuadrícula, que solo agregan ruido. La
+figura~\ref{fig:m03-pasos} muestra los cuatro pasos.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.48\textwidth]{m03-paso-1}\hfill
+\includegraphics[width=0.48\textwidth]{m03-paso-2}\\[4pt]
+\includegraphics[width=0.48\textwidth]{m03-paso-3}\hfill
+\includegraphics[width=0.48\textwidth]{m03-paso-4}
+\caption{La misma gráfica en cuatro pasos: lienzo (arriba a la izquierda),
+línea, puntos con escala en dólares y, finalmente, títulos y tema.}
+\label{fig:m03-pasos}
+\end{figure}
+
+\textbf{Cómo leerla.} Ya con el paso 4 se ve la historia del año: dos caídas
+fuertes (febrero y, sobre todo, abril), una meseta alta de mayo a julio, un
+bache en septiembre--octubre y un cierre muy fuerte en diciembre.
+
+\begin{advertencia}
+El \codigo{+} va \textbf{al final} de cada línea, nunca al principio de la
+siguiente. Si escribes el \codigo{+} al inicio, R da por terminada la
+instrucción en la línea anterior y luego no sabe qué hacer con el
+\codigo{+} suelto. Tampoco uses \codigo{\%>\%} entre capas de
+\paquete{ggplot2}: el pipe sirve para \emph{transformar datos}; el \codigo{+}
+para \emph{añadir capas}. Verás ambos errores en la
+sección~\ref{sec:m3-errores}.
+\end{advertencia}
+
+\begin{hazlotu}
+Repite los cuatro pasos pero con \codigo{y = tickets} (número de tickets por
+mes) y el título ``Tickets por mes 2023''. Pista: en el paso 3 cambia
+\codigo{dollar} por \codigo{comma}. ¿Coinciden los meses bajos con los de
+ingresos?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Elegir la gráfica correcta}
+\label{sec:m3-elegir}
+
+Antes de escribir código pregúntate: \emph{¿qué quiero que vea quien mire la
+gráfica?} La respuesta casi siempre cae en una de seis familias
+(tabla~\ref{tab:m3-elegir}).
+
+\begin{table}[H]
+\centering
+\small
+\caption{¿Qué quieres mostrar? Gráfica recomendada y qué evitar.}
+\label{tab:m3-elegir}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.6cm}
+  >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Quiero mostrar\ldots} & \textbf{Gráfica recomendada} &
+\textbf{Evita} \\
+\midrule
+Comparación entre categorías (tiendas, productos) &
+Barras ordenadas; horizontales si los nombres son largos
+(\codigo{geom\_col()}) &
+Barras de colores sin significado; pasteles; ejes que no empiezan en 0 \\
+Evolución en el tiempo (meses, semanas) &
+Línea (\codigo{geom\_line()}); barras si son pocos periodos &
+Más de 4--5 líneas de colores; doble eje Y \\
+Distribución (cómo se reparten los tickets) &
+Histograma, densidad, boxplot (\codigo{geom\_histogram()},
+\codigo{geom\_boxplot()}) &
+Reportar solo el promedio \\
+Relación entre dos medidas (precio y cantidad) &
+Dispersión (\codigo{geom\_point()}) con tendencia opcional &
+Unir los puntos con líneas; más de 3 colores de grupo \\
+Composición (partes de un total) &
+Barras 100\% o barras de participación; pastel solo con 2--3 porciones &
+Pastel de 10 rebanadas; dona 3D \\
+Un solo número (ingresos del año) &
+Tarjeta KPI: el número grande con su contexto &
+Una gráfica con una sola barra \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{concepto}{Tarjeta KPI}
+Un \termino{KPI} (\emph{Key Performance Indicator}, indicador clave de
+desempeño) es un número que resume el desempeño: ingresos, tickets, ticket
+promedio. Cuando el mensaje es \emph{un} número, la mejor visualización es
+una \termino{tarjeta KPI}: el número grande, una etiqueta y, si acaso, la
+comparación contra la meta o el año anterior. Una gráfica con una sola barra
+ocupa más espacio y comunica menos.
+\end{concepto}
+
+\begin{hazlotu}
+Para cada pregunta, decide la familia de la tabla~\ref{tab:m3-elegir}:
+(a) ``¿qué vendedor vendió más?'', (b) ``¿cuánto vendimos en total?'',
+(c) ``¿los clientes jóvenes gastan más por ticket?'', (d) ``¿cómo se
+reparten los ingresos entre los métodos de pago?''.
+\end{hazlotu}
+

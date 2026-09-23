@@ -323,7 +323,7 @@ if (kpi$ticket >= ticket_emp) {
 }
 
 # 4. Pocos datos: advertir que las variaciones pueden ser azar
-if (kpi$transacciones < 5) {
+if (kpi$transacciones < 10) {
   conclusiones <- c(conclusiones, paste0(
     "Precaución: el mes solo tiene ", kpi$transacciones,
     " transacciones; interpreta las variaciones con cuidado."))

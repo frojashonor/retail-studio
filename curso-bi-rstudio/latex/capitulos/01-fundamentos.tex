@@ -2456,4 +2456,545 @@ abierta la tienda. Después crea una matriz de 2 sucursales $\times$ 3 meses
 y obtén el total por sucursal con \codigo{rowSums()}.
 \end{hazlotu}
 
+% ============================================================================
+\section{Control de flujo: decisiones y repeticiones}
+\label{sec:m1-control}
+% ============================================================================
+
+Hasta ahora R ejecuta las instrucciones una tras otra, siempre igual. El
+\termino{control de flujo} te permite decirle ``haz esto \emph{solo si}
+pasa tal cosa'' o ``repite esto para cada sucursal''. Son las mismas reglas
+de negocio que aplicas mentalmente todos los días.
+
+\subsection{Decidir con \texorpdfstring{\codigo{if}}{if} y \texorpdfstring{\codigo{else}}{else}}
+
+La estructura \codigo{if (condición) \{ \ldots \} else \{ \ldots \}}
+ejecuta el primer bloque si la condición es \codigo{TRUE} y el segundo si
+es \codigo{FALSE}. Las llaves \codigo{\{ \}} agrupan las instrucciones de
+cada caso.
+
+\begin{ejemplo}{Clasificar una venta}
+La política comercial dice: una venta de \$5,000 o más es ``Grande'' y la
+revisa un gerente; de \$1,000 a \$4,999 es ``Mediana''; y por debajo de
+\$1,000 es ``Chica''. Queremos que R clasifique una venta de \$3,250.
+\end{ejemplo}
+
+\begin{rcode}
+monto_venta <- 3250
+
+if (monto_venta >= 5000) {
+  tipo_venta <- "Grande"
+} else if (monto_venta >= 1000) {
+  tipo_venta <- "Mediana"
+} else {
+  tipo_venta <- "Chica"
+}
+tipo_venta
+\end{rcode}
+\begin{rsalida}
+[1] "Mediana"
+\end{rsalida}
+
+R revisa las condiciones de arriba hacia abajo y se detiene en la primera
+que se cumple. Como \$3,250 no llega a 5,000 pero sí supera 1,000, la venta
+queda como ``Mediana''. Nota la sangría (los dos espacios al inicio de las
+líneas internas): R no la necesita, pero hace el código mucho más fácil de
+leer. RStudio la pone sola; si se desordena, selecciona el código y
+presiona \tecla{Ctrl} + \tecla{I}.
+
+\begin{advertencia}
+\codigo{if} evalúa \emph{un solo} valor lógico. Si le das un vector
+(por ejemplo, las ventas de toda la semana), R se detiene con el error
+\codigo{the condition has length > 1}. Para evaluar muchos valores a la
+vez usa \codigo{ifelse()}, que verás enseguida.
+\end{advertencia}
+
+\subsection{Decidir para todo un vector: \texorpdfstring{\codigo{ifelse()}}{ifelse()}}
+
+\codigo{ifelse(condición, valor\_si\_TRUE, valor\_si\_FALSE)} es la versión
+vectorizada de \codigo{if}: evalúa la condición elemento por elemento y
+devuelve un vector del mismo largo. Es el equivalente directo de la
+función \codigo{=SI()} de Excel arrastrada a toda una columna.
+
+\begin{rcode}
+ventas_semana
+etiqueta_meta <- ifelse(ventas_semana >= meta_diaria,
+                        "Cumplió", "No cumplió")
+etiqueta_meta
+
+# Anidar ifelse() para tres categorías
+nivel_dia <- ifelse(ventas_semana >= 18000, "Alto",
+                    ifelse(ventas_semana >= 12000, "Medio", "Bajo"))
+table(nivel_dia)
+\end{rcode}
+\begin{rsalida}
+    lunes    martes miércoles    jueves   viernes    sábado   domingo 
+    12500      9800     11200     13400     18900     22300     15600 
+       lunes       martes    miércoles       jueves      viernes 
+"No cumplió" "No cumplió" "No cumplió" "No cumplió"    "Cumplió" 
+      sábado      domingo 
+   "Cumplió"    "Cumplió" 
+nivel_dia
+ Alto  Bajo Medio 
+    2     2     3 
+\end{rsalida}
+
+Con una sola línea etiquetaste los siete días. Anidar \codigo{ifelse()}
+funciona para tres o cuatro categorías; con más se vuelve ilegible y es
+mejor usar \codigo{cut()} (que aparece en los ejercicios) o
+\codigo{case\_when()}, que estudiarás en el Módulo~\ref{cap:manipulacion}.
+
+\subsection{Repetir con \texorpdfstring{\codigo{for}}{for}}
+
+Un \termino{bucle} \codigo{for} repite un bloque de código una vez por
+cada elemento de un vector. La variable del bucle (aquí \codigo{i}) va
+tomando cada valor en turno.
+
+\begin{ejemplo}{Reporte de cumplimiento por sucursal}
+Tienes las ventas y las metas mensuales de cinco sucursales. El director
+quiere un reporte de texto, una línea por sucursal, con la venta, el
+porcentaje de cumplimiento y una marca de alerta si quedó por debajo del
+95\%.
+\end{ejemplo}
+
+\begin{rcode}
+sucursales <- c("Centro", "Norte", "Sur", "Plaza A", "Outlet")
+ventas_mes <- c(485000, 468900, 391200, 552300, 298700)
+metas_mes <- c(520000, 450000, 420000, 540000, 280000)
+
+cat("REPORTE DE CUMPLIMIENTO - MARZO 2023\n")
+for (i in seq_along(sucursales)) {
+  cumpl <- ventas_mes[i] / metas_mes[i] * 100
+  alerta <- if (cumpl < 95) "  <- REVISAR" else ""
+  cat(sprintf("%-8s $%9s  %6.1f%%%s\n", sucursales[i],
+              format(ventas_mes[i], big.mark = ","), cumpl, alerta))
+}
+\end{rcode}
+\begin{rsalida}
+REPORTE DE CUMPLIMIENTO - MARZO 2023
+Centro   $  485,000    93.3%  <- REVISAR
+Norte    $  468,900   104.2%
+Sur      $  391,200    93.1%  <- REVISAR
+Plaza A  $  552,300   102.3%
+Outlet   $  298,700   106.7%
+\end{rsalida}
+
+Vamos por partes:
+
+\begin{itemize}
+  \item \codigo{seq\_along(sucursales)} produce \codigo{1 2 3 4 5}, una
+        posición por sucursal. Es más seguro que escribir \codigo{1:5}
+        porque se ajusta solo si agregas sucursales.
+  \item En cada vuelta, \codigo{i} vale 1, luego 2, etc., y con
+        \codigo{[i]} tomas el dato de esa sucursal.
+  \item \codigo{cat()} imprime texto tal cual, sin el \codigo{[1]} ni las
+        comillas de \codigo{print()}. El \codigo{\textbackslash n} es un
+        salto de línea.
+  \item En \codigo{sprintf()}, \codigo{\%-8s} reserva 8 espacios para el
+        texto alineado a la izquierda y \codigo{\%9s} reserva 9 alineados a
+        la derecha: así las columnas quedan parejas.
+\end{itemize}
+
+\textbf{¿Qué nos dice esto?} Centro y Sur quedaron por debajo del 95\% de
+su meta y hay que revisarlas; Outlet es la que más superó su meta
+(106.7\%), aunque es la que menos vende en pesos.
+
+\subsection{Repetir mientras se cumpla algo: \texorpdfstring{\codigo{while}}{while}}
+
+\codigo{while} repite un bloque \emph{mientras} una condición sea
+verdadera. Se usa cuando no sabes de antemano cuántas vueltas darás.
+
+\begin{ejemplo}{¿Cuántos meses para llegar a la meta?}
+Una tienda vende hoy \$350,000 al mes y su plan de negocio prevé crecer 3\%
+mensual. ¿En cuántos meses alcanzará ventas mensuales de \$450,000?
+\end{ejemplo}
+
+\begin{rcode}
+venta_actual <- 350000
+crecimiento_mensual <- 0.03
+meta_mensual <- 450000
+meses <- 0
+
+while (venta_actual < meta_mensual) {
+  venta_actual <- venta_actual * (1 + crecimiento_mensual)
+  meses <- meses + 1
+}
+meses
+round(venta_actual, 2)
+\end{rcode}
+\begin{rsalida}
+[1] 9
+[1] 456670.6
+\end{rsalida}
+
+En cada vuelta la venta crece 3\% y el contador de meses sube en uno. El
+bucle se detiene en cuanto la venta alcanza la meta: después de 9 meses la
+tienda vendería unos \$456,671.
+
+\begin{advertencia}
+Si la condición de un \codigo{while} nunca se vuelve \codigo{FALSE} (por
+ejemplo, con un crecimiento de 0\%), el bucle no termina jamás: es un
+\termino{bucle infinito}. Si te pasa, presiona \tecla{Esc} o el botón rojo
+\menu{Stop} de la consola.
+\end{advertencia}
+
+\subsection{En R se prefiere lo vectorizado}
+
+Si vienes de Excel o de otro lenguaje, tu primer instinto será escribir
+bucles para todo. En R casi siempre existe una forma vectorizada más corta,
+más rápida y menos propensa a errores. Compara el bucle anterior de
+cumplimiento con esta sola línea:
+
+\begin{rcode}
+round(ventas_mes / metas_mes * 100, 1)       # Cumplimiento de las 5
+sucursales[ventas_mes / metas_mes < 0.95]    # Las que hay que revisar
+\end{rcode}
+\begin{rsalida}
+[1]  93.3 104.2  93.1 102.3 106.7
+[1] "Centro" "Sur"   
+\end{rsalida}
+
+Usa \codigo{for} cuando cada vuelta haga algo que no es un simple cálculo:
+imprimir un reporte, leer un archivo distinto, guardar un Excel por
+sucursal. Para aplicar una función a cada elemento de una lista existe
+también la familia \codigo{apply}: \codigo{sapply()} aplica una función y
+simplifica el resultado a un vector, y \codigo{vapply()} hace lo mismo
+pero te obliga a declarar qué tipo de resultado esperas, lo que la hace más
+segura.
+
+\begin{rcode}
+ventas_por_tienda <- list(
+  Centro = c(15200, 13900, 16800),
+  Norte = c(12100, 12900),
+  Outlet = c(8400, 9100, 7600, 9900)
+)
+sapply(ventas_por_tienda, sum)                  # Total de cada tienda
+sapply(ventas_por_tienda, length)               # Días con datos
+vapply(ventas_por_tienda, mean, numeric(1))     # Promedio (seguro)
+\end{rcode}
+\begin{rsalida}
+Centro  Norte Outlet 
+ 45900  25000  35000 
+Centro  Norte Outlet 
+     3      2      4 
+Centro  Norte Outlet 
+ 15300  12500   8750 
+\end{rsalida}
+
+\codigo{numeric(1)} le dice a \codigo{vapply()}: ``cada resultado debe ser
+un número''. Si alguna tienda devolviera texto o varios valores, R te
+avisaría con un error en lugar de darte un resultado raro. En el
+Módulo~\ref{cap:manipulacion} verás que con \paquete{dplyr} la mayoría de
+estos cálculos por grupo se hacen sin bucles.
+
+\begin{hazlotu}
+Con los vectores \codigo{sucursales} y \codigo{ventas\_mes} usa
+\codigo{ifelse()} para clasificar cada sucursal como ``Grande'' (ventas
+$\geq$ \$450,000) o ``Chica''. Después escribe un \codigo{for} que imprima
+con \codigo{cat()} una línea como \codigo{"Norte: Grande"} por sucursal.
+\end{hazlotu}
+
+% ============================================================================
+\section{Tus propias funciones: una caja de herramientas BI}
+\label{sec:m1-funciones}
+% ============================================================================
+
+Si copias y pegas el mismo cálculo tres veces, es momento de convertirlo en
+una \termino{función}. Una función propia es como una fórmula personalizada
+de Excel: le pones nombre una vez y la usas siempre que la necesites. Si
+mañana cambia la regla de negocio, la corriges en un solo lugar.
+
+\subsection{Anatomía de una función}
+
+\begin{rcode}
+# Calcula el margen de utilidad de uno o varios productos.
+# Argumentos:
+#   precio: precio de venta (número o vector)
+#   costo:  costo unitario (número o vector)
+#   en_pct: TRUE devuelve porcentaje (0-100); FALSE, proporción (0-1)
+# Devuelve: el margen, redondeado a 1 decimal si es porcentaje
+calcular_margen <- function(precio, costo, en_pct = TRUE) {
+  margen <- (precio - costo) / precio
+  if (en_pct) {
+    return(round(margen * 100, 1))
+  }
+  margen
+}
+\end{rcode}
+
+\begin{itemize}
+  \item \codigo{calcular\_margen} es el nombre; \codigo{function()} crea la
+        función.
+  \item Entre paréntesis van los \termino{argumentos}: los datos que la
+        función necesita. \codigo{en\_pct = TRUE} tiene un
+        \termino{valor por defecto}: si no lo indicas, vale \codigo{TRUE}.
+  \item Entre llaves va el \termino{cuerpo}: los cálculos.
+  \item \codigo{return()} devuelve un resultado y termina la función. Si no
+        lo usas, la función devuelve el resultado de la última línea
+        (aquí, \codigo{margen}).
+  \item Los comentarios de arriba \emph{documentan} la función: qué hace,
+        qué recibe y qué devuelve. Es un hábito profesional que te salvará
+        cuando vuelvas a este código en unos meses.
+\end{itemize}
+
+Definir la función no calcula nada: solo la ``guarda'' en el entorno.
+Ahora úsala:
+
+\begin{rcode}
+calcular_margen(450, 280)                        # Posicional
+calcular_margen(precio = 450, costo = 280, en_pct = FALSE)
+calcular_margen(productos$precio, productos$costo)  # Vectorizada
+\end{rcode}
+\begin{rsalida}
+[1] 37.8
+[1] 0.3777778
+[1] 25.0 65.6 25.4 41.0 31.4 57.3 46.9 44.7
+\end{rsalida}
+
+Como está construida con operaciones vectorizadas, la misma función sirve
+para un producto o para todo el catálogo. Escribir los nombres de los
+argumentos (\codigo{precio = 450}) es opcional, pero hace el código más
+claro, sobre todo cuando hay argumentos con valor por defecto.
+
+\subsection{Validar los datos: \texorpdfstring{\codigo{stop()}}{stop()} y \texorpdfstring{\codigo{warning()}}{warning()}}
+
+Una buena función se protege de datos absurdos. \codigo{stop()} detiene la
+función con un mensaje de error claro; \codigo{warning()} deja que continúe
+pero avisa que algo es sospechoso.
+
+\begin{rcode}
+# ROI (retorno sobre la inversión) en porcentaje
+calcular_roi <- function(ganancia, inversion) {
+  if (!is.numeric(ganancia) || !is.numeric(inversion)) {
+    stop("ganancia e inversion deben ser números")
+  }
+  if (any(inversion <= 0)) {
+    stop("La inversión debe ser mayor que cero")
+  }
+  (ganancia - inversion) / inversion * 100
+}
+
+# Variación porcentual entre un periodo y el anterior
+variacion_porcentual <- function(actual, anterior) {
+  if (any(anterior == 0)) {
+    warning("Hay periodos anteriores en 0; su variación queda como NA")
+  }
+  resultado <- (actual - anterior) / anterior * 100
+  resultado[anterior == 0] <- NA
+  round(resultado, 1)
+}
+\end{rcode}
+
+El operador \codigo{||} es un ``o'' para un solo valor (dentro de
+\codigo{if} se prefiere a \codigo{|}) y \codigo{any()} responde
+\codigo{TRUE} si \emph{alguno} de los elementos cumple la condición. Veamos
+qué pasa con datos inválidos:
+
+\begin{rnoejecutar}
+calcular_roi(5000, 0)
+\end{rnoejecutar}
+\begin{rsalida}
+Error in calcular_roi(5000, 0) : La inversión debe ser mayor que cero
+\end{rsalida}
+
+\begin{rnoejecutar}
+variacion_porcentual(c(120, 50), c(100, 0))
+\end{rnoejecutar}
+\begin{rsalida}
+[1] 20 NA
+Warning message:
+In variacion_porcentual(c(120, 50), c(100, 0)) :
+  Hay periodos anteriores en 0; su variación queda como NA
+\end{rsalida}
+
+Sin la validación, dividir entre cero daría \codigo{Inf} (infinito) y ese
+valor absurdo se colaría en tu reporte. Con ella, el error explica
+exactamente qué está mal.
+
+\subsection{La caja de herramientas completa}
+
+Agreguemos una función para segmentar clientes según su gasto anual y
+usemos las cuatro juntas.
+
+\begin{rcode}
+# Segmenta clientes por gasto anual:
+# Bronce < $5,000 <= Plata < $20,000 <= Oro < $50,000 <= Platino
+clasificar_cliente <- function(gasto_anual,
+                               cortes = c(5000, 20000, 50000)) {
+  if (any(gasto_anual < 0, na.rm = TRUE)) {
+    stop("El gasto no puede ser negativo")
+  }
+  ifelse(gasto_anual >= cortes[3], "Platino",
+         ifelse(gasto_anual >= cortes[2], "Oro",
+                ifelse(gasto_anual >= cortes[1], "Plata", "Bronce")))
+}
+\end{rcode}
+
+\begin{ejemplo}{Usar la caja de herramientas}
+Una campaña de marketing costó \$80,000 y generó \$116,000 de utilidad.
+Las ventas trimestrales fueron \$126,274, \$120,717, \$134,427 y \$132,498.
+Y seis clientes gastaron en el año \$3,200, \$18,500, \$52,000, \$7,800,
+\$25,000 y \$950. Calcula el ROI, la variación trimestral y el segmento de
+cada cliente.
+\end{ejemplo}
+
+\begin{rcode}
+calcular_roi(ganancia = 116000, inversion = 80000)
+
+ventas_trim <- c(Q1 = 126274, Q2 = 120717, Q3 = 134427, Q4 = 132498)
+variacion_porcentual(ventas_trim[-1], ventas_trim[-4])
+
+gastos <- c(3200, 18500, 52000, 7800, 25000, 950)
+segmentos <- clasificar_cliente(gastos)
+segmentos
+table(factor(segmentos, levels = c("Bronce", "Plata", "Oro",
+                                    "Platino")))
+\end{rcode}
+\begin{rsalida}
+[1] 45
+  Q2   Q3   Q4 
+-4.4 11.4 -1.4 
+[1] "Bronce"  "Plata"   "Platino" "Plata"   "Oro"     "Bronce" 
+
+ Bronce   Plata     Oro Platino 
+      2       2       1       1 
+\end{rsalida}
+
+\textbf{¿Qué nos dice esto?} La campaña tuvo un ROI de 45\%: por cada peso
+invertido se recuperó el peso y 45 centavos más. Las ventas cayeron 4.4\% del
+primer al segundo trimestre, repuntaron 11.4\% en el tercero y bajaron
+ligeramente en el cuarto. Y la cartera tiene dos clientes Bronce, dos Plata
+y un cliente en cada uno de los niveles Oro y Platino.
+
+Observa el truco de \codigo{ventas\_trim[-1]} (todos menos el primero, es
+decir Q2 a Q4) contra \codigo{ventas\_trim[-4]} (todos menos el último, Q1
+a Q3): así comparas cada trimestre con el anterior sin bucles. Los nombres
+del resultado son los del periodo actual.
+
+\begin{consejo}
+Guarda tus funciones de uso frecuente en un script aparte, por ejemplo
+\archivo{funciones\_bi.R}, y cárgalas al inicio de cada análisis con
+\codigo{source("funciones\_bi.R")}. Así construyes tu propia caja de
+herramientas y todos tus reportes calculan los KPIs de la misma forma.
+\end{consejo}
+
+\begin{hazlotu}
+Escribe una función \codigo{precio\_final(precio, descuento = 0, iva =
+0.16)} que aplique primero el descuento (como proporción, 0.15 = 15\%) y
+luego el IVA, y que se detenga con \codigo{stop()} si el descuento no está
+entre 0 y 1. Pruébala con \codigo{precio\_final(18999, 0.15)}; debería dar
+18,733.01.
+\end{hazlotu}
+
+% ============================================================================
+\section{Paquetes: superpoderes para R}
+\label{sec:m1-paquetes}
+% ============================================================================
+
+R ``de fábrica'' (llamado \termino{R base}) ya hace muchísimo, pero su
+verdadero poder está en los \termino{paquetes}: colecciones de funciones,
+datos y documentación que otras personas escribieron y comparten gratis. Si
+R fuera un teléfono, los paquetes serían las apps. Hay paquetes para leer
+Excel (\paquete{readxl}), manipular datos (\paquete{dplyr}), hacer gráficas
+(\paquete{ggplot2}), crear tableros web (\paquete{shiny}) o entrenar
+modelos de \emph{machine learning}.
+
+\subsection{Instalar y cargar}
+
+La mayoría de los paquetes viven en \termino{CRAN} (\emph{Comprehensive R
+Archive Network}), el repositorio oficial de R, con más de 20,000
+paquetes revisados. Trabajar con un paquete tiene dos pasos, que conviene
+no confundir:
+
+\begin{enumerate}
+  \item \textbf{Instalar} (una sola vez por computadora): descarga el
+        paquete de internet. Es como descargar una app.
+  \item \textbf{Cargar} (en cada sesión en la que lo uses): lo activa para
+        la sesión actual. Es como abrir la app.
+\end{enumerate}
+
+\begin{rnoejecutar}
+# Instalar (solo una vez; necesita internet). Nota las comillas.
+install.packages("readxl")
+install.packages(c("tidyverse", "writexl", "scales"))  # Varios a la vez
+\end{rnoejecutar}
+
+También puedes instalar desde el panel \menu{Packages > Install}. No pongas
+\codigo{install.packages()} dentro de tus scripts de análisis: se volvería a
+descargar el paquete cada vez que los ejecutes. Instala desde la consola y
+deja en el script solo las líneas \codigo{library()}.
+
+\begin{rcode}
+library(readxl)                        # Cargar (en cada sesión)
+library(writexl)
+"readxl" %in% rownames(installed.packages())  # ¿Está instalado?
+as.character(packageVersion("readxl"))  # ¿Qué versión tengo?
+\end{rcode}
+\begin{rsalida}
+[1] TRUE
+[1] "1.4.3"
+\end{rsalida}
+
+\begin{concepto}{Instalar contra cargar}
+\codigo{install.packages("readxl")} va con comillas y se hace una vez.
+\codigo{library(readxl)} va sin comillas y se escribe al inicio de cada
+script que use el paquete. Si ves el error \codigo{could not find function
+"read\_excel"}, casi siempre olvidaste el \codigo{library()}; si ves
+\codigo{there is no package called 'readxl'}, te falta instalarlo.
+\end{concepto}
+
+\subsection{La notación \texorpdfstring{\codigo{paquete::funcion()}}{paquete::funcion()}}
+
+Ya usaste \codigo{scales::dollar()} y \codigo{tibble::tibble()}. Los dos
+signos de dos puntos permiten usar una función de un paquete
+\emph{instalado} sin cargarlo completo con \codigo{library()}. Es útil
+cuando solo necesitas una función, y además deja claro de dónde viene:
+
+\begin{rcode}
+scales::dollar(513916.6)      # Sin library(scales)
+\end{rcode}
+\begin{rsalida}
+[1] "$513,917"
+\end{rsalida}
+
+\subsection{El tidyverse y su mensaje de bienvenida}
+
+El \termino{tidyverse} es una colección de paquetes diseñados para
+trabajar juntos en ciencia de datos: \paquete{readr} (leer archivos),
+\paquete{dplyr} (manipular tablas), \paquete{tidyr} (reorganizarlas),
+\paquete{ggplot2} (gráficas), \paquete{stringr} (texto),
+\paquete{lubridate} (fechas), \paquete{forcats} (factores),
+\paquete{tibble} y \paquete{purrr}. Con una sola línea los cargas todos:
+
+\begin{rcode}
+library(tidyverse)
+\end{rcode}
+
+Al ejecutarla, la consola muestra un mensaje de bienvenida en dos partes.
+No es un error; conviene entenderlo:
+
+\begin{itemize}
+  \item \textbf{Attaching core tidyverse packages}: la lista de los nueve
+        paquetes que se cargaron, cada uno con su versión y una palomita.
+  \item \textbf{Conflicts}: avisa de funciones con el mismo nombre en dos
+        paquetes. Verás líneas como \codigo{dplyr::filter() masks
+        stats::filter()}, que significan: ``el paquete \paquete{stats} (que
+        viene con R) ya tenía una función \codigo{filter()}; a partir de
+        ahora, cuando escribas \codigo{filter()} se usará la de
+        \paquete{dplyr}''. Lo mismo ocurre con \codigo{lag()}.
+\end{itemize}
+
+Estos conflictos son normales y esperados: la versión de \paquete{dplyr} es
+justo la que quieres. Si alguna vez necesitas la otra, escribe el nombre
+completo, por ejemplo \codigo{stats::filter()}. El mensaje aparece solo al
+cargar el paquete; en este libro no lo reproducimos para ahorrar espacio.
+
+\begin{hazlotu}
+En la pestaña \menu{Packages} de RStudio busca \paquete{readxl} y haz clic
+en su nombre: se abrirá su documentación en \menu{Help}. Después ejecuta
+\codigo{packageVersion("dplyr")} y
+\codigo{"janitor" \%in\% rownames(installed.packages())} para saber si
+tienes instalado el paquete \paquete{janitor}.
+\end{hazlotu}
+
 % --- CONTINUARÁ ---

@@ -1437,3 +1437,1197 @@ Haz el mismo análisis de Pareto con los \emph{clientes} en lugar de los
 productos. ¿Qué porcentaje de clientes genera el 80\% de los ingresos? ¿Los
 ingresos están más o menos concentrados que en los productos?
 \end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Correlación: ¿qué variables se mueven juntas?}
+\label{sec:m4-correlacion}
+
+La \termino{correlación} mide qué tanto se mueven juntas dos variables
+numéricas. Se resume en un número entre $-1$ y $+1$:
+\begin{itemize}
+  \item Cerca de $+1$: cuando una sube, la otra también sube (visitas a la
+        tienda y ventas).
+  \item Cerca de $-1$: cuando una sube, la otra baja (precio y unidades
+        vendidas).
+  \item Cerca de $0$: no hay relación \emph{lineal} (estatura del cliente y
+        ticket).
+\end{itemize}
+Como guía práctica: $|r| < 0.3$ es una relación débil, entre $0.3$ y $0.7$
+moderada, y mayor a $0.7$ fuerte.
+
+\subsection{Pearson y Spearman}
+
+La \termino{correlación de Pearson} ($r$) mide relaciones \emph{lineales}
+(en línea recta) y usa los valores tal cual; por eso es sensible a los
+atípicos. Su fórmula compara cómo se desvía cada variable de su media:
+\[
+  r = \frac{\sum (x_i - \bar{x})(y_i - \bar{y})}
+           {\sqrt{\sum (x_i - \bar{x})^2}\,\sqrt{\sum (y_i - \bar{y})^2}}
+\]
+Si cuando $x$ está por encima de su media $y$ también lo está, los productos
+del numerador son positivos y $r$ sale positiva. La \termino{correlación de
+Spearman} ($\rho$, ``ro'') hace lo mismo pero con los \emph{lugares}
+(rangos) que ocupa cada dato al ordenarlos; mide si la relación es
+\emph{monótona} (siempre sube o siempre baja, aunque no sea en línea recta) y
+casi no le afectan los atípicos.
+
+\begin{ejemplo}{¿Qué explica el gasto de un cliente?}
+Construimos una tabla con una fila por cliente: número de compras, unidades,
+gasto total, ticket promedio, edad y antigüedad como cliente. Queremos saber
+qué variables se relacionan con el gasto anual.
+\end{ejemplo}
+
+\begin{rcode}
+perfil_clientes <- transacciones %>%
+  group_by(cliente_id) %>%
+  summarise(compras   = n(),
+            unidades  = sum(cantidad),
+            gasto     = sum(total_transaccion),
+            ticket    = mean(total_transaccion),
+            .groups = "drop") %>%
+  left_join(clientes, by = "cliente_id") %>%
+  mutate(antiguedad = as.numeric(as.Date("2023-12-31") - fecha_registro))
+
+# Pearson (el método por defecto) y Spearman
+cor(perfil_clientes$compras, perfil_clientes$gasto)
+cor(perfil_clientes$compras, perfil_clientes$gasto, method = "spearman")
+cor(perfil_clientes$edad, perfil_clientes$gasto)
+\end{rcode}
+\begin{rsalida}
+[1] 0.7927073
+[1] 0.7519843
+[1] -0.07345163
+\end{rsalida}
+
+El número de compras tiene una correlación fuerte con el gasto (0.79 con
+Pearson y 0.75 con Spearman): los clientes que más gastan son,
+sobre todo, los que compran más veces. La edad, en cambio, casi no tiene
+relación con el gasto ($-0.07$).
+
+Para ver la diferencia entre ambos métodos, observa este ejemplo pequeño
+creado a mano: diez tiendas donde las ventas suben siempre con el número de
+visitantes, salvo que la décima tienda tuvo una venta corporativa enorme.
+
+\begin{rcode}
+visitantes <- c(100, 120, 150, 170, 200, 220, 250, 270, 300, 320)
+ventas_dia <- c(10, 12, 14, 17, 19, 22, 24, 27, 29, 300)  # la última: atípica
+
+cor(visitantes, ventas_dia)                        # Pearson
+cor(visitantes, ventas_dia, method = "spearman")   # Spearman
+\end{rcode}
+\begin{rsalida}
+[1] 0.5726456
+[1] 1
+\end{rsalida}
+
+La relación es perfectamente monótona (más visitantes, siempre más ventas),
+y Spearman lo detecta con $\rho = 1$. Pearson da 0.57 porque el dato
+atípico rompe la línea recta. \textbf{Regla práctica}: usa Pearson cuando la
+relación se vea lineal y no haya atípicos fuertes; usa Spearman con datos
+asimétricos, con atípicos o con escalas ordinales (calificaciones de 1 a 5).
+
+\subsection{Matriz de correlación}
+
+Cuando tienes muchas variables, \codigo{cor()} aplicado a un data frame
+numérico calcula todas las correlaciones a la vez: una
+\termino{matriz de correlación}.
+
+\begin{rcode}
+matriz_cor <- perfil_clientes %>%
+  select(compras, unidades, gasto, ticket, edad, antiguedad) %>%
+  cor()
+
+round(matriz_cor, 2)
+\end{rcode}
+\begin{rsalida}
+           compras unidades gasto ticket  edad antiguedad
+compras       1.00     0.91  0.79  -0.09 -0.02       0.01
+unidades      0.91     1.00  0.87   0.14 -0.01       0.03
+gasto         0.79     0.87  1.00   0.46 -0.07       0.05
+ticket       -0.09     0.14  0.46   1.00 -0.14       0.05
+edad         -0.02    -0.01 -0.07  -0.14  1.00       0.01
+antiguedad    0.01     0.03  0.05   0.05  0.01       1.00
+\end{rsalida}
+
+La diagonal siempre vale 1 (cada variable consigo misma) y la matriz es
+simétrica: la correlación de \codigo{compras} con \codigo{gasto} es la misma
+que la de \codigo{gasto} con \codigo{compras}. Leer una tabla así es
+cansado; \paquete{corrplot} la convierte en una imagen:
+
+\begin{rcode}
+corrplot(matriz_cor,
+         method = "color",          # celdas coloreadas
+         type = "upper",            # solo el triángulo superior
+         addCoef.col = "black",     # escribe el coeficiente
+         number.cex = 0.8,          # tamaño de los números
+         tl.col = "black",          # color de los nombres
+         tl.srt = 45,               # nombres inclinados
+         col = colorRampPalette(c("#e34948", "white", "#2a78d6"))(200),
+         diag = FALSE)              # sin la diagonal de unos
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{m04-corrplot}
+\caption{Matriz de correlación del perfil de clientes. Escala divergente:
+azul = correlación positiva, rojo = negativa, blanco = sin relación.}
+\label{fig:m04-corrplot}
+\end{figure}
+
+La figura~\ref{fig:m04-corrplot} usa una paleta \emph{divergente} (rojo,
+blanco, azul) porque la correlación tiene un centro natural en cero. Se lee
+de un vistazo: el gasto se explica por la frecuencia (\codigo{compras},
+0.79) y por las \codigo{unidades} (0.87); el \codigo{ticket} promedio tiene
+una relación moderada con el gasto (0.46), y la edad y la antigüedad no se
+relacionan con nada. Para la directora esto significa que \textbf{aumentar la
+frecuencia de compra} (que el cliente regrese) pesa más que la edad o la
+antigüedad del cliente.
+
+\subsection{¿La correlación es real? \texorpdfstring{\codigo{cor.test()}}{cor.test()}}
+
+Una correlación calculada con pocos datos puede salir distinta de cero por
+pura casualidad. La función \codigo{cor.test()} responde: \emph{si en
+realidad no hubiera ninguna relación, ¿qué tan raro sería observar una
+correlación como esta?} (en la sección~\ref{sec:m4-hipotesis} verás esta
+lógica con detalle).
+
+\begin{rcode}
+cor.test(perfil_clientes$edad, perfil_clientes$gasto)
+\end{rcode}
+\begin{rsalida}
+	Pearson's product-moment correlation
+
+data:  perfil_clientes$edad and perfil_clientes$gasto
+t = -1.0311, df = 196, p-value = 0.3038
+alternative hypothesis: true correlation is not equal to 0
+95 percent confidence interval:
+ -0.21073472  0.06667273
+sample estimates:
+        cor
+-0.07345163
+\end{rsalida}
+
+Lo que importa de esta salida:
+\begin{itemize}
+  \item \codigo{cor = -0.073}: la correlación de la muestra.
+  \item \codigo{p-value = 0.3038}: una probabilidad de 30\%. Si la edad no
+        tuviera ninguna relación con el gasto, sería muy común ver una
+        correlación como esta solo por azar. Conclusión: \textbf{no hay
+        evidencia} de que la edad se relacione con el gasto.
+  \item \codigo{95 percent confidence interval}: el valor real de la
+        correlación podría estar entre $-0.21$ y $0.07$; el intervalo
+        incluye el cero.
+\end{itemize}
+
+\begin{hazlotu}
+Aplica \codigo{cor.test()} a \codigo{compras} y \codigo{gasto}. ¿Qué
+p-valor obtienes? ¿El intervalo de confianza incluye el cero? Repite con
+\codigo{method = "spearman"}.
+\end{hazlotu}
+
+\subsection{Correlación no implica causalidad}
+\label{sec:m4-causalidad}
+
+Que dos variables se muevan juntas \textbf{no significa} que una cause a la
+otra. Puede haber una tercera variable, llamada \termino{variable de
+confusión}, que mueve a las dos. Para verlo con claridad \textbf{simulamos}
+datos donde conocemos la verdad: en una cadena de tiendas, la temperatura
+del día aumenta tanto la venta de helados como la de ventiladores, pero los
+helados \emph{no} influyen en los ventiladores.
+
+\begin{rcode}
+set.seed(123)
+dias_verano <- tibble(
+  temperatura = runif(90, min = 18, max = 38),           # grados
+  helados     = 20 + 3 * temperatura + rnorm(90, sd = 8),
+  ventiladores = 5 + 1.5 * temperatura + rnorm(90, sd = 5)
+)
+
+# Ventas de helados vs ventiladores: correlación alta...
+cor(dias_verano$helados, dias_verano$ventiladores)
+\end{rcode}
+\begin{rsalida}
+[1] 0.8160674
+\end{rsalida}
+
+Una correlación de 0.82 es muy fuerte. Un análisis ingenuo diría: ``pongamos
+los ventiladores junto a los helados, porque vender helados impulsa la venta
+de ventiladores''. Pero sabemos (porque así los simulamos) que la única causa
+común es la temperatura. En la sección~\ref{sec:m4-regresion} verás cómo la
+regresión múltiple permite ``controlar'' por la temperatura y comprobar que,
+a igual temperatura, los helados no explican los ventiladores.
+
+\begin{negocio}{Correlaciones engañosas en la empresa}
+\begin{itemize}
+  \item ``Las tiendas con más empleados venden más'': tal vez las tiendas
+        grandes tienen más empleados \emph{y} más clientes.
+  \item ``Los clientes que usan la app gastan más'': quizá los clientes que
+        ya gastaban mucho son los que descargan la app.
+  \item ``Cuando subimos la publicidad subieron las ventas'': ¿o se subió la
+        publicidad justo en diciembre, cuando las ventas suben solas?
+\end{itemize}
+Para demostrar causalidad se necesitan experimentos controlados (como las
+pruebas A/B de la sección~\ref{sec:m4-ab}) o técnicas que controlen las
+variables de confusión.
+\end{negocio}
+
+% ----------------------------------------------------------------------------
+\section{Probabilidad y distribuciones útiles}
+\label{sec:m4-probabilidad}
+
+Una \termino{distribución de probabilidad} es un modelo que describe qué
+valores puede tomar algo incierto y con qué probabilidad. No necesitas
+memorizar fórmulas: R trae funciones con una convención de nombres muy
+sencilla (tabla~\ref{tab:m4-distribuciones}).
+
+\begin{table}[H]
+\centering
+\small
+\caption{Prefijos de las funciones de distribución en R.}
+\label{tab:m4-distribuciones}
+\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\toprule
+\textbf{Prefijo} & \textbf{Qué calcula} & \textbf{Ejemplos} \\
+\midrule
+\codigo{d} & Probabilidad de un valor exacto (densidad) & \codigo{dbinom()},
+  \codigo{dpois()} \\
+\codigo{p} & Probabilidad acumulada: $P(X \leq x)$ & \codigo{pnorm()},
+  \codigo{pbinom()} \\
+\codigo{q} & El valor que deja por debajo una probabilidad dada (cuantil) &
+  \codigo{qnorm()} \\
+\codigo{r} & Números aleatorios que siguen esa distribución & \codigo{rnorm()},
+  \codigo{rbinom()} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Distribución normal: ventas semanales}
+
+La \termino{distribución normal} es la famosa ``campana de Gauss'':
+simétrica, con la mayoría de los datos cerca de la media y cada vez menos
+hacia los extremos. Queda definida por dos números: la media ($\mu$) y la
+desviación estándar ($\sigma$). Una regla útil: en una normal, cerca del
+68\% de los datos cae a menos de una desviación estándar de la media y el
+95\% a menos de dos.
+
+El ticket individual no es normal (tiene cola a la derecha), pero las
+\emph{sumas} de muchas ventas tienden a serlo. Esto se debe al
+\termino{teorema del límite central}, uno de los resultados más importantes
+de la estadística: al sumar o promediar muchos datos independientes, el
+resultado se parece cada vez más a una normal, sin importar la forma de los
+datos originales. Comprobémoslo con las ventas semanales:
+
+\begin{rcode}
+ventas_semanales <- transacciones %>%
+  # semanas completas de lunes a domingo (del 2 de enero al 31 de dic.)
+  filter(fecha >= as.Date("2023-01-02")) %>%
+  mutate(semana = floor_date(fecha, unit = "week", week_start = 1)) %>%
+  group_by(semana) %>%
+  summarise(ventas = sum(total_transaccion), .groups = "drop")
+
+media_sem <- mean(ventas_semanales$ventas)
+sd_sem    <- sd(ventas_semanales$ventas)
+nrow(ventas_semanales)
+c(media = media_sem, desv_est = sd_sem)
+asimetria(ventas_semanales$ventas)
+\end{rcode}
+\begin{rsalida}
+[1] 52
+    media  desv_est
+18444.936  4591.285
+[1] 0.2219801
+\end{rsalida}
+
+Tenemos 52 semanas completas con venta media de \$18,445 y desviación
+estándar de \$4,591. La asimetría es pequeña (0.22): la forma es casi
+simétrica. La
+figura~\ref{fig:m04-normal-semanal} compara el histograma con la curva
+normal teórica.
+
+\begin{rcode}
+p_normal <- ggplot(ventas_semanales, aes(x = ventas)) +
+  geom_histogram(aes(y = after_stat(density)), binwidth = 2000,
+                 fill = color_principal, color = "white", alpha = 0.85) +
+  # curva normal con la media y desviación de los datos
+  stat_function(fun = dnorm, args = list(mean = media_sem, sd = sd_sem),
+                color = color_resalte, linewidth = 0.9) +
+  geom_vline(xintercept = 25000, linetype = "dashed", color = "#52514e") +
+  annotate("text", x = 25300, y = 9e-05, hjust = 0, size = 3.3,
+           label = "¿Más de $25,000?", color = "#52514e") +
+  scale_x_continuous(labels = dollar) +
+  scale_y_continuous(labels = NULL) +
+  labs(title = "Ventas semanales de 2023 y curva normal",
+       subtitle = "52 semanas; la curva naranja es Normal(18,445; 4,591)",
+       x = "Ventas de la semana", y = "Densidad") +
+  tema_libro()
+
+p_normal
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m04-normal-semanal}
+\caption{Las ventas semanales se ajustan bien a una distribución normal.}
+\label{fig:m04-normal-semanal}
+\end{figure}
+
+Con el modelo normal podemos responder preguntas de planeación:
+
+\begin{ejemplo}{Probabilidades con la normal}
+\begin{enumerate}
+  \item ¿Qué probabilidad hay de vender más de \$25,000 en una semana (lo
+        que activaría un bono para el equipo)?
+  \item ¿Cuánto inventario (en pesos) debe haber para cubrir la demanda del
+        90\% de las semanas?
+  \item ¿Qué probabilidad hay de una semana ``mala'', con menos de \$12,000?
+\end{enumerate}
+\end{ejemplo}
+
+\begin{rcode}
+# 1. P(ventas > 25,000) = 1 - P(ventas <= 25,000)
+1 - pnorm(25000, mean = media_sem, sd = sd_sem)
+
+# Comprobación con los datos reales: proporción de semanas > 25,000
+mean(ventas_semanales$ventas > 25000)
+
+# 2. Venta semanal que solo se supera el 10% de las veces
+qnorm(0.90, mean = media_sem, sd = sd_sem)
+
+# 3. P(ventas < 12,000)
+pnorm(12000, mean = media_sem, sd = sd_sem)
+\end{rcode}
+\begin{rsalida}
+[1] 0.0766864
+[1] 0.07692308
+[1] 24328.9
+[1] 0.08019928
+\end{rsalida}
+
+Respuestas: (1) hay un 7.7\% de probabilidad de superar \$25,000 en una
+semana, unas 4 semanas al año; los datos reales coinciden (7.7\%, es decir,
+4 de 52 semanas). (2) Con un inventario equivalente a \$24,329 se cubre la
+demanda del 90\% de las semanas. (3) Una semana por debajo de \$12,000 tiene
+una probabilidad de 8.0\%.
+
+\begin{advertencia}
+Verifica siempre que la normal sea razonable antes de usarla (histograma,
+asimetría cercana a cero). Si hubieras usado la normal con los
+\emph{tickets individuales}, que tienen cola larga, habrías calculado
+probabilidades negativas o muy equivocadas para los tickets bajos.
+\end{advertencia}
+
+\subsection{Distribución binomial: conversiones de una campaña}
+
+La \termino{distribución binomial} cuenta cuántos ``éxitos'' hay en $n$
+intentos independientes, cuando cada intento tiene la misma probabilidad
+$p$ de éxito. Ejemplos: cuántos de 200 correos generan una compra, cuántos
+de 50 clientes aceptan una oferta, cuántas de 1,000 piezas salen
+defectuosas. El número esperado de éxitos es $n \times p$.
+
+\begin{ejemplo}{Campaña de correo a clientes premium}
+La empresa enviará un correo con una oferta a 200 clientes. Por campañas
+anteriores, sabe que el 5\% de quienes reciben el correo compran. ¿Cuántas
+compras debe esperar? ¿Qué probabilidad hay de conseguir exactamente 10?
+¿Y de conseguir 15 o más, que es lo que el gerente prometió?
+\end{ejemplo}
+
+\begin{rcode}
+n_correos  <- 200     # intentos
+p_conv     <- 0.05    # probabilidad de conversión
+
+n_correos * p_conv                            # conversiones esperadas
+dbinom(10, size = n_correos, prob = p_conv)   # P(exactamente 10)
+pbinom(5, size = n_correos, prob = p_conv)    # P(5 o menos)
+1 - pbinom(14, size = n_correos, prob = p_conv)   # P(15 o más)
+\end{rcode}
+\begin{rsalida}
+[1] 10
+[1] 0.1283574
+[1] 0.0623425
+[1] 0.07813442
+\end{rsalida}
+
+Lo esperado son 10 compras, pero conseguir \emph{exactamente} 10 solo tiene
+un 12.8\% de probabilidad: el azar mueve el resultado. Hay un 6.2\% de
+probabilidad de un resultado decepcionante de 5 o menos, y apenas un 7.8\%
+de llegar a 15 o más. El gerente prometió algo poco probable: para esperar
+15 compras con un 5\% de conversión habría que enviar 300 correos.
+
+\begin{rcode}
+# ¿Cuántos correos hay que enviar para tener 90% de probabilidad
+# de conseguir al menos 15 compras?
+envios <- seq(200, 600, by = 10)
+prob_15_o_mas <- 1 - pbinom(14, size = envios, prob = p_conv)
+min(envios[prob_15_o_mas >= 0.90])
+\end{rcode}
+\begin{rsalida}
+[1] 400
+\end{rsalida}
+
+Para prometer 15 compras con un 90\% de seguridad hay que enviar al menos 400
+correos, el doble de lo planeado. Este tipo de cálculo evita compromisos
+imposibles con la dirección.
+
+\subsection{Distribución de Poisson: llegadas de clientes}
+
+La \termino{distribución de Poisson} cuenta cuántos eventos ocurren en un
+intervalo (de tiempo o de espacio) cuando ocurren al azar a un ritmo
+promedio constante $\lambda$ (``lambda''). Ejemplos: clientes que llegan a
+la caja por hora, llamadas al centro de atención por minuto, quejas por día.
+Una propiedad característica: en una Poisson la media y la varianza son
+iguales ($\lambda$).
+
+Nuestros datos permiten comprobarlo. Contemos cuántas transacciones hubo
+cada uno de los 365 días de 2023 (incluidos los días con cero ventas):
+
+\begin{rcode}
+tx_por_dia <- tibble(fecha = seq(as.Date("2023-01-01"),
+                                 as.Date("2023-12-31"), by = "day")) %>%
+  left_join(count(transacciones, fecha), by = "fecha") %>%
+  mutate(n = replace_na(n, 0))              # días sin ventas = 0
+
+lambda <- mean(tx_por_dia$n)
+c(media = lambda, varianza = var(tx_por_dia$n))
+
+# Frecuencia observada vs la que predice una Poisson(lambda)
+tibble(transacciones_dia = 0:6) %>%
+  mutate(
+    dias_observados = map_int(transacciones_dia,
+                              ~ sum(tx_por_dia$n == .x)),
+    dias_poisson = round(365 * dpois(transacciones_dia, lambda), 1)
+  )
+\end{rcode}
+\begin{rsalida}
+   media varianza
+2.739726 2.544709
+# A tibble: 7 x 3
+  transacciones_dia dias_observados dias_poisson
+              <int>           <int>        <dbl>
+1                 0              20         23.6
+2                 1              69         64.6
+3                 2              85         88.5
+4                 3              78         80.8
+5                 4              63         55.3
+6                 5              32         30.3
+7                 6              14         13.8
+\end{rsalida}
+
+La media (2.74) y la varianza (2.54) son muy parecidas, y los días
+observados con 0, 1, 2\ldots{} transacciones se parecen mucho a los que
+predice la Poisson. \codigo{map\_int()} (del paquete \paquete{purrr}, parte
+del \paquete{tidyverse}) aplica el conteo a cada valor de
+\codigo{transacciones\_dia}.
+
+\begin{ejemplo}{Personal en cajas}
+En la sucursal Centro llegan en promedio 12 clientes por hora a las cajas
+en la tarde. Cada cajero atiende cómodamente a 8 clientes por hora. Con dos
+cajeros (capacidad de 16), ¿qué probabilidad hay de que en una hora lleguen
+más clientes de los que se pueden atender? ¿Y con tres cajeros
+(capacidad 24)?
+\end{ejemplo}
+
+\begin{rcode}
+lambda_hora <- 12
+1 - ppois(16, lambda = lambda_hora)   # P(más de 16): 2 cajeros
+1 - ppois(24, lambda = lambda_hora)   # P(más de 24): 3 cajeros
+dpois(0, lambda = lambda_hora)        # P(ningún cliente en la hora)
+\end{rcode}
+\begin{rsalida}
+[1] 0.101291
+[1] 0.0006856332
+[1] 6.144212e-06
+\end{rsalida}
+
+Con dos cajeros, en un 10.1\% de las horas de la tarde habrá más clientes
+que capacidad (se formarán filas, aproximadamente 1 de cada 10 horas). Con
+tres cajeros ese riesgo baja a 0.07\%. La última línea muestra que una hora
+sin ningún cliente es prácticamente imposible (0.0006\%; el
+\codigo{e-06} significa ``por $10^{-6}$''). La decisión ya no es ``intuición
+contra intuición'': es comparar el costo de un tercer cajero contra el costo
+de las filas en el 10\% de las horas.
+
+\begin{hazlotu}
+Si el ritmo sube a 15 clientes por hora en diciembre, ¿qué probabilidad hay
+de superar la capacidad con dos cajeros? ¿Y con tres?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Muestreo e intervalos de confianza}
+\label{sec:m4-intervalos}
+
+Casi nunca tienes todos los datos que te interesan. Los 1,000 tickets de
+2023 son una \termino{muestra} de todas las compras que tus clientes harán;
+una encuesta a 400 clientes es una muestra de toda la clientela (la
+\termino{población}). La pregunta clave es: \emph{si tomara otra muestra,
+¿cuánto cambiaría mi resultado?}
+
+\subsection{Error estándar}
+
+El \termino{error estándar} (EE) mide cuánto variaría la media si repitieras
+el muestreo muchas veces. Se calcula así:
+\[
+  EE = \frac{s}{\sqrt{n}}
+\]
+Fíjate en el $\sqrt{n}$ del denominador: con más datos, el error estándar
+baja, pero despacio. Para reducir el error a la mitad necesitas
+\emph{cuatro} veces más datos.
+
+\begin{rcode}
+n_tickets <- length(ticket)
+error_estandar <- sd(ticket) / sqrt(n_tickets)
+error_estandar
+\end{rcode}
+\begin{rsalida}
+[1] 24.0448
+\end{rsalida}
+
+No confundas los dos conceptos: la desviación estándar (\$760) dice cuánto
+varían los tickets \emph{individuales}; el error estándar (\$24) dice cuánto
+variaría el \emph{promedio} de 1,000 tickets.
+
+\subsection{Intervalo de confianza para el ticket promedio}
+
+Un \termino{intervalo de confianza} (IC) es un rango de valores plausibles
+para el verdadero valor de la población. El IC del 95\% para una media se
+construye como:
+\[
+  \bar{x} \;\pm\; t \times EE
+\]
+donde $t$ es un número que sale de la \termino{distribución t de Student}
+(muy parecida a la normal) y, con muestras grandes, vale casi 2. Hagámoslo
+``a mano'' y luego con \codigo{t.test()}:
+
+\begin{rcode}
+t_critico <- qt(0.975, df = n_tickets - 1)   # valor t para 95%
+t_critico
+media_ticket - t_critico * error_estandar    # límite inferior
+media_ticket + t_critico * error_estandar    # límite superior
+
+# Lo mismo en una línea:
+t.test(ticket)$conf.int
+\end{rcode}
+\begin{rsalida}
+[1] 1.962341
+[1] 912.8086
+[1] 1007.177
+[1]  912.8086 1007.1768
+attr(,"conf.level")
+[1] 0.95
+\end{rsalida}
+
+\begin{concepto}{Cómo interpretar un intervalo de confianza}
+Con los datos de 2023, el ticket promedio está entre \$912.81 y \$1,007.18
+con una confianza del 95\%. La interpretación correcta es: \emph{si
+repitiéramos este muestreo muchas veces y calculáramos un intervalo con cada
+muestra, el 95\% de esos intervalos contendría el verdadero ticket
+promedio}. En la práctica, dilo así: ``estimamos un ticket promedio de \$960,
+con un margen de error de $\pm$\$47''.
+
+\textbf{No es correcto} decir ``el 95\% de los tickets está entre \$913 y
+\$1,007'': el intervalo habla del \emph{promedio}, no de los tickets
+individuales (que van de \$23 a \$2,992).
+\end{concepto}
+
+\begin{negocio}{El margen de error en las decisiones}
+Si el presupuesto de 2024 supone 12,000 transacciones, el ingreso esperado
+es $12{,}000 \times 960 \approx$ 11.5 millones, pero con el IC podrías
+presentar un rango: entre $12{,}000 \times 913 \approx$ 10.95 y
+$12{,}000 \times 1{,}007 \approx$ 12.09 millones. Presentar un rango en
+vez de un número único es más honesto y ayuda a planear escenarios.
+\end{negocio}
+
+\subsection{Bootstrap: intervalos sin fórmulas}
+
+¿Y si quieres un intervalo para la \emph{mediana}, o para cualquier medida
+que no tenga una fórmula sencilla? El \termino{bootstrap} es una técnica
+ingeniosa: simula ``otras muestras'' tomando, con reemplazo, 1,000 tickets al
+azar de tus propios 1,000 tickets. Algunos tickets saldrán repetidos y otros
+no saldrán; así cada remuestra es ligeramente distinta. Repites esto miles de
+veces, calculas la mediana de cada remuestra y te quedas con el 95\% central
+de esos resultados.
+
+\begin{rcode}
+set.seed(123)   # para que el resultado sea reproducible
+medianas_boot <- replicate(5000, {
+  remuestra <- sample(ticket, size = length(ticket), replace = TRUE)
+  median(remuestra)
+})
+
+length(medianas_boot)                           # 5,000 medianas
+quantile(medianas_boot, probs = c(0.025, 0.975))   # IC 95% (percentiles)
+\end{rcode}
+\begin{rsalida}
+[1] 5000
+  2.5%  97.5%
+641.23 796.43
+\end{rsalida}
+
+\codigo{replicate(5000, \{...\})} repite 5,000 veces el código entre llaves
+y guarda cada resultado. El IC del 95\% para la mediana del ticket va de unos
+\$641 a \$796. La figura~\ref{fig:m04-bootstrap} muestra las 5,000 medianas
+simuladas.
+
+\begin{rcode}
+ic_boot <- quantile(medianas_boot, probs = c(0.025, 0.975))
+
+p_boot <- ggplot(tibble(mediana = medianas_boot), aes(x = mediana)) +
+  geom_histogram(binwidth = 5, fill = color_principal, color = "white") +
+  geom_vline(xintercept = ic_boot, color = color_resalte,
+             linewidth = 0.8, linetype = "dashed") +
+  geom_vline(xintercept = mediana_ticket, color = "#0b0b0b",
+             linewidth = 0.8) +
+  scale_x_continuous(labels = dollar) +
+  labs(title = "Distribución bootstrap de la mediana del ticket",
+       subtitle = "5,000 remuestras; líneas naranjas = IC del 95%",
+       x = "Mediana del ticket en cada remuestra",
+       y = "Frecuencia") +
+  tema_libro()
+
+p_boot
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m04-bootstrap}
+\caption{Medianas de 5,000 remuestras bootstrap. La línea negra es la
+mediana observada; entre las líneas naranjas queda el 95\% de las
+remuestras.}
+\label{fig:m04-bootstrap}
+\end{figure}
+
+\begin{hazlotu}
+Usa el bootstrap para obtener un IC del 95\% del \emph{percentil 90} del
+ticket (cambia \codigo{median(remuestra)} por
+\codigo{quantile(remuestra, 0.9)}). ¿Es más ancho o más angosto que el de la
+mediana? ¿Por qué crees que pasa?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Pruebas de hipótesis para negocios}
+\label{sec:m4-hipotesis}
+
+Llegamos a la pregunta que aparece en todas las juntas: \emph{``¿esta
+diferencia es real o es casualidad?''}. Los clientes premium gastan en
+promedio \$977 por ticket y los demás \$951. ¿Es suficiente para decir que
+los premium gastan más? Con otra muestra de tickets, la diferencia podría
+desaparecer o invertirse. Las \termino{pruebas de hipótesis} dan un método
+para decidir.
+
+\subsection{La lógica en cinco conceptos}
+
+\begin{concepto}{Hipótesis nula, alternativa y p-valor}
+\begin{itemize}
+  \item \termino{Hipótesis nula} ($H_0$): la postura ``aburrida'': no hay
+        diferencia, no hay efecto. Ejemplo: ``el ticket promedio de premium y
+        no premium es igual''.
+  \item \termino{Hipótesis alternativa} ($H_1$): lo que quieres demostrar:
+        ``el ticket promedio es distinto''.
+  \item \termino{p-valor}: la probabilidad de observar una diferencia
+        \emph{tan grande o más} que la de tus datos \textbf{si $H_0$ fuera
+        cierta}. Un p-valor pequeño significa: ``sería muy raro ver esto por
+        puro azar''.
+  \item \termino{Nivel de significancia} ($\alpha$): el umbral que fijas
+        \emph{antes} de ver los datos, casi siempre 0.05 (5\%). Si
+        $p < \alpha$ rechazas $H_0$ y dices que el resultado es
+        \termino{estadísticamente significativo}. Si $p \geq \alpha$,
+        \emph{no} rechazas $H_0$: no hay evidencia suficiente.
+\end{itemize}
+\end{concepto}
+
+Una analogía útil es un juicio: $H_0$ es ``el acusado es inocente''. Solo lo
+declaras culpable si la evidencia es muy fuerte (p-valor pequeño). Si la
+evidencia no alcanza, el veredicto es ``no culpable'', que \textbf{no es lo
+mismo} que ``inocente demostrado''. Igual en estadística: no rechazar $H_0$
+no demuestra que no haya diferencia; solo dice que tus datos no la
+demuestran.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Los dos errores posibles en una prueba de hipótesis.}
+\label{tab:m4-errores}
+\begin{tabularx}{\textwidth}{@{}l X X@{}}
+\toprule
+ & \textbf{En realidad $H_0$ es cierta} & \textbf{En realidad $H_0$ es falsa} \\
+\midrule
+\textbf{Rechazas $H_0$} & \termino{Error tipo I} (falso positivo): lanzas a
+  todo el país una campaña que en realidad no funciona. Su probabilidad es
+  $\alpha$. & Acierto: detectas un efecto real. \\
+\textbf{No rechazas $H_0$} & Acierto: no te dejas engañar por el azar. &
+  \termino{Error tipo II} (falso negativo): descartas una campaña que sí
+  funcionaba. Se reduce con muestras más grandes. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{advertencia}
+\textbf{Significancia estadística no es lo mismo que importancia práctica.}
+Con millones de datos, una diferencia de 50 centavos en el ticket puede ser
+``significativa'' ($p < 0.05$) y aun así no importarle a nadie. Con pocos
+datos, una diferencia enorme puede no ser significativa. Reporta siempre el
+\emph{tamaño} de la diferencia (en pesos o en puntos porcentuales) junto con
+el p-valor, y pregúntate: ¿esta diferencia cambia alguna decisión?
+\end{advertencia}
+
+\subsection{Prueba t: ¿los clientes premium gastan más?}
+
+La \termino{prueba t de Student} compara las medias de dos grupos. Primero
+unimos las transacciones con los clientes (Módulo~\ref{cap:manipulacion})
+para saber quién es premium:
+
+\begin{rcode}
+tx_clientes <- transacciones %>%
+  left_join(clientes, by = "cliente_id")
+
+tx_clientes %>%
+  group_by(es_premium) %>%
+  summarise(tickets = n(),
+            media   = mean(total_transaccion),
+            mediana = median(total_transaccion),
+            desv    = sd(total_transaccion),
+            .groups = "drop")
+\end{rcode}
+\begin{rsalida}
+# A tibble: 2 x 5
+  es_premium tickets media mediana  desv
+  <lgl>        <int> <dbl>   <dbl> <dbl>
+1 FALSE          653  951.    672.  775.
+2 TRUE           347  977.    803.  732.
+\end{rsalida}
+
+Planteamos: $H_0$: el ticket promedio es igual en ambos grupos;
+$H_1$: es distinto. Nivel de significancia $\alpha = 0.05$.
+
+\begin{rcode}
+prueba_premium <- t.test(total_transaccion ~ es_premium,
+                         data = tx_clientes)
+prueba_premium
+\end{rcode}
+\begin{rsalida}
+	Welch Two Sample t-test
+
+data:  total_transaccion by es_premium
+t = -0.52255, df = 741.31, p-value = 0.6014
+alternative hypothesis: true difference in means between group FALSE and group TRUE is not equal to 0
+95 percent confidence interval:
+ -123.43528   71.53793
+sample estimates:
+mean in group FALSE  mean in group TRUE
+           950.9885            976.9372
+\end{rsalida}
+
+Lectura línea por línea:
+\begin{itemize}
+  \item \codigo{Welch Two Sample t-test}: R usa por defecto la versión de
+        Welch, que no supone que los dos grupos tengan la misma varianza. Es
+        la opción segura.
+  \item \codigo{t = -0.52255}: el \termino{estadístico t}, la diferencia de
+        medias medida en errores estándar. Valores lejos de cero (más allá de
+        $\pm 2$, aproximadamente) indican diferencias claras; $-0.52$ está
+        muy cerca de cero.
+  \item \codigo{p-value = 0.6014}: si premium y no premium gastaran lo mismo,
+        veríamos una diferencia como esta el 60\% de las veces. Como
+        $0.60 > 0.05$, \textbf{no rechazamos $H_0$}.
+  \item \codigo{95 percent confidence interval}: la diferencia real
+        (no premium menos premium) está entre $-123$ y $+72$ pesos. Incluye
+        el cero.
+  \item \codigo{sample estimates}: las medias de cada grupo.
+\end{itemize}
+
+Puedes extraer las piezas para usarlas en un reporte:
+
+\begin{rcode}
+prueba_premium$p.value
+prueba_premium$conf.int
+\end{rcode}
+\begin{rsalida}
+[1] 0.6014434
+[1] -123.43528   71.53793
+attr(,"conf.level")
+[1] 0.95
+\end{rsalida}
+
+\begin{negocio}{``No hay evidencia'' es un resultado valioso}
+Conclusión para la directora: \emph{con los datos de 2023 no hay evidencia
+de que los clientes premium tengan un ticket promedio distinto al de los
+demás; la diferencia observada (\$26) es compatible con el azar}. Esto no es
+un fracaso del análisis: es información para decidir. Si la membresía premium
+cuesta dinero (descuentos, envíos gratis), hay que preguntarse qué obtiene
+la empresa a cambio. Quizá los premium compran con más \emph{frecuencia}
+aunque no gasten más por ticket: esa es la siguiente hipótesis a revisar
+(ejercicio~\ref{ej:m4-6}).
+\end{negocio}
+
+\subsection{Prueba A/B de proporciones: campaña A vs campaña B}
+\label{sec:m4-ab}
+
+Una \termino{prueba A/B} es un experimento: divides al azar a tus clientes en
+dos grupos, a cada uno le muestras una versión distinta (de un correo, una
+página, un precio) y comparas los resultados. Como la asignación es al azar,
+las dos poblaciones son iguales en todo lo demás, y la diferencia se puede
+atribuir a la versión. Es la forma más limpia de demostrar
+\emph{causalidad} en un negocio.
+
+\begin{ejemplo}{¿Qué asunto de correo convierte más?}
+Mercadotecnia envió 2,000 correos con el asunto A (``Ofertas de la
+semana'') y 2,000 con el asunto B (``Tu cupón personal te espera''). Como
+queremos saber si el método funciona, \textbf{simulamos} los resultados con
+tasas de conversión conocidas: 5\% para A y 6.5\% para B. En la vida real no
+conocerías estas tasas: justamente eso es lo que la prueba intenta
+averiguar.
+\end{ejemplo}
+
+\begin{rcode}
+set.seed(123)
+campana <- tibble(
+  version  = rep(c("A", "B"), each = 2000),
+  # 1 = compró, 0 = no compró; tasas reales: A 5%, B 6.5%
+  convirtio = c(rbinom(2000, size = 1, prob = 0.050),
+                rbinom(2000, size = 1, prob = 0.065))
+)
+
+resumen_ab <- campana %>%
+  group_by(version) %>%
+  summarise(enviados    = n(),
+            conversiones = sum(convirtio),
+            tasa        = mean(convirtio),
+            .groups = "drop")
+resumen_ab
+\end{rcode}
+\begin{rsalida}
+# A tibble: 2 x 4
+  version enviados conversiones   tasa
+  <chr>      <int>        <int>  <dbl>
+1 A           2000          101 0.0505
+2 B           2000          130 0.065
+\end{rsalida}
+
+$H_0$: las dos versiones tienen la misma tasa de conversión. $H_1$: las tasas
+son distintas. La función \codigo{prop.test()} recibe el número de éxitos y
+el número de intentos de cada grupo:
+
+\begin{rcode}
+prueba_ab <- prop.test(x = resumen_ab$conversiones,
+                       n = resumen_ab$enviados)
+prueba_ab
+\end{rcode}
+\begin{rsalida}
+	2-sample test for equality of proportions with continuity
+	correction
+
+data:  resumen_ab$conversiones out of resumen_ab$enviados
+X-squared = 3.602, df = 1, p-value = 0.05771
+alternative hypothesis: two.sided
+95 percent confidence interval:
+ -0.0294509801  0.0004509801
+sample estimates:
+prop 1 prop 2
+0.0505 0.0650
+\end{rsalida}
+
+Lectura: la versión A convirtió 5.05\% y la B 6.50\%, pero el p-valor es
+0.058, apenas \emph{mayor} a 0.05. Formalmente \textbf{no rechazamos $H_0$}:
+con 2,000 correos por grupo, una diferencia así todavía podría deberse al
+azar. El intervalo de confianza de la diferencia (A menos B) va de $-2.9$ a
+$+0.05$ puntos porcentuales e incluye el cero.
+
+Aquí hay una lección importante. Nosotros \emph{sabemos} que B es mejor
+(así lo simulamos), y aun así la prueba no lo detectó: acabamos de cometer
+un \textbf{error tipo II}. ¿La causa? Una muestra demasiado pequeña para
+detectar una diferencia de 1.5 puntos. La función \codigo{power.prop.test()}
+calcula cuántos envíos se necesitan para detectar una diferencia con una
+probabilidad dada (la \termino{potencia}, típicamente 80\%):
+
+\begin{rcode}
+power.prop.test(p1 = 0.05, p2 = 0.065, power = 0.80)$n
+\end{rcode}
+\begin{rsalida}
+[1] 3779.801
+\end{rsalida}
+
+Se necesitan unos 3,780 correos \emph{por grupo}. Repetimos el experimento
+(de nuevo simulado, con las mismas tasas reales) con 4,000 correos por
+versión:
+
+\begin{rcode}
+set.seed(123)
+campana_4000 <- tibble(
+  version   = rep(c("A", "B"), each = 4000),
+  convirtio = c(rbinom(4000, size = 1, prob = 0.050),
+                rbinom(4000, size = 1, prob = 0.065))
+)
+
+resumen_4000 <- campana_4000 %>%
+  group_by(version) %>%
+  summarise(enviados = n(), conversiones = sum(convirtio),
+            .groups = "drop")
+
+prop.test(x = resumen_4000$conversiones, n = resumen_4000$enviados)
+\end{rcode}
+\begin{rsalida}
+	2-sample test for equality of proportions with continuity
+	correction
+
+data:  resumen_4000$conversiones out of resumen_4000$enviados
+X-squared = 5.0351, df = 1, p-value = 0.02484
+alternative hypothesis: two.sided
+95 percent confidence interval:
+ -0.022041478 -0.001458522
+sample estimates:
+ prop 1  prop 2
+0.04975 0.06150
+\end{rsalida}
+
+Ahora $p = 0.025 < 0.05$: rechazamos $H_0$ y concluimos que el asunto B
+convierte más (6.15\% contra 4.98\%). El intervalo (que R calcula como A menos B,
+por eso sale negativo) dice que B supera a A por entre 0.15 y 2.2 puntos
+porcentuales. Y la \emph{significancia práctica} es
+clara: un punto más de conversión sobre 100,000 correos son unas 1,000
+compras adicionales.
+
+\begin{consejo}
+Decide el tamaño de la prueba A/B \emph{antes} de lanzarla (con
+\codigo{power.prop.test()}) y no la detengas en cuanto el p-valor baje de
+0.05: si revisas el resultado cada hora y paras cuando ``sale'', aumentas
+mucho la probabilidad de un falso positivo (error tipo I).
+\end{consejo}
+
+\subsection{ANOVA: ¿el ticket cambia entre categorías?}
+
+Cuando quieres comparar las medias de \emph{más de dos} grupos, no hagas
+muchas pruebas t de dos en dos (con 10 categorías serían 45 pruebas, y
+alguna saldría ``significativa'' por azar). Usa el \termino{análisis de
+varianza} (ANOVA). $H_0$: todas las medias son iguales; $H_1$: al menos una
+es distinta. La idea es comparar cuánto varían las medias \emph{entre}
+grupos con cuánto varían los datos \emph{dentro} de cada grupo.
+
+\begin{rcode}
+tx_productos <- transacciones %>%
+  left_join(productos, by = "producto_id")
+
+ticket_categoria <- tx_productos %>%
+  group_by(categoria) %>%
+  summarise(n     = n(),
+            media = mean(total_transaccion),
+            ee    = sd(total_transaccion) / sqrt(n()),
+            .groups = "drop") %>%
+  arrange(desc(media))
+ticket_categoria
+\end{rcode}
+\begin{rsalida}
+# A tibble: 10 x 4
+   categoria       n media    ee
+   <chr>       <int> <dbl> <dbl>
+ 1 Juguetes      118 1060.  77.1
+ 2 Alimentos     115 1057.  69.9
+ 3 Automotriz    105  991.  76.5
+ 4 Hogar          64  991.  90.7
+ 5 Belleza       187  974.  58.8
+ 6 Electrónica   137  968.  61.7
+ 7 Deportes       92  937.  78.3
+ 8 Libros         70  817.  85.2
+ 9 Ropa           38  791. 127.
+10 Mascotas       74  779.  70.5
+\end{rsalida}
+
+Los tickets promedio van de \$779 (Mascotas) a \$1,060 (Juguetes). ¿Es una
+diferencia real? Veamos las medias con su intervalo de confianza
+aproximado (media $\pm$ 2 errores estándar):
+
+\begin{rcode}
+p_anova <- ggplot(ticket_categoria,
+                  aes(x = media, y = reorder(categoria, media))) +
+  geom_vline(xintercept = mean(ticket), linetype = "dashed",
+             color = color_gris) +
+  geom_errorbarh(aes(xmin = media - 2 * ee, xmax = media + 2 * ee),
+                 height = 0.25, color = color_principal,
+                 linewidth = 0.8) +
+  geom_point(size = 2.5, color = color_principal) +
+  scale_x_continuous(labels = dollar) +
+  labs(title = "Ticket promedio por categoría con IC del 95%",
+       subtitle = "Los intervalos se enciman mucho; línea gris = promedio general",
+       x = "Ticket promedio", y = NULL) +
+  tema_libro()
+
+p_anova
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m04-anova-categorias}
+\caption{Ticket promedio por categoría. Cuando los intervalos se enciman
+tanto, es difícil afirmar que alguna categoría sea distinta.}
+\label{fig:m04-anova-categorias}
+\end{figure}
+
+\begin{rcode}
+modelo_anova <- aov(total_transaccion ~ categoria, data = tx_productos)
+summary(modelo_anova)
+\end{rcode}
+\begin{rsalida}
+             Df    Sum Sq Mean Sq F value Pr(>F)
+categoria     9   7466897  829655   1.441  0.166
+Residuals   990 570107428  575866
+\end{rsalida}
+
+La columna clave es \codigo{Pr(>F)}, el p-valor: 0.166. Como es mayor a
+0.05, \textbf{no hay evidencia} de que el ticket promedio dependa de la
+categoría. El \codigo{F value} (1.441) compara la variación entre categorías
+con la variación dentro de ellas; valores cercanos a 1 indican que las
+categorías no se distinguen más de lo que se distinguen los tickets entre
+sí. Hallazgo para la directora: las categorías difieren en \emph{volumen}
+(Belleza tiene 187 tickets y Ropa 38), no en ticket promedio.
+
+\subsubsection{Cuando el ANOVA sí es significativo: TukeyHSD}
+
+Probemos ahora con el segmento de edad del cliente (Joven, Adulto, Maduro,
+Senior):
+
+\begin{rcode}
+modelo_segmento <- aov(total_transaccion ~ segmento, data = tx_clientes)
+summary(modelo_segmento)
+\end{rcode}
+\begin{rsalida}
+             Df    Sum Sq Mean Sq F value Pr(>F)
+segmento      3   4672766 1557589   2.708 0.0441 *
+Residuals   996 572901558  575202
+---
+...
+\end{rsalida}
+
+Ahora $p = 0.044 < 0.05$: al menos un segmento tiene un ticket promedio
+distinto. El asterisco junto al p-valor es la forma en que R marca la
+significancia (una estrella: $p < 0.05$; dos: $p < 0.01$; tres:
+$p < 0.001$); la leyenda completa aparece en la línea
+\codigo{Signif. codes}, que aquí recortamos. ¿Cuál? El ANOVA no lo dice. Para eso se usa la prueba de
+\termino{Tukey HSD} (\emph{Honest Significant Difference}), que compara
+todos los pares de grupos ajustando los p-valores por hacer varias
+comparaciones:
+
+\begin{rcode}
+TukeyHSD(modelo_segmento)
+\end{rcode}
+\begin{rsalida}
+  Tukey multiple comparisons of means
+    95% family-wise confidence level
+
+Fit: aov(formula = total_transaccion ~ segmento, data = tx_clientes)
+
+$segmento
+                    diff        lwr       upr     p adj
+Joven-Adulto    62.47256 -170.39680 295.34191 0.9007953
+Maduro-Adulto -138.85507 -299.46454  21.75439 0.1172294
+Senior-Adulto  -47.79558 -216.73288 121.14173 0.8858662
+Maduro-Joven  -201.32763 -423.37427  20.71901 0.0912671
+Senior-Joven  -110.26813 -338.41089 117.87463 0.5990701
+Senior-Maduro   91.05950  -62.61673 244.73573 0.4229310
+\end{rsalida}
+
+Cada fila es una comparación: \codigo{diff} es la diferencia de medias,
+\codigo{lwr} y \codigo{upr} su intervalo de confianza y \codigo{p adj} el
+p-valor ajustado. Ningún par individual queda por debajo de 0.05; el más
+cercano es Maduro contra Joven ($p = 0.09$): los clientes maduros gastan unos
+\$201 menos por ticket que los jóvenes. Esto pasa a veces: el ANOVA detecta
+que ``algo'' difiere, pero la evidencia es débil y no alcanza para señalar
+un par concreto. \textbf{Conclusión honesta}: hay indicios de que el ticket
+varía con la edad (los maduros gastan algo menos), pero la evidencia es
+débil; conviene confirmarlo con los datos de 2024 antes de diseñar una
+campaña por edad.
+
+\subsection{Chi-cuadrada: ¿el método de pago depende de la tienda?}
+
+Las pruebas anteriores comparan \emph{promedios} de una variable numérica.
+Cuando las dos variables son \emph{categóricas}, se usa la \termino{prueba
+chi-cuadrada de independencia} ($\chi^2$). $H_0$: las dos variables son
+independientes (la mezcla de métodos de pago es la misma en todas las
+tiendas); $H_1$: están relacionadas.
+
+\begin{ejemplo}{Terminales de pago por sucursal}
+Finanzas quiere saber si debe negociar terminales bancarias distintas para
+cada sucursal o si todas las tiendas tienen la misma mezcla de métodos de
+pago.
+\end{ejemplo}
+
+\begin{rcode}
+tabla_pago <- table(transacciones$metodo_pago, transacciones$tienda_id)
+tabla_pago
+\end{rcode}
+\begin{rsalida}
+                   1  2  3  4  5  6  7  8  9 10
+  Efectivo        26 36 35 29 33 43 28 31 27 27
+  Tarjeta Crédito 37 37 35 29 38 28 32 29 45 40
+  Tarjeta Débito  14 19 28 25 15 30 16 33 25 28
+  Transferencia   10  7 11 11  9  8  9 13 11 13
+\end{rsalida}
+
+\begin{rcode}
+prueba_chi <- chisq.test(tabla_pago)
+prueba_chi
+round(prueba_chi$expected[, 1:5], 1)   # conteos esperados (5 tiendas)
+\end{rcode}
+\begin{rsalida}
+	Pearson's Chi-squared test
+
+data:  tabla_pago
+X-squared = 28.953, df = 27, p-value = 0.3632
+
+
+                     1    2    3    4    5
+  Efectivo        27.4 31.2 34.3 29.6 29.9
+  Tarjeta Crédito 30.4 34.6 38.1 32.9 33.2
+  Tarjeta Débito  20.3 23.1 25.4 21.9 22.1
+  Transferencia    8.9 10.1 11.1  9.6  9.7
+\end{rsalida}
+
+El p-valor es 0.36: \textbf{no hay evidencia} de que el método de pago
+dependa de la tienda. Las diferencias que ves en la tabla (por ejemplo, 13
+transferencias en la tienda 8 contra 7 en la tienda 2) son las esperables
+por azar. Los \codigo{expected} son los conteos que habría si las variables
+fueran totalmente independientes; la prueba compara los observados con
+estos. Decisión práctica: una sola negociación con el banco, con la misma
+configuración de terminales para todas las sucursales.
+
+\begin{advertencia}
+La chi-cuadrada necesita conteos esperados de al menos 5 en casi todas las
+celdas. Si hay muchas celdas con esperados pequeños, R muestra la advertencia
+\codigo{Chi-squared approximation may be incorrect}. En ese caso agrupa
+categorías poco frecuentes o usa \codigo{fisher.test()}.
+\end{advertencia}
+
+\subsection{¿Qué prueba uso?}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Guía rápida para elegir una prueba de hipótesis.}
+\label{tab:m4-que-prueba}
+\begin{tabularx}{\textwidth}{@{}X X l@{}}
+\toprule
+\textbf{Pregunta de negocio} & \textbf{Tipo de datos} & \textbf{Función} \\
+\midrule
+¿El ticket promedio es distinto de \$900? & Una variable numérica vs un
+  valor & \codigo{t.test(x, mu = 900)} \\
+¿Premium y no premium gastan distinto? & Numérica + categórica de 2 grupos
+  & \codigo{t.test(y \textasciitilde{} g)} \\
+¿Mejoró la venta de cada tienda después del cambio? & Numérica, mismos
+  sujetos antes y después & \codigo{t.test(antes, despues, paired = TRUE)} \\
+¿Qué versión de la campaña convierte más? & Proporciones de 2 o más grupos &
+  \codigo{prop.test()} \\
+¿El ticket cambia entre categorías o tiendas? & Numérica + categórica de 3
+  o más grupos & \codigo{aov()} + \codigo{TukeyHSD()} \\
+¿El método de pago depende de la tienda? & Dos variables categóricas &
+  \codigo{chisq.test()} \\
+¿El gasto se relaciona con la edad? & Dos numéricas & \codigo{cor.test()} \\
+Datos muy asimétricos o pocos datos (alternativa sin supuesto de
+  normalidad) & Numérica + 2 grupos / 3+ grupos &
+  \codigo{wilcox.test()} / \codigo{kruskal.test()} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{hazlotu}
+Usa \codigo{t.test()} para comparar el ticket de clientes hombres y mujeres
+(columna \codigo{genero} de \codigo{tx\_clientes}). ¿El resultado es
+significativo? ¿Cuál es la diferencia en pesos? Guarda tu respuesta: la
+retomaremos en la sección de errores comunes.
+\end{hazlotu}

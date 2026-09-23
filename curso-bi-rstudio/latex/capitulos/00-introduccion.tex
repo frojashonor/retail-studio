@@ -136,46 +136,6 @@ que se sube una sola vez: una empresa madura usa los cuatro tipos al mismo
 tiempo, y la analítica descriptiva, bien hecha, sigue siendo la base de
 todo.
 
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[
-  escalon/.style={rounded corners=3pt, minimum width=3.45cm,
-    minimum height=1.25cm, align=center, text=white,
-    font=\sffamily\small, anchor=south west},
-  nota/.style={text width=3.3cm, align=center, font=\sffamily\scriptsize,
-    text=gristexto, anchor=north},
-]
-  % Ejes
-  \draw[-{Stealth[length=3mm]}, gristexto, thick] (0,0) -- (15.4,0)
-    node[below left, font=\sffamily\small, text=gristexto]
-    {Complejidad};
-  \draw[-{Stealth[length=3mm]}, gristexto, thick] (0,0) -- (0,6.4)
-    node[above right, font=\sffamily\small, text=gristexto]
-    {Valor para la decisión};
-  % Escalones
-  \node[escalon, fill=secundario] (d1) at (0.35,0.35)
-    {\textbf{Descriptiva}\\¿Qué pasó?};
-  \node[escalon, fill=primario] (d2) at (4.1,1.75)
-    {\textbf{Diagnóstica}\\¿Por qué pasó?};
-  \node[escalon, fill=morado] (d3) at (7.85,3.15)
-    {\textbf{Predictiva}\\¿Qué pasará?};
-  \node[escalon, fill=acento] (d4) at (11.6,4.55)
-    {\textbf{Prescriptiva}\\¿Qué debemos hacer?};
-  % Notas bajo cada escalón
-  \node[nota] at ([yshift=-2pt]d2.south -| d2.center)
-    {Comparaciones, correlación, pruebas de hipótesis};
-  \node[nota] at ([yshift=-2pt]d3.south -| d3.center)
-    {Pronósticos, modelos de clasificación};
-  \node[nota] at ([yshift=-2pt]d4.south -| d4.center)
-    {Reglas de decisión, escenarios, optimización};
-  \node[nota, anchor=south] at ([yshift=2pt]d1.north)
-    {Reportes, KPI, tableros};
-\end{tikzpicture}
-\caption{Los cuatro tipos de analítica. Cada escalón responde una pregunta
-más difícil y, por lo general, más valiosa para la decisión.}
-\label{fig:m0-analitica}
-\end{figure}
-
 La tabla~\ref{tab:m0-analitica} aterriza cada tipo con ejemplos de nuestra
 cadena de tiendas y te dice en qué módulo lo aprenderás.
 
@@ -218,6 +178,46 @@ Prescriptiva &
 \bottomrule
 \end{tabularx}
 \end{table}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  escalon/.style={rounded corners=3pt, minimum width=3.45cm,
+    minimum height=1.25cm, align=center, text=white,
+    font=\sffamily\small, anchor=south west},
+  nota/.style={text width=3.3cm, align=center, font=\sffamily\scriptsize,
+    text=gristexto, anchor=north},
+]
+  % Ejes
+  \draw[-{Stealth[length=3mm]}, gristexto, thick] (0,0) -- (15.4,0)
+    node[below left, font=\sffamily\small, text=gristexto]
+    {Complejidad};
+  \draw[-{Stealth[length=3mm]}, gristexto, thick] (0,0) -- (0,6.4)
+    node[above right, font=\sffamily\small, text=gristexto]
+    {Valor para la decisión};
+  % Escalones
+  \node[escalon, fill=secundario] (d1) at (0.35,0.35)
+    {\textbf{Descriptiva}\\¿Qué pasó?};
+  \node[escalon, fill=primario] (d2) at (4.1,1.75)
+    {\textbf{Diagnóstica}\\¿Por qué pasó?};
+  \node[escalon, fill=morado] (d3) at (7.85,3.15)
+    {\textbf{Predictiva}\\¿Qué pasará?};
+  \node[escalon, fill=acento] (d4) at (11.6,4.55)
+    {\textbf{Prescriptiva}\\¿Qué debemos hacer?};
+  % Notas bajo cada escalón
+  \node[nota] at ([yshift=-2pt]d2.south -| d2.center)
+    {Comparaciones, correlación, pruebas de hipótesis};
+  \node[nota] at ([yshift=-2pt]d3.south -| d3.center)
+    {Pronósticos, modelos de clasificación};
+  \node[nota] at ([yshift=-2pt]d4.south -| d4.center)
+    {Reglas de decisión, escenarios, optimización};
+  \node[nota, anchor=south] at ([yshift=2pt]d1.north)
+    {Reportes, KPI, tableros};
+\end{tikzpicture}
+\caption{Los cuatro tipos de analítica. Cada escalón responde una pregunta
+más difícil y, por lo general, más valiosa para la decisión.}
+\label{fig:m0-analitica}
+\end{figure}
 
 Siendo honestos: la analítica prescriptiva ``completa'' (optimización
 matemática de precios, rutas o inventarios) es un campo propio que va más
@@ -370,7 +370,7 @@ opciones más comunes.
 \centering\small
 \caption{R frente a otras herramientas de análisis de datos.}
 \label{tab:m0-herramientas}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{1.9cm}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.25cm}
     >{\raggedright\arraybackslash}X
     >{\raggedright\arraybackslash}X
     >{\raggedright\arraybackslash}p{3.3cm}@{}}
@@ -452,39 +452,38 @@ uno verás el módulo donde lo practicas.
   paso/.style={draw=#1, fill=#1!7, line width=0.9pt, rounded corners=4pt,
     text width=3.25cm, align=center, inner sep=4pt,
     font=\sffamily\small},
-  modulo/.style={font=\sffamily\scriptsize, text=gristexto},
   flecha/.style={-{Stealth[length=2.6mm]}, line width=1pt,
     gristexto!70},
 ]
   \node[paso=acento] (p1) at (90:6.0cm and 3.9cm)
     {\textbf{1. Pregunta de negocio}\\[1pt]
-     {\modulo ¿Qué hay que decidir?}\\
-     {\modulo Introducción y Módulo \ref{cap:proyecto}}};
+     {\scriptsize\color{gristexto} ¿Qué hay que decidir?}\\
+     {\scriptsize\color{gristexto} Introducción y Módulo \ref{cap:proyecto}}};
   \node[paso=secundario] (p2) at (38.57:6.0cm and 3.9cm)
     {\textbf{2. Obtener los datos}\\[1pt]
-     {\modulo CSV, Excel, SQL}\\
-     {\modulo Módulos \ref{cap:fundamentos} y \ref{cap:bases-datos}}};
+     {\scriptsize\color{gristexto} CSV, Excel, SQL}\\
+     {\scriptsize\color{gristexto} Módulos \ref{cap:fundamentos} y \ref{cap:bases-datos}}};
   \node[paso=primario] (p3) at (-12.86:6.0cm and 3.9cm)
     {\textbf{3. Limpiar y transformar (ETL)}\\[1pt]
-     {\modulo Filtrar, unir, resumir}\\
-     {\modulo Módulos \ref{cap:manipulacion} y \ref{cap:bases-datos}}};
+     {\scriptsize\color{gristexto} Filtrar, unir, resumir}\\
+     {\scriptsize\color{gristexto} Módulos \ref{cap:manipulacion} y \ref{cap:bases-datos}}};
   \node[paso=morado] (p4) at (-64.29:6.0cm and 3.9cm)
     {\textbf{4. Analizar}\\[1pt]
-     {\modulo Estadística y modelos}\\
-     {\modulo Módulos \ref{cap:eda} y \ref{cap:ml}}};
+     {\scriptsize\color{gristexto} Estadística y modelos}\\
+     {\scriptsize\color{gristexto} Módulos \ref{cap:eda} y \ref{cap:ml}}};
   \node[paso=exito] (p5) at (-115.71:6.0cm and 3.9cm)
     {\textbf{5. Visualizar y comunicar}\\[1pt]
-     {\modulo Gráficas, dashboards, reportes}\\
-     {\modulo Módulos \ref{cap:visualizacion}, \ref{cap:shiny} y
+     {\scriptsize\color{gristexto} Gráficas, dashboards, reportes}\\
+     {\scriptsize\color{gristexto} Módulos \ref{cap:visualizacion}, \ref{cap:shiny} y
       \ref{cap:reportes}}};
   \node[paso=acento] (p6) at (-167.14:6.0cm and 3.9cm)
     {\textbf{6. Tomar la decisión}\\[1pt]
-     {\modulo Junto con el negocio}\\
-     {\modulo Módulo \ref{cap:proyecto}}};
+     {\scriptsize\color{gristexto} Junto con el negocio}\\
+     {\scriptsize\color{gristexto} Módulo \ref{cap:proyecto}}};
   \node[paso=secundario] (p7) at (141.43:6.0cm and 3.9cm)
     {\textbf{7. Medir el resultado}\\[1pt]
-     {\modulo KPI antes y después}\\
-     {\modulo Módulos \ref{cap:shiny} y \ref{cap:reportes}}};
+     {\scriptsize\color{gristexto} KPI antes y después}\\
+     {\scriptsize\color{gristexto} Módulos \ref{cap:shiny} y \ref{cap:reportes}}};
   % Flechas del ciclo
   \foreach \a/\b in {p1/p2, p2/p3, p3/p4, p4/p5, p5/p6, p6/p7, p7/p1}
     \draw[flecha] (\a) to[bend left=12] (\b);
@@ -498,53 +497,6 @@ uno verás el módulo donde lo practicas.
 donde se aprende cada paso.}
 \label{fig:m0-ciclo}
 \end{figure}
-
-La tabla~\ref{tab:m0-ciclo} detalla qué haces en cada paso y qué
-herramientas de R usarás. No te preocupes si todavía no reconoces los
-nombres: los irás conociendo módulo a módulo.
-
-\begin{table}[H]
-\centering\small
-\caption{Qué se hace en cada paso del ciclo y con qué herramientas de R.}
-\label{tab:m0-ciclo}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{3.0cm}
-    >{\raggedright\arraybackslash}X
-    >{\raggedright\arraybackslash}p{5.2cm}@{}}
-\toprule
-\textbf{Paso} & \textbf{Qué haces} & \textbf{Herramientas en R} \\
-\midrule
-1. Pregunta &
-  Acuerdas con el área de negocio qué se quiere decidir y cómo se medirá
-  el éxito. &
-  Papel, lápiz y buenas preguntas. \\
-2. Obtener datos &
-  Localizas las fuentes y las cargas en R. &
-  \paquete{readr}, \paquete{readxl}, \paquete{DBI}, \paquete{RSQLite} \\
-3. Limpiar y transformar &
-  Corriges tipos y errores, unes tablas y calculas columnas nuevas. A este
-  proceso se le llama \termino{ETL} (\textit{extract, transform, load}:
-  extraer, transformar y cargar). &
-  \paquete{dplyr}, \paquete{tidyr}, \paquete{lubridate},
-  \paquete{dbplyr} \\
-4. Analizar &
-  Resumes, comparas, buscas patrones y construyes modelos. &
-  \paquete{dplyr}, \paquete{skimr}, \paquete{forecast},
-  \paquete{caret}, \paquete{cluster} \\
-5. Visualizar y comunicar &
-  Conviertes los resultados en gráficas, tableros y reportes que
-  cualquiera entiende. &
-  \paquete{ggplot2}, \paquete{shiny}, \paquete{plotly},
-  \paquete{rmarkdown} \\
-6. Decidir &
-  El negocio decide con base en la evidencia; tú explicas alcances y
-  riesgos. &
-  Un buen resumen ejecutivo. \\
-7. Medir &
-  Compruebas si la decisión funcionó con los mismos KPI, periódicamente. &
-  Reportes automáticos y dashboards. \\
-\bottomrule
-\end{tabularx}
-\end{table}
 
 \begin{ejemplo}{el ciclo completo en una pregunta real}
 La directora comercial pregunta: \textit{``¿Los descuentos aumentan las
@@ -912,18 +864,32 @@ ventas llega como texto y uno de los valores dice ``N/D'':
 # Ventas que llegaron como texto desde un sistema
 ventas_texto <- c("1500", "2300", "N/D", "980")
 ventas_numero <- as.numeric(ventas_texto)   # convertir a número
+\end{rcode}
+
+R hace la conversión, pero responde en la consola con un aviso:
+
+\begin{rsalida}
+Warning message:
+NAs introducidos por coerción
+\end{rsalida}
+
+Veamos qué quedó y qué pasa al sumar:
+
+\begin{rcode}
 ventas_numero
 sum(ventas_numero)                 # la suma con un NA da NA
 sum(ventas_numero, na.rm = TRUE)   # na.rm = TRUE ignora los NA
 \end{rcode}
 
 \begin{rsalida}
-Warning message:
-NAs introducidos por coerción
 [1] 1500 2300   NA  980
 [1] NA
 [1] 4780
 \end{rsalida}
+
+El texto ``N/D'' se convirtió en \codigo{NA}; la suma ``normal'' devuelve
+\codigo{NA} (si falta un dato, R no puede saber el total), y con
+\codigo{na.rm = TRUE} obtienes la suma de los valores disponibles, 4780.
 
 Hay tres clases de avisos. Una \termino{advertencia}
 (\textit{warning}) significa ``hice lo que pediste, pero algo raro pasó'':
@@ -1048,28 +1014,13 @@ antes de mirar la solución.
 
 \subsection{Formato del texto}
 
-Dentro de los párrafos, el formato también te da pistas
-(tabla~\ref{tab:m0-formato}).
-
-\begin{table}[H]
-\centering\small
-\caption{Formato del texto y su significado.}
-\label{tab:m0-formato}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{5.2cm} X@{}}
-\toprule
-\textbf{Así lo verás} & \textbf{Significa} \\
-\midrule
-\codigo{summarise()} & Código de R dentro del texto: funciones, objetos,
-  argumentos. \\
-\paquete{dplyr} & Nombre de un paquete de R. \\
-\archivo{ventas\_retail.csv} & Nombre de un archivo o de una carpeta. \\
-\menu{Tools > Global Options} & Menú u opción de RStudio. \\
-\tecla{Ctrl} + \tecla{Enter} & Atajo de teclado. En Mac, cambia
-  \tecla{Ctrl} por \tecla{Cmd}. \\
-\termino{tabla de hechos} & Término nuevo que se define ahí mismo. \\
-\bottomrule
-\end{tabularx}
-\end{table}
+Dentro de los párrafos, el formato también te da pistas:
+\codigo{summarise()} es código de R (funciones, objetos, argumentos);
+\paquete{dplyr}, el nombre de un paquete; \archivo{ventas\_retail.csv}, un
+archivo o carpeta; \menu{Tools > Global Options}, un menú de RStudio;
+\tecla{Ctrl} + \tecla{Enter}, un atajo de teclado (en Mac cambia
+\tecla{Ctrl} por \tecla{Cmd}); y un \termino{término en azul} es un
+concepto nuevo que se define ahí mismo.
 
 % ----------------------------------------------------------------------------
 \section{Preparar tu entorno de trabajo}
@@ -1132,9 +1083,10 @@ repositorio y obtener siempre la versión más reciente.
   \item Entra a \url{https://posit.co/download/rstudio-desktop/}.
   \item Descarga \textbf{RStudio Desktop} (gratuito) para tu sistema. La
         página suele detectarlo sola.
-  \item Instálalo: en Windows ejecuta el \archivo{.exe}; en macOS abre el
-        \archivo{.dmg} y arrastra RStudio a \archivo{Aplicaciones}; en
-        Ubuntu instala el archivo \archivo{.deb}.
+  \item Instálalo. En Windows, ejecuta el archivo \archivo{.exe}; en
+        macOS, abre el \archivo{.dmg} y arrastra RStudio a la carpeta
+        \archivo{Aplicaciones}; en Ubuntu, instala el archivo
+        \archivo{.deb}.
   \item Abre RStudio. Si en la consola aparece un texto que empieza con
         \codigo{R version 4.}, R y RStudio están conectados.
 \end{enumerate}
@@ -1147,115 +1099,19 @@ igual. El plan gratuito tiene límites de memoria y de horas de uso, pero
 alcanza para practicar.
 \end{consejo}
 
-\subsection{Un recorrido rápido por RStudio}
+\subsection{Un vistazo a RStudio}
 
-Al abrir RStudio verás cuatro paneles (figura~\ref{fig:m0-rstudio}). Si solo
-ves tres, abre un script nuevo con \menu{File > New File > R Script} y
-aparecerá el editor.
-
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[
-  titulo/.style={font=\sffamily\bfseries\small, text=primario,
-    anchor=north west},
-  texto/.style={font=\sffamily\scriptsize, text=gristexto,
-    anchor=north west, align=left},
-]
-  % Ventana
-  \draw[gristexto!70, fill=gray!8, rounded corners=3pt]
-    (0,0) rectangle (14.4,8.3);
-  \fill[primario, rounded corners=3pt] (0,7.75) rectangle (14.4,8.3);
-  \fill[primario] (0,7.75) rectangle (14.4,7.95);
-  \node[anchor=west, font=\sffamily\footnotesize\bfseries, text=white]
-    at (0.2,8.02) {RStudio};
-  \node[anchor=west, font=\sffamily\scriptsize, text=gristexto]
-    at (0.2,7.45) {File\quad Edit\quad Code\quad View\quad Plots\quad
-    Session\quad Build\quad Debug\quad Profile\quad Tools\quad Help};
-  % Paneles
-  \draw[fill=white, draw=gristexto!50] (0.2,3.85) rectangle (8.4,7.15);
-  \draw[fill=white, draw=gristexto!50] (0.2,0.2) rectangle (8.4,3.65);
-  \draw[fill=white, draw=gristexto!50] (8.6,3.85) rectangle (14.2,7.15);
-  \draw[fill=white, draw=gristexto!50] (8.6,0.2) rectangle (14.2,3.65);
-  % 1. Editor
-  \node[titulo] at (0.35,7.0) {1. Editor (Source)};
-  \node[texto, text width=7.6cm] at (0.35,6.45)
-    {Aquí escribes y guardas tus scripts (\texttt{.R}) y reportes
-     (\texttt{.Rmd}). Nada se ejecuta hasta que lo envías a la consola con
-     \texttt{Ctrl + Enter}.};
-  \node[anchor=north west, font=\ttfamily\scriptsize, text=rcomentario,
-    align=left] at (0.35,5.2)
-    {\# Mi primer script\\
-     \textcolor{rtexto}{ventas <- c(1200, 950, 1830)}\\
-     \textcolor{rtexto}{sum(ventas)}};
-  % 2. Consola
-  \node[titulo] at (0.35,3.5) {2. Consola (Console)};
-  \node[texto, text width=7.6cm] at (0.35,2.95)
-    {Aquí R ejecuta el código y responde. El símbolo \texttt{>} indica
-     que está listo para recibir una instrucción.};
-  \node[anchor=north west, font=\ttfamily\scriptsize, text=rtexto,
-    align=left] at (0.35,1.95)
-    {> sum(ventas)\\
-     \textcolor{black!80}{[1] 3980}\\
-     >};
-  % 3. Entorno
-  \node[titulo] at (8.75,7.0) {3. Entorno (Environment)};
-  \node[texto, text width=5.2cm] at (8.75,6.45)
-    {Los objetos que has creado: tablas, vectores, modelos. Las pestañas
-     \textit{History} y \textit{Connections} guardan tu historial y tus
-     conexiones a bases de datos.};
-  \node[anchor=north west, font=\ttfamily\scriptsize, text=rtexto]
-    at (8.75,4.75) {ventas \quad num [1:3] 1200 950 1830};
-  % 4. Archivos, gráficas, ayuda
-  \node[titulo] at (8.75,3.5) {4. Files, Plots, Help\ldots};
-  \node[texto, text width=5.2cm] at (8.75,2.95)
-    {Explorador de archivos del proyecto, gráficas, paquetes instalados
-     (\textit{Packages}), ayuda (\textit{Help}) y visor de dashboards y
-     reportes (\textit{Viewer}).};
-\end{tikzpicture}
-\caption{Los cuatro paneles de RStudio.}
-\label{fig:m0-rstudio}
-\end{figure}
-
-Los atajos de teclado de la tabla~\ref{tab:m0-atajos} te ahorrarán mucho
-tiempo desde el primer día. El más importante es \tecla{Ctrl} +
-\tecla{Enter}: ejecuta la línea donde está el cursor (o el texto
-seleccionado) y avanza a la siguiente.
-
-\begin{table}[H]
-\centering\small
-\caption{Atajos de teclado esenciales de RStudio.}
-\label{tab:m0-atajos}
-\begin{tabularx}{\textwidth}{@{}X l l@{}}
-\toprule
-\textbf{Acción} & \textbf{Windows y Linux} & \textbf{macOS} \\
-\midrule
-Ejecutar la línea actual o la selección &
-  \tecla{Ctrl} + \tecla{Enter} & \tecla{Cmd} + \tecla{Return} \\
-Ejecutar todo el script &
-  \tecla{Ctrl} + \tecla{Shift} + \tecla{Enter} &
-  \tecla{Cmd} + \tecla{Shift} + \tecla{Return} \\
-Insertar el pipe \codigo{\%>\%} &
-  \tecla{Ctrl} + \tecla{Shift} + \tecla{M} &
-  \tecla{Cmd} + \tecla{Shift} + \tecla{M} \\
-Insertar la asignación \codigo{<-} &
-  \tecla{Alt} + \tecla{-} & \tecla{Option} + \tecla{-} \\
-Comentar o descomentar líneas &
-  \tecla{Ctrl} + \tecla{Shift} + \tecla{C} &
-  \tecla{Cmd} + \tecla{Shift} + \tecla{C} \\
-Nuevo script &
-  \tecla{Ctrl} + \tecla{Shift} + \tecla{N} &
-  \tecla{Cmd} + \tecla{Shift} + \tecla{N} \\
-Guardar el script & \tecla{Ctrl} + \tecla{S} & \tecla{Cmd} + \tecla{S} \\
-Autocompletar nombres de funciones y objetos &
-  \tecla{Tab} & \tecla{Tab} \\
-Ver la ayuda de la función bajo el cursor & \tecla{F1} & \tecla{F1} \\
-Limpiar la consola & \tecla{Ctrl} + \tecla{L} & \tecla{Ctrl} + \tecla{L} \\
-Reiniciar R (sesión limpia) &
-  \tecla{Ctrl} + \tecla{Shift} + \tecla{F10} &
-  \tecla{Cmd} + \tecla{Shift} + \tecla{0} \\
-\bottomrule
-\end{tabularx}
-\end{table}
+Al abrir RStudio verás cuatro paneles: el \textbf{editor} (arriba a la
+izquierda), donde escribes y guardas tus scripts; la \textbf{consola}
+(abajo a la izquierda), donde R ejecuta el código y responde; el
+\textbf{entorno} (arriba a la derecha), con los objetos que has creado; y
+un panel con pestañas para archivos, gráficas, paquetes y ayuda (abajo a la
+derecha). Si solo ves tres, abre un script nuevo con
+\menu{File > New File > R Script}. El atajo que más usarás es
+\tecla{Ctrl} + \tecla{Enter} (\tecla{Cmd} + \tecla{Return} en Mac): envía a
+la consola la línea donde está el cursor, o el texto seleccionado. El
+Módulo~\ref{cap:fundamentos} recorre RStudio con detalle y el
+Apéndice~\ref{ap:referencia} reúne los atajos de teclado.
 
 \subsection{Paso 3: configurar RStudio}
 
@@ -1303,7 +1159,7 @@ lo uses (con \codigo{library()}). Es como comprar un libro y después
 abrirlo cada vez que lo lees. Copia el siguiente bloque en un script nuevo y
 ejecútalo completo; tarda entre 10 y 30 minutos según tu conexión.
 
-\begin{rnoejecutar}[title=Paquetes obligatorios del curso]
+\begin{rnoejecutar}[title=Paquetes obligatorios del curso, colbacktitle=primario!85, coltitle=white, fonttitle=\sffamily\bfseries\small]
 paquetes <- c(
   # --- Importar, manipular, visualizar y explorar (Módulos 1 a 4) ---
   "tidyverse",      # dplyr, ggplot2, tidyr, readr, tibble, stringr...
@@ -1342,7 +1198,7 @@ install.packages(faltantes)
 Algunos módulos mencionan paquetes adicionales. No son necesarios para
 seguir el libro, pero puedes instalarlos si quieres probar esos ejemplos:
 
-\begin{rnoejecutar}[title=Paquetes opcionales]
+\begin{rnoejecutar}[title=Paquetes opcionales, colbacktitle=primario!85, coltitle=white, fonttitle=\sffamily\bfseries\small]
 install.packages(c(
   "arules",      # reglas de asociación (análisis de canasta de compras)
   "rpart.plot",  # dibujos más legibles de árboles de decisión
@@ -1544,9 +1400,19 @@ un buen primer script para guardar en tu proyecto como
 \archivo{00\_verificar\_entorno.R}. Lee los comentarios: aunque todavía no
 conozcas \codigo{for} ni \codigo{if}, entenderás la idea.
 
-\begin{rcode}[title=Verificación del entorno del curso]
-library(tidyverse)   # carga dplyr, ggplot2, readr y compañía
+Primero carga el tidyverse, que el script usa para leer los CSV:
 
+\begin{rcode}
+library(tidyverse)   # carga dplyr, ggplot2, readr y compañía
+\end{rcode}
+
+Al ejecutar \codigo{library(tidyverse)} verás un mensaje de bienvenida con
+la lista de paquetes que se cargaron y un par de avisos de
+``conflictos''. No es un error y no lo reproducimos en el libro (el
+Módulo~\ref{cap:fundamentos} lo explica). Ahora sí, el script de
+verificación:
+
+\begin{rcode}[title=Verificación del entorno del curso, colbacktitle=primario!85, coltitle=white, fonttitle=\sffamily\bfseries\small]
 # ---- 1. Versión de R ----
 cat("Versión de R:", as.character(getRversion()), "\n\n")
 
@@ -1598,13 +1464,32 @@ if (problemas == 0) {
 \end{rcode}
 
 \begin{rsalida}
-PENDIENTE
+Versión de R: 4.3.3
+
+Paquetes:
+  OK     tidyverse       2.0.0
+  OK     readxl          1.4.3
+  OK     writexl         1.5.0
+  OK     lubridate       1.9.3
+...
+  OK     skimr           2.1.5
+  OK     corrplot        0.92
+
+Archivos en datasets/:
+  OK     ventas_retail.csv    365 filas  14 columnas
+  OK     clientes.csv         200 filas  10 columnas
+  OK     productos.csv         50 filas  13 columnas
+  OK     empleados.csv        100 filas  12 columnas
+  OK     transacciones.csv   1000 filas  14 columnas
+  OK     tiendas.csv           10 filas   8 columnas
+  OK     datos_empresa.xlsx con hojas:
+         Ventas, Clientes, Productos, Empleados, Tiendas
+
+¡Todo listo! Tu entorno está preparado para el curso.
 \end{rsalida}
 
-Al ejecutar \codigo{library(tidyverse)} verás además un mensaje de
-bienvenida con la lista de paquetes que se cargaron y un par de avisos de
-``conflictos''; no es un error y no lo reproducimos en el libro (el
-Módulo~\ref{cap:fundamentos} lo explica). Tus números de versión serán
+Recortamos la lista de paquetes (la línea \codigo{...}); en tu pantalla
+aparecen los 22. Tus números de versión serán
 distintos si instalaste paquetes más recientes: no importa. Lo que importa
 es que no haya ninguna línea \codigo{FALTA}.
 
@@ -2124,7 +2009,22 @@ empleados %>%
 \end{rcode}
 
 \begin{rsalida}
-PENDIENTE
+# A tibble: 3 x 3
+  cliente_id nombre          email
+       <dbl> <chr>           <chr>
+1          1 Ricardo Morales juan.ramírez@email.com
+2          2 Miguel Cruz     alberto.jiménez@email.com
+3          3 Miguel Flores   pedro.sánchez@email.com
+# A tibble: 7 x 2
+  departamento            n
+  <chr>               <int>
+1 Atención al Cliente    10
+2 RRHH                    4
+3 Ventas                  4
+4 Marketing               3
+5 Finanzas                2
+6 IT                      1
+7 Operaciones             1
 \end{rsalida}
 
 El cliente 1 se llama Ricardo Morales, pero su correo es de ``juan.ramírez''.
@@ -2156,9 +2056,9 @@ arriba, R te dijo cuántos productos revisar.
 
 \subsection{Los scripts de la carpeta \texorpdfstring{\archivo{codigo/}}{codigo/}}
 
-La carpeta \archivo{latex/codigo/} contiene un script de R por módulo
-(\archivo{01-fundamentos.R}, \archivo{02-manipulacion-datos.R}, etc.) con
-todo el código ejecutable de ese módulo, en el mismo orden que en el libro.
+La carpeta \archivo{latex/codigo/} contiene un script de R por módulo (por
+ejemplo, \archivo{01-fundamentos.R} para el Módulo~\ref{cap:fundamentos})
+con todo el código ejecutable de ese módulo, en el mismo orden que en el libro.
 Los bloques de franja naranja (instalaciones, apps Shiny, conexiones a
 servidores) aparecen comentados, solo como referencia. Para usarlos:
 
@@ -2204,17 +2104,7 @@ latexmk -pdf curso-bi-rstudio.tex
 \end{textocodigo}
 
 \codigo{latexmk} compila las veces que haga falta para que el índice y las
-referencias cruzadas (``Solución en la página\ldots'') queden correctos. Si
-ya usas R, otra opción es el paquete \paquete{tinytex}, que instala una
-distribución ligera de \LaTeX{} y descarga sola los paquetes que falten (el
-Módulo~\ref{cap:reportes} lo usa para los reportes en PDF):
-
-\begin{rnoejecutar}
-install.packages("tinytex")
-tinytex::install_tinytex()                  # solo la primera vez
-setwd("latex")                              # carpeta del libro
-tinytex::latexmk("curso-bi-rstudio.tex")    # compila con pdfLaTeX
-\end{rnoejecutar}
+referencias cruzadas (``Solución en la página\ldots'') queden correctos.
 
 % ----------------------------------------------------------------------------
 \section{Consejos para aprender}

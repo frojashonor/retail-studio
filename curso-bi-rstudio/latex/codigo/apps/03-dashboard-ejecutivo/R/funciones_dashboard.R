@@ -15,7 +15,8 @@ paleta_libro <- c("#2a78d6", "#eb6834", "#1baf7a", "#eda100",
 tema_dashboard <- function(base_size = 12) {
   theme_minimal(base_size = base_size) +
     theme(panel.grid.minor = element_blank(),
-          legend.position  = "top")
+          legend.position  = "top",
+          plot.margin      = margin(5, 15, 5, 5))  # aire a la derecha
 }
 
 # ---- Encontrar datasets/ subiendo carpetas -----------------------------
@@ -85,10 +86,15 @@ calcular_kpis <- function(datos) {
     )
 }
 
-# Formatos para mostrar los KPIs como texto
-formato_pesos  <- function(x) dollar(x, accuracy = 1)
+# Formatos para mostrar los KPIs como texto ("--" si no hay dato)
+formato_pesos <- function(x) {
+  if_else(is.na(x), "--", dollar(x, accuracy = 1))
+}
 formato_numero <- function(x, decimales = 0) {
-  comma(x, accuracy = 10^-decimales)
+  if_else(is.na(x), "--", comma(x, accuracy = 10^-decimales))
+}
+formato_pct <- function(x) {
+  if_else(is.na(x), "--", percent(x, accuracy = 0.1))
 }
 
 # ---- Gráficas (cada una recibe los datos YA filtrados) -----------------

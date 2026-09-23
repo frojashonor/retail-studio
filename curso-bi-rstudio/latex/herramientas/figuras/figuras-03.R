@@ -43,10 +43,10 @@ anscombe_largo <- anscombe %>%
   mutate(conjunto = paste("Conjunto", conjunto))
 
 g_anscombe <- ggplot(anscombe_largo, aes(x = x, y = y)) +
-  geom_point(color = color_principal, size = 2) +
-  geom_smooth(method = "lm", formula = y ~ x, se = FALSE,
-              color = color_resalte, linewidth = 0.8) +
-  facet_wrap(~ conjunto, ncol = 4) +
+  geom_point(color = "#2a78d6", size = 2) +        # los 11 puntos
+  geom_smooth(method = "lm", formula = y ~ x,      # recta de regresión
+              se = FALSE, color = "#eb6834", linewidth = 0.8) +
+  facet_wrap(~ conjunto, ncol = 4) +               # un panel por conjunto
   labs(title = "Mismas estadísticas, cuatro historias distintas",
        subtitle = "Media, varianza, correlación y recta casi idénticas",
        caption = "Fuente: datasets::anscombe (Anscombe, 1973)") +
@@ -65,9 +65,9 @@ ventas_mes <- ventas_detalle %>%
             .groups  = "drop")
 
 paso1 <- ggplot(data = ventas_mes, mapping = aes(x = mes, y = ingresos))
-paso2 <- paso1 + geom_line(color = color_principal, linewidth = 0.8)
+paso2 <- paso1 + geom_line(color = "#2a78d6", linewidth = 0.8)
 paso3 <- paso2 +
-  geom_point(color = color_principal, size = 2) +
+  geom_point(color = "#2a78d6", size = 2) +
   scale_y_continuous(labels = dollar)
 paso4 <- paso3 +
   labs(title = "Ingresos mensuales 2023", x = NULL, y = "Ingresos") +
@@ -448,6 +448,317 @@ g_honesto <- ggplot(ingresos_tienda,
   labs(title = "BIEN: eje desde cero", x = "Ingresos", y = NULL) +
   theme_minimal() +
   theme(panel.grid.minor = element_blank(),
-        panel.grid.major.y = element_blank())
+        panel.grid.major.y = element_blank(),
+        plot.margin = margin(5, 15, 5, 5))
 guardar_figura(g_truncado, "m03-eje-truncado", panel_ancho, panel_alto)
 guardar_figura(g_honesto, "m03-eje-honesto", panel_ancho, panel_alto)
+
+# ---------------------------------------------------------------------------
+# 11. Tema corporativo
+# ---------------------------------------------------------------------------
+tema_empresa <- function(base_size = 11) {
+  theme_minimal(base_size = base_size) +
+    theme(
+      plot.title    = element_text(face = "bold", color = "#0b0b0b"),
+      plot.subtitle = element_text(color = "#52514e"),
+      plot.caption  = element_text(color = "#52514e", size = rel(0.8),
+                                   hjust = 0),
+      plot.title.position   = "plot",
+      plot.caption.position = "plot",
+      axis.title    = element_text(color = "#52514e"),
+      axis.text     = element_text(color = "#52514e"),
+      panel.grid.minor = element_blank(),
+      panel.grid.major = element_line(color = "#e6e5e1",
+                                      linewidth = 0.3),
+      legend.position = "top",
+      legend.title    = element_text(color = "#52514e"),
+      plot.margin     = margin(10, 15, 10, 10)
+    )
+}
+
+ingresos_tienda <- ingresos_tienda %>%
+  mutate(destacar = if_else(tienda == "Outlet", "Outlet", "Resto"))
+
+g_tema <- ggplot(ingresos_tienda,
+                 aes(x = ingresos, y = fct_reorder(tienda, ingresos),
+                     fill = destacar)) +
+  geom_col(width = 0.7) +
+  scale_fill_manual(values = c(Outlet = color_resalte,
+                               Resto  = color_gris),
+                    guide = "none") +
+  scale_x_continuous(labels = dollar,
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(title = "Outlet, la tienda que más vendió en 2023",
+       subtitle = "Ingresos por tienda, en pesos",
+       x = NULL, y = NULL,
+       caption = "Fuente: transacciones.csv | Área de BI") +
+  tema_empresa() +
+  theme(panel.grid.major.y = element_blank())
+guardar_figura(g_tema, "m03-tema-empresa")
+
+# ---------------------------------------------------------------------------
+# 12. Antes y después
+# ---------------------------------------------------------------------------
+g_antes <- ggplot(ingresos_tienda, aes(x = tienda, y = ingresos,
+                                       fill = tienda)) +
+  geom_col() +
+  labs(title = "Antes")
+
+g_despues <- ggplot(ingresos_tienda,
+                    aes(x = ingresos, y = fct_reorder(tienda, ingresos))) +
+  geom_col(fill = color_principal, width = 0.7) +
+  scale_x_continuous(labels = label_dollar(scale = 1e-3, suffix = "K"),
+                     breaks = seq(0, 120000, by = 40000),
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(title = "Después", x = "Ingresos", y = NULL) +
+  tema_empresa() +
+  theme(panel.grid.major.y = element_blank())
+guardar_figura(g_antes, "m03-antes-multicolor", panel_ancho, panel_alto)
+guardar_figura(g_despues, "m03-despues-multicolor", panel_ancho,
+               panel_alto)
+
+g_sin_pastel <- ggplot(ingresos_categoria,
+                       aes(x = participacion,
+                           y = fct_reorder(categoria, participacion))) +
+  geom_col(fill = color_principal, width = 0.7) +
+  geom_text(aes(label = percent(participacion, accuracy = 0.1)),
+            hjust = -0.15, size = 3.2, color = "#52514e") +
+  scale_x_continuous(labels = percent,
+                     expand = expansion(mult = c(0, 0.12))) +
+  labs(title = "Cinco categorías concentran el 69% de los ingresos",
+       subtitle = "Participación de cada categoría en los ingresos 2023",
+       x = NULL, y = NULL) +
+  tema_empresa() +
+  theme(panel.grid.major.y = element_blank())
+guardar_figura(g_sin_pastel, "m03-despues-pastel")
+
+indice <- ventas_mes %>%
+  mutate(Ingresos = ingresos / first(ingresos) * 100,
+         Tickets  = tickets / first(tickets) * 100) %>%
+  select(mes, Ingresos, Tickets) %>%
+  pivot_longer(-mes, names_to = "medida", values_to = "indice")
+
+g_indice <- ggplot(indice, aes(x = mes, y = indice, color = medida)) +
+  geom_hline(yintercept = 100, color = color_gris, linewidth = 0.5) +
+  geom_line(linewidth = 0.8) +
+  geom_point(size = 1.8) +
+  scale_color_manual(values = paleta_libro[1:2]) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+  labs(title = "En abril cayeron ambas; de mayo a julio subió el ticket",
+       subtitle = "Índice base 100 = enero de 2023",
+       x = NULL, y = "Índice (enero = 100)", color = NULL) +
+  tema_empresa()
+guardar_figura(g_indice, "m03-despues-doble-eje")
+
+# ---------------------------------------------------------------------------
+# 15. Caso práctico: tablero de ventas 2023
+# ---------------------------------------------------------------------------
+kpis <- ventas_detalle %>%
+  summarise(ingresos = sum(total_transaccion),
+            tickets  = n(),
+            ticket_promedio = mean(total_transaccion),
+            clientes = n_distinct(cliente_id))
+
+tarjetas <- tibble(
+  x      = 1:4,
+  valor  = c(dollar(kpis$ingresos, accuracy = 1),
+             comma(kpis$tickets),
+             dollar(kpis$ticket_promedio, accuracy = 1),
+             comma(kpis$clientes)),
+  titulo = c("Ingresos 2023", "Tickets", "Ticket promedio",
+             "Clientes distintos")
+)
+
+g_kpi <- ggplot(tarjetas, aes(x = x, y = 0)) +
+  geom_tile(width = 0.92, height = 1, fill = "#f3f7fd",
+            color = "#cde2fb") +
+  geom_text(aes(label = valor), vjust = -0.1, size = 7,
+            fontface = "bold", color = "#0d366b") +
+  geom_text(aes(label = titulo), vjust = 2.2, size = 3.5,
+            color = "#52514e") +
+  theme_void()
+guardar_figura(g_kpi, "m03-tablero-kpi", alto = 1.3)
+
+t_mensual <- ggplot(ventas_mes, aes(x = mes, y = ingresos)) +
+  geom_hline(yintercept = meta_mensual, linetype = "dashed",
+             color = color_gris, linewidth = 0.6) +
+  geom_line(color = color_principal, linewidth = 0.8) +
+  geom_point(color = color_principal, size = 2) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+  scale_y_continuous(labels = label_dollar(scale = 1e-3, suffix = "K")) +
+  labs(title = "1. Abril fue el peor mes; diciembre, el mejor",
+       subtitle = "Ingresos mensuales (línea punteada = meta de $80K)",
+       x = NULL, y = NULL) +
+  tema_empresa()
+
+t_categorias <- ggplot(ingresos_categoria,
+                       aes(x = ingresos,
+                           y = fct_reorder(categoria, ingresos),
+                           fill = grupo)) +
+  geom_col(width = 0.7) +
+  scale_fill_manual(values = c(Destacada = color_resalte,
+                               Resto     = color_gris),
+                    guide = "none") +
+  scale_x_continuous(labels = label_dollar(scale = 1e-3, suffix = "K"),
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(title = "2. Belleza lidera", x = NULL, y = NULL) +
+  tema_empresa() +
+  theme(panel.grid.major.y = element_blank())
+
+t_tiendas <- g_tema +
+  scale_x_continuous(labels = label_dollar(scale = 1e-3, suffix = "K"),
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(title = "3. Outlet vende más", subtitle = NULL,
+       caption = NULL)
+
+ingresos_pago <- ventas_detalle %>%
+  group_by(metodo_pago) %>%
+  summarise(ingresos = sum(total_transaccion), .groups = "drop") %>%
+  mutate(participacion = ingresos / sum(ingresos))
+
+t_pagos <- ggplot(ingresos_pago,
+                  aes(x = participacion,
+                      y = fct_reorder(metodo_pago, participacion))) +
+  geom_col(fill = color_principal, width = 0.6) +
+  geom_text(aes(label = percent(participacion, accuracy = 1)),
+            hjust = -0.2, size = 3.2, color = "#52514e") +
+  scale_x_continuous(labels = percent,
+                     expand = expansion(mult = c(0, 0.2))) +
+  labs(title = "4. Seis de cada diez pesos\nllegan con tarjeta",
+       x = NULL, y = NULL) +
+  tema_empresa() +
+  theme(panel.grid.major.y = element_blank())
+
+t_calor <- g_calor +
+  labs(title = "5. Sin un día fijo fuerte", subtitle = NULL) +
+  tema_empresa() +
+  theme(panel.grid = element_blank(), legend.position = "none",
+        axis.text.x = element_text(size = 7))
+
+guardar_figura(t_mensual, "m03-tablero-mensual", alto = 3)
+guardar_figura(t_categorias, "m03-tablero-categorias", panel_ancho,
+               panel_alto)
+guardar_figura(t_tiendas, "m03-tablero-tiendas", panel_ancho, panel_alto)
+guardar_figura(t_pagos, "m03-tablero-pagos", panel_ancho, panel_alto)
+guardar_figura(t_calor, "m03-tablero-calor", panel_ancho, panel_alto)
+
+# ===========================================================================
+# Figuras de las soluciones (apendices/soluciones/sol-03.tex)
+# ===========================================================================
+clientes  <- read_csv("datasets/clientes.csv", show_col_types = FALSE)
+
+# m3-5: día de la semana con más ingresos
+ingresos_dia <- transacciones %>%
+  mutate(dia = wday(fecha, label = TRUE, week_start = 1)) %>%
+  group_by(dia) %>%
+  summarise(ingresos = sum(total_transaccion), .groups = "drop") %>%
+  mutate(destacar = if_else(ingresos == max(ingresos), "Máximo",
+                            "Resto"))
+
+s_dia <- ggplot(ingresos_dia, aes(x = dia, y = ingresos,
+                                  fill = destacar)) +
+  geom_col(width = 0.7) +
+  geom_text(data = filter(ingresos_dia, destacar == "Máximo"),
+            aes(label = dollar(ingresos, accuracy = 1)),
+            vjust = -0.5, size = 3.5, color = color_resalte) +
+  scale_fill_manual(values = c(Máximo = color_resalte,
+                               Resto  = color_gris),
+                    guide = "none") +
+  scale_y_continuous(labels = dollar,
+                     expand = expansion(mult = c(0, 0.1))) +
+  labs(title = "El viernes es el día que más vende",
+       subtitle = "Ingresos por día de la semana, 2023",
+       x = NULL, y = "Ingresos (MXN)") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank())
+guardar_figura(s_dia, "m03-sol-dia")
+
+# m3-7: precio de catálogo contra costo
+productos_margen <- productos %>%
+  mutate(situacion = if_else(costo > precio_catalogo,
+                             "Costo mayor al precio",
+                             "Margen positivo"))
+
+s_costo <- ggplot(productos_margen,
+                  aes(x = costo, y = precio_catalogo,
+                      color = situacion)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed",
+              color = color_gris) +
+  geom_point(size = 2.5, alpha = 0.8) +
+  annotate("text", x = 380, y = 390, label = "precio = costo",
+           angle = 20, size = 3, color = "#52514e", vjust = -0.5) +
+  scale_color_manual(values = c("Margen positivo" = color_principal,
+                                "Costo mayor al precio" = color_resalte)) +
+  scale_x_continuous(labels = dollar) +
+  scale_y_continuous(labels = dollar) +
+  labs(title = "10 de 50 productos cuestan más de lo que se venden",
+       subtitle = "Cada punto es un producto del catálogo",
+       x = "Costo", y = "Precio de catálogo", color = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        legend.position = "top")
+guardar_figura(s_costo, "m03-sol-costo")
+
+# m3-8: las 3 tiendas líderes con leyenda, el resto en gris
+acumulado <- transacciones %>%
+  left_join(tiendas, by = "tienda_id") %>%
+  mutate(tienda = str_remove(nombre_tienda, "Sucursal "),
+         mes = floor_date(fecha, unit = "month")) %>%
+  group_by(tienda, mes) %>%
+  summarise(ingresos = sum(total_transaccion), .groups = "drop") %>%
+  group_by(tienda) %>%
+  arrange(mes, .by_group = TRUE) %>%
+  mutate(acumulado = cumsum(ingresos)) %>%
+  ungroup()
+
+top3 <- acumulado %>%
+  filter(mes == max(mes)) %>%
+  slice_max(acumulado, n = 3) %>%
+  pull(tienda)
+
+lideres <- acumulado %>%
+  filter(tienda %in% top3) %>%
+  mutate(tienda = factor(tienda, levels = top3))
+resto <- acumulado %>% filter(!tienda %in% top3)
+
+s_top3 <- ggplot(mapping = aes(x = mes, y = acumulado)) +
+  geom_line(data = resto, aes(group = tienda),
+            color = color_gris, linewidth = 0.5) +
+  geom_line(data = lideres, aes(color = tienda), linewidth = 0.9) +
+  scale_color_manual(values = paleta_libro[1:3]) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+  scale_y_continuous(labels = dollar) +
+  labs(title = "Las tres tiendas líderes al cierre de 2023",
+       subtitle = "Ingresos acumulados; en gris, las otras 7 tiendas",
+       x = NULL, y = "Ingresos acumulados (MXN)", color = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        legend.position = "top")
+guardar_figura(s_top3, "m03-sol-top3")
+
+# m3-10: clientes por ciudad
+clientes_ciudad <- clientes %>%
+  count(ciudad, name = "clientes") %>%
+  mutate(destacar = if_else(clientes == max(clientes), "Mayor",
+                            "Resto"))
+
+s_ciudades <- ggplot(clientes_ciudad,
+                     aes(x = clientes,
+                         y = fct_reorder(ciudad, clientes),
+                         fill = destacar)) +
+  geom_col(width = 0.7) +
+  geom_text(aes(label = clientes), hjust = -0.3, size = 3.2,
+            color = "#52514e") +
+  scale_fill_manual(values = c(Mayor = color_resalte,
+                               Resto = color_gris),
+                    guide = "none") +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.1))) +
+  labs(title = "Puebla encabeza por poco: 28 clientes contra 27 de CDMX",
+       subtitle = "Clientes registrados por ciudad",
+       x = "Clientes", y = NULL,
+       caption = "Fuente: clientes.csv") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank())
+guardar_figura(s_ciudades, "m03-sol-ciudades")

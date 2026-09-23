@@ -179,7 +179,7 @@ server <- function(input, output, session) {
             icon = icon("users"), color = "blue")
   })
   output$info_premium <- renderInfoBox({
-    infoBox("Clientes premium", percent(kpis()$pct_premium, accuracy = 0.1),
+    infoBox("Clientes premium", formato_pct(kpis()$pct_premium),
             icon = icon("star"), color = "blue")
   })
   output$info_frecuencia <- renderInfoBox({
