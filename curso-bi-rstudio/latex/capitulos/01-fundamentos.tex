@@ -2297,24 +2297,24 @@ figura~\ref{fig:m01-estructuras} resume las cuatro.
     \node[celda, fill=morado!10] at (9.3+\c*0.95-0.45,6.45-\r*0.5) {\v};
   }
 }
-\node[expl] at (11.2,4.4) {Tabla de un solo tipo (normalmente números).\\
+\node[expl] at (11.2,4.15) {Tabla de un solo tipo (normalmente números).\\
   \texttt{matrix(..., nrow = 3)}};
 % ---- Data frame -----------------------------------------------------------
-\node[titulo] at (3.4,3.4) {Data frame / tibble};
+\node[titulo] at (3.6,3.4) {Data frame / tibble};
 \node[celda, fill=gray!20, minimum width=2.4cm] at (1.5,2.75)
   {\textbf{nombre} <chr>};
-\node[celda, fill=gray!20, minimum width=1.7cm] at (3.55,2.75)
+\node[celda, fill=gray!20, minimum width=2.1cm] at (3.75,2.75)
   {\textbf{precio} <dbl>};
-\node[celda, fill=gray!20, minimum width=1.7cm] at (5.25,2.75)
+\node[celda, fill=gray!20, minimum width=2.1cm] at (5.85,2.75)
   {\textbf{premium} <lgl>};
 \foreach \n/\p/\l [count=\r] in {Laptop/18999/TRUE, Mouse/349/FALSE,
                                   Silla/3899/TRUE} {
   \node[celda, fill=acento!10, minimum width=2.4cm] at (1.5,2.75-\r*0.5) {\n};
-  \node[celda, fill=secundario!12, minimum width=1.7cm] at (3.55,2.75-\r*0.5)
+  \node[celda, fill=secundario!12, minimum width=2.1cm] at (3.75,2.75-\r*0.5)
     {\p};
-  \node[celda, fill=exito!12, minimum width=1.7cm] at (5.25,2.75-\r*0.5) {\l};
+  \node[celda, fill=exito!12, minimum width=2.1cm] at (5.85,2.75-\r*0.5) {\l};
 }
-\node[expl] at (3.4,0.55) {Columnas de distinto tipo, todas del mismo
+\node[expl] at (3.6,0.55) {Columnas de distinto tipo, todas del mismo
   largo.\\ Es la ``hoja de Excel'' de R.};
 % ---- Lista ---------------------------------------------------------------
 \node[titulo] at (11.2,3.4) {Lista};
