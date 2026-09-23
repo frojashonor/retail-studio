@@ -31,7 +31,12 @@ ahorro
 scales::dollar(total_cupon, accuracy = 0.01)
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+[1] 3664
+[1] 586.24
+[1] 4250.24
+[1] 3825.216
+[1] 425.024
+[1] "$3,825.22"
 \end{rsalida}
 
 El subtotal es de \$3,664 y con IVA el cliente pagaría \$4,250.24. Con el
@@ -68,7 +73,14 @@ round(ingresos - punto_equilibrio, 2)              # Colchón en pesos
 round((ingresos / punto_equilibrio - 1) * 100, 1)  # Colchón en %
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+[1] 232700
+[1] 74700
+[1] 38
+[1] 12.2
+[1] 105.6
+[1] 415810.9
+[1] 196589.1
+[1] 47.3
 \end{rsalida}
 
 La sucursal tuvo un margen bruto de 38\% y un margen de operación de
@@ -105,7 +117,12 @@ format(vencimientos, "%d/%m/%Y")
 weekdays(vencimientos)
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+[1]  1250.50   980.00 12400.75  3105.20
+[1] 17736.45
+[1] "2023-01-05" "2023-01-19" "2023-02-02" "2023-02-28"
+[1] "Date"
+[1] "04/02/2023" "18/02/2023" "04/03/2023" "30/03/2023"
+[1] "sábado" "sábado" "sábado" "jueves"
 \end{rsalida}
 
 Las cuatro facturas suman \$17,736.45. Observa la última: vence el 30 de
@@ -139,7 +156,17 @@ acumulado
 names(which(acumulado > 3000)[1])     # Primer mes que supera 3 millones
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+[1] 5844
+[1] 487
+[1] "dic"
+[1] "feb"
+[1] 5
+[1] "jun" "ago" "oct" "nov" "dic"
+  feb   mar   abr   may   jun   jul   ago   sep   oct   nov   dic 
+ -8.3  18.2 -11.6  18.9   6.7  -2.9   7.1 -11.7   7.1  11.8  14.3 
+ ene  feb  mar  abr  may  jun  jul  ago  sep  oct  nov  dic 
+ 420  805 1260 1662 2140 2650 3145 3675 4143 4644 5204 5844 
+[1] "jul"
 \end{rsalida}
 
 La tienda vendió 5.84 millones en el año, con un promedio de 487 mil por
@@ -177,7 +204,14 @@ round(sum(ventas_imputadas), 2)
 sum(ifelse(is.na(ventas_dias), 0, ventas_dias))   # Si imputáramos con 0
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+[1] 3
+[1] 3 6 9
+[1] 9414.29
+[1] 65900
+[1] 4
+[1] 57.1
+[1] 94142.86
+[1] 65900
 \end{rsalida}
 
 Faltan los datos de los días 3, 6 y 9. Con los 7 días disponibles la venta
@@ -217,7 +251,13 @@ codigos
 sum(ciudades_limpias == "CDMX")
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+[1] "ANA LÓPEZ"      "CARLOS PÉREZ"   "MARÍA GONZÁLEZ"
+[1] "CDMX"      "MONTERREY" "CDMX"     
+[1] "ANA LÓPEZ (CDMX) compró $15,230.50"       
+[2] "CARLOS PÉREZ (MONTERREY) compró $8,900.00"
+[3] "MARÍA GONZÁLEZ (CDMX) compró $42,100.75"  
+[1] "CLI-001" "CLI-002" "CLI-003"
+[1] 2
 \end{rsalida}
 
 \codigo{toupper()} respeta los acentos (\emph{Pérez} pasa a
@@ -262,7 +302,31 @@ costo_dep
 names(which.max(costo_dep))
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+    nombre departamento salario antiguedad desempeno  bono
+1      Ana       Ventas   18500          3         4 22200
+2    Bruno       Ventas   22000          6         5 26400
+3    Carla  Operaciones   16800          2         3     0
+4    Diego           TI   35000          4         4 42000
+5    Elena       Ventas   19500          1         2     0
+6 Fernando  Operaciones   17200          8         4 20640
+7 Gabriela           TI   41000          7         5 49200
+8   Héctor       Ventas   24500          5         3     0
+  nombre salario desempeno
+8 Héctor   24500         3
+2  Bruno   22000         5
+5  Elena   19500         2
+1    Ana   18500         4
+  departamento salario
+1  Operaciones   17000
+2           TI   38000
+3       Ventas   21125
+  departamento  bono
+1  Operaciones 20640
+2           TI 91200
+3       Ventas 48600
+Operaciones          TI      Ventas 
+     428640     1003200     1062600 
+[1] "Ventas"
 \end{rsalida}
 
 TI tiene el salario promedio más alto (\$38,000) y, aunque solo son dos
@@ -305,7 +369,16 @@ trimestres
 round(venta, 1)
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+[1] "Amarillo" "Verde"    "Rojo"     "Verde"    "Amarillo" "Verde"   
+Luis    185 mil    92.5%  Amarillo
+Marta   240 mil   120.0%  Verde
+Nora    132 mil    66.0%  Rojo
+Óscar  310 mil   155.0%  Verde
+Paula   198 mil    99.0%  Amarillo
+Raúl   260 mil   130.0%  Verde
+[1] "Nora"
+[1] 6
+[1] 209.5
 \end{rsalida}
 
 Tres vendedores están en verde, dos en amarillo (Luis y Paula, cerca de la
@@ -349,7 +422,11 @@ tryCatch(precio_final(1000, descuento = 1.5),
          error = function(e) conditionMessage(e))
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+  laptop    mouse  monitor    silla 
+17631.07   323.87  5103.07  3618.27 
+[1] 1160
+[1] 500
+[1] "El descuento debe estar entre 0 y 1 (0.15 = 15%)"
 \end{rsalida}
 
 El negocio necesita vender 501 unidades para cubrir sus \$85,000 de costos
@@ -405,7 +482,31 @@ write_xlsx(list(Margen_negativo = as.data.frame(peores),
            "resultados/calidad_catalogo.xlsx")
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+[1] 50 13
+[1] 10
+# A tibble: 5 x 5
+  nombre_producto categoria   precio_catalogo costo margen_pct
+  <chr>           <chr>                 <dbl> <dbl>      <dbl>
+1 Producto 05     Alimentos              25.5  355.    -1292. 
+2 Producto 46     Automotriz             64.5  178.     -175. 
+3 Producto 32     Hogar                 143.   210.      -46.7
+4 Producto 26     Electrónica           115.   159.      -38.3
+5 Producto 29     Belleza               298.   392.      -31.6
+     categoria margen_pct
+4     Deportes       73.2
+8       Libros       73.0
+9     Mascotas       44.5
+5  Electrónica       43.3
+7     Juguetes       39.5
+3      Belleza       38.6
+10        Ropa       35.7
+2   Automotriz       16.8
+6        Hogar       -6.3
+1    Alimentos     -161.6
+
+Stock Bajo   Stock OK 
+         4         46 
+[1] 4
 \end{rsalida}
 
 \textbf{Conclusiones para Compras:} 12 de los 50 productos (24\%) se venden
@@ -454,7 +555,18 @@ saveRDS(resumen_pago, "resultados/resumen_metodo_pago.rds")
 identical(resumen_pago, readRDS("resultados/resumen_metodo_pago.rds"))
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+      metodo_pago total_transaccion transacciones ticket_promedio
+1        Efectivo         303734.65           315          964.24
+2 Tarjeta Crédito         351170.69           350         1003.34
+3  Tarjeta Débito         220855.30           233          947.88
+4   Transferencia          84232.05           102          825.80
+[1] 59.6
+[1] "2023-12"
+[1] 96393.61
+
+  viernes miércoles   domingo 
+      158       155       146 
+[1] TRUE
 \end{rsalida}
 
 La tarjeta de crédito es el método más usado y el de mayor monto, y las
@@ -519,7 +631,22 @@ write_xlsx(ranking, "resultados/ranking_tiendas.xlsx")
 ranking$tienda[which.max(ranking$venta_m2)]
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+           tienda ciudad num_ventas venta_total ticket_promedio
+1 Sucursal Centro   CDMX         32    43898.54         1371.83
+  mejor_mes venta_m2
+1   2023-01     87.8
+RANKING DE TIENDAS 2023
+ 1. Sucursal Outlet    $70,154.72   47 ventas   $200.44 por m2
+ 2. Sucursal Premium   $61,369.12   46 ventas    $76.71 por m2
+ 3. Sucursal Plaza B   $55,290.32   37 ventas   $115.19 por m2
+ 4. Sucursal Norte     $54,846.35   38 ventas   $121.88 por m2
+ 5. Sucursal Sur       $54,065.76   37 ventas    $90.11 por m2
+ 6. Sucursal Plaza A   $54,050.18   34 ventas    $77.21 por m2
+ 7. Sucursal Oeste     $53,611.23   37 ventas    $97.47 por m2
+ 8. Sucursal Centro    $43,898.54   32 ventas    $87.80 por m2
+ 9. Sucursal Express   $42,171.47   34 ventas   $140.57 por m2
+10. Sucursal Este      $24,458.92   23 ventas    $61.15 por m2
+[1] "Sucursal Outlet"
 \end{rsalida}
 
 \textbf{¿Qué nos dice esto?} La Sucursal Outlet es la que más vende en

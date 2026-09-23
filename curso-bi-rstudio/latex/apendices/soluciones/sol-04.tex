@@ -23,7 +23,10 @@ c(media    = mean(precio),
 quantile(precio, probs = c(0.10, 0.90))
 \end{rcode}
 \begin{rsalida}
-AUTO
+      media     mediana    desv_est          cv         iqr
+318.3110300 324.9200000 171.5302293   0.5388762 303.8950000
+    10%     90%
+ 76.705 545.047
 \end{rsalida}
 
 La media (\$318.31) y la mediana (\$324.92) son casi iguales: la
@@ -60,7 +63,17 @@ transacciones %>%
   arrange(desc(transacciones))
 \end{rcode}
 \begin{rsalida}
-AUTO
+[1] "viernes"
+# A tibble: 7 x 4
+  dia_semana transacciones  ventas pct_transacciones
+  <chr>              <int>   <dbl>             <dbl>
+1 viernes              158 161266.             0.158
+2 miércoles            155 141329.             0.155
+3 domingo              146 148703.             0.146
+4 jueves               146 145280.             0.146
+5 lunes                136 128878.             0.136
+6 sábado               130 115172.             0.13
+7 martes               129 119364.             0.129
 \end{rsalida}
 
 El viernes es el día con más transacciones (moda). Revisa la columna
@@ -87,7 +100,16 @@ empleados %>%
   arrange(desc(abs(diferencia)))
 \end{rcode}
 \begin{rsalida}
-AUTO
+# A tibble: 7 x 5
+  departamento        empleados  media mediana diferencia
+  <chr>                   <int>  <dbl>   <dbl>      <dbl>
+1 RRHH                       15 22956.  18291.      4665.
+2 Operaciones                10 30380.  34945.     -4566.
+3 IT                          9 30842.  35044.     -4202.
+4 Ventas                     16 29032.  32102.     -3071.
+5 Finanzas                    9 28116.  31123.     -3007.
+6 Atención al Cliente        29 27919.  30663.     -2745.
+7 Marketing                  12 24602.  24193.       410.
 \end{rsalida}
 
 En RRHH la media supera a la mediana por unos \$4,665: hay algunos
@@ -128,7 +150,16 @@ ventas_marcadas %>%
 mean((ventas$total - mean(ventas$total))^3) / sd(ventas$total)^3
 \end{rcode}
 \begin{rsalida}
-AUTO
+[1] 4751.18
+[1] 3
+[1] 3
+# A tibble: 3 x 6
+  fecha      cantidad precio_unitario descuento_pct total     z
+  <date>        <dbl>           <dbl>         <dbl> <dbl> <dbl>
+1 2023-04-21       10            492.             0 4925.  3.13
+2 2023-07-24       10            495.             0 4950.  3.15
+3 2023-09-04       10            487.             0 4875.  3.08
+[1] 0.8517708
 \end{rsalida}
 
 La regla del IQR marca 3 ventas (todas por encima de \$4,751) y la regla $z$
@@ -162,7 +193,15 @@ sum(kpi_trimestral$vs_meta >= 0)            # trimestres en meta
 sum(kpi_trimestral$ventas) / (4 * meta_trimestral) - 1   # vs meta anual
 \end{rcode}
 \begin{rsalida}
-AUTO
+# A tibble: 4 x 6
+  trimestre  ventas crec_qoq acumulado indice_100 vs_meta
+  <chr>       <dbl>    <dbl>     <dbl>      <dbl>   <dbl>
+1 Q1        126274.  NA        126274.      100   -0.0287
+2 Q2        120717.  -0.0440   246991.       95.6 -0.0714
+3 Q3        134427.   0.114    381418.      106.   0.0341
+4 Q4        132498.  -0.0144   513917.      105.   0.0192
+[1] 2
+[1] -0.01169883
 \end{rsalida}
 
 Solo el tercer y el cuarto trimestre superaron la meta de \$130,000 (Q3 por
@@ -196,7 +235,22 @@ frecuencia %>%
 t.test(compras ~ es_premium, data = frecuencia)
 \end{rcode}
 \begin{rsalida}
-AUTO
+# A tibble: 2 x 3
+  es_premium clientes compras_prom
+  <lgl>         <int>        <dbl>
+1 FALSE           126         5.18
+2 TRUE             72         4.82
+
+        Welch Two Sample t-test
+
+data:  compras by es_premium
+t = 1.063, df = 146.53, p-value = 0.2895
+alternative hypothesis: true difference in means between group FALSE and group TRUE is not equal to 0
+95 percent confidence interval:
+ -0.3119807  1.0381711
+sample estimates:
+mean in group FALSE  mean in group TRUE
+           5.182540            4.819444
 \end{rsalida}
 
 Los clientes premium compraron en promedio 5.2 veces en el año y los no
@@ -239,7 +293,16 @@ abc_clientes %>%
   summarise(clientes = n(), pct_ingresos = max(pct_acumulado))
 \end{rcode}
 \begin{rsalida}
-AUTO
+# A tibble: 3 x 4
+  clase clientes pct_clientes pct_ingresos
+  <chr>    <int>        <dbl>        <dbl>
+1 A          119        0.601       0.798
+2 B           44        0.222       0.151
+3 C           35        0.177       0.0511
+# A tibble: 1 x 2
+  clientes pct_ingresos
+     <int>        <dbl>
+1       39        0.367
 \end{rsalida}
 
 Se necesitan 116 clientes (el 58.6\% de la clientela activa) para juntar el
@@ -265,7 +328,11 @@ dbinom(0, size = 150, prob = 0.03)            # P(ninguna)
 1 - ppois(7, lambda = 4)                      # P(8 o más)
 \end{rcode}
 \begin{rsalida}
-AUTO
+[1] 0.4060719
+[1] 25996.52
+[1] 0.03780957
+[1] 0.01036956
+[1] 0.05113362
 \end{rsalida}
 
 \begin{enumerate}
@@ -292,7 +359,20 @@ compras / visitas                    # tasas de conversión
 prop.test(x = compras, n = visitas)
 \end{rcode}
 \begin{rsalida}
-AUTO
+    A     B
+0.060 0.075
+
+        2-sample test for equality of proportions with continuity
+        correction
+
+data:  compras out of visitas
+X-squared = 5.1263, df = 1, p-value = 0.02357
+alternative hypothesis: two.sided
+95 percent confidence interval:
+ -0.028024006 -0.001975994
+sample estimates:
+prop 1 prop 2
+ 0.060  0.075
 \end{rsalida}
 
 El diseño A convierte 6.0\% y el B 7.5\%. Con $p = 0.024 < 0.05$ rechazamos
@@ -312,7 +392,9 @@ modelo_salarios <- aov(salario_mensual ~ departamento, data = empleados)
 summary(modelo_salarios)
 \end{rcode}
 \begin{rsalida}
-AUTO
+             Df    Sum Sq   Mean Sq F value Pr(>F)
+departamento  6 6.399e+08 106656199   0.876  0.516
+Residuals    93 1.133e+10 121778750
 \end{rsalida}
 
 El p-valor es 0.516: no hay evidencia de que el salario promedio difiera
@@ -342,7 +424,12 @@ confint(modelo_precio)
 summary(modelo_precio)$r.squared
 \end{rcode}
 \begin{rsalida}
-AUTO
+(Intercept)      precio
+ 498.510218   -2.973617
+                2.5 %     97.5 %
+(Intercept) 465.24655 531.773889
+precio       -3.30276  -2.644474
+[1] 0.8681726
 \end{rsalida}
 
 La pendiente estimada es $-3.13$: por cada peso que sube el precio, se
@@ -360,7 +447,11 @@ predict(modelo_precio, newdata = tibble(precio = 200))
 range(semanas$precio)       # rango de precios observado
 \end{rcode}
 \begin{rsalida}
-AUTO
+       fit      lwr      upr
+1 201.1485 173.0502 229.2469
+        1
+-96.21315
+[1]  80.98455 119.77079
 \end{rsalida}
 
 Con un precio de \$100 esperamos vender unas 196 unidades en la semana,
@@ -385,7 +476,9 @@ ggplot(diagnostico, aes(x = ajustado, y = residuo)) +
   theme_minimal()
 \end{rcode}
 \begin{rsalida}
-AUTO
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+-35.405  -8.198  -1.030   0.000  10.582  31.869
+[1] 0
 \end{rsalida}
 
 Los residuos están centrados en cero (mediana cercana a 0), son más o menos
