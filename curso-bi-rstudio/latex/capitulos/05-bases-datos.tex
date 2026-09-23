@@ -1,0 +1,4058 @@
+% ============================================================================
+% MÓDULO 5 - Bases de datos, SQL y ETL desde R
+% ============================================================================
+\chapter{Bases de datos, SQL y ETL desde R}
+\label{cap:bases-datos}
+
+\begin{objetivos}
+\begin{itemize}
+  \item Explicar por qué las empresas guardan sus datos en bases de datos y
+        no en archivos de Excel o CSV, y distinguir una base transaccional
+        (OLTP) de una analítica (OLAP o \emph{data warehouse}).
+  \item Usar el vocabulario básico: tabla, fila, columna, tipo de dato,
+        llave primaria, llave foránea e índice.
+  \item Conectarte desde R a una base de datos con \paquete{DBI} y
+        \paquete{RSQLite}, cargar tablas, consultarlas y cerrar la conexión
+        de forma segura.
+  \item Escribir consultas SQL desde cero para responder preguntas de
+        negocio: filtros, agregaciones, \emph{joins}, subconsultas, CTE y
+        funciones de ventana.
+  \item Proteger tus consultas contra la inyección SQL con consultas
+        parametrizadas.
+  \item Trabajar con tablas de la base como si fueran data frames gracias a
+        \paquete{dbplyr}, y ver el SQL que genera.
+  \item Diseñar y construir un \emph{data warehouse} en estrella con tabla
+        de hechos, dimensiones, vistas e índices.
+  \item Programar un proceso ETL reutilizable con transacciones, carga
+        incremental sin duplicados y bitácora de ejecución.
+  \item Conectarte de forma segura a las bases de datos reales de tu
+        empresa (SQL Server, PostgreSQL, MySQL) sin exponer contraseñas.
+\end{itemize}
+\end{objetivos}
+
+Hasta ahora has trabajado con archivos CSV que viven en tu computadora. En
+una empresa real las cosas son distintas. Las ventas no están en un CSV: se
+registran, una por una, en el sistema del punto de venta de cada sucursal, y
+ese sistema las guarda en una \termino{base de datos}. El catálogo de
+productos lo mantiene el área de compras en otro sistema; los clientes, el
+CRM; los empleados, Recursos Humanos. Cuando tu jefa te pide ``las ventas de
+ayer por sucursal'', nadie te va a mandar un archivo: te van a dar un usuario
+y una contraseña para que consultes tú mismo la base de datos.
+
+Por eso este módulo es clave en tu camino como analista de BI. Aprenderás
+\termino{SQL} (\emph{Structured Query Language}), el idioma universal para
+pedirle datos a una base; lo usan prácticamente todas las empresas del mundo
+y aparece en casi cualquier vacante de analista de datos. Lo mejor: lo vas a
+aprender \emph{desde R}, sin salir de RStudio, de modo que puedes combinar la
+potencia de SQL para extraer y agregar datos con todo lo que ya sabes de
+\paquete{dplyr} y \paquete{ggplot2}.
+
+Para que puedas practicar sin instalar ningún servidor usaremos
+\termino{SQLite}, un motor de base de datos completo que guarda toda la base
+en un solo archivo. Construiremos, paso a paso, la base
+\archivo{datos/bi\_retail.sqlite} con los datos del curso; primero como una
+copia de los CSV, después como un \emph{data warehouse} en estrella cargado
+por un proceso ETL escrito en R. Todo lo que aprendas aquí (el SQL, las
+funciones de \paquete{DBI}, el diseño del modelo) funciona igual con SQL
+Server, PostgreSQL o MySQL; al final verás cómo conectarte a ellos.
+
+% ----------------------------------------------------------------------------
+\section{¿Por qué bases de datos en BI?}
+\label{sec:m5-porque}
+
+\subsection{Los límites de Excel y los archivos CSV}
+
+Excel y los CSV son excelentes para intercambiar datos pequeños, pero se
+quedan cortos en cuanto una empresa crece:
+
+\begin{itemize}
+  \item \textbf{Volumen.} Una hoja de Excel admite 1\,048\,576 filas. Una
+        cadena de 10 tiendas con 2\,000 tickets diarios por tienda llena ese
+        límite en menos de dos meses. Un CSV no tiene límite formal, pero
+        para leerlo tienes que cargarlo completo en la memoria de tu
+        computadora.
+  \item \textbf{Una sola versión de la verdad.} Cuando cada área guarda su
+        propio archivo (\archivo{ventas\_final.xlsx},
+        \archivo{ventas\_final\_v2\_bueno.xlsx}\ldots), en la junta cada quien
+        llega con una cifra distinta. Una base de datos central es la
+        \termino{fuente única de la verdad}: todos consultan los mismos
+        datos.
+  \item \textbf{Concurrencia.} Cien cajeros pueden registrar ventas al mismo
+        tiempo en una base de datos sin pisarse; en un archivo de Excel
+        compartido, el segundo que lo abre lo ve ``de solo lectura''.
+  \item \textbf{Integridad.} Una base de datos puede impedir que se registre
+        una venta de un producto que no existe o con cantidad negativa. Un
+        CSV acepta cualquier cosa.
+  \item \textbf{Seguridad y auditoría.} En una base puedes dar permiso de
+        solo lectura a los analistas, ocultar columnas sensibles (sueldos,
+        teléfonos) y saber quién consultó qué.
+\end{itemize}
+
+\subsection{Bases transaccionales (OLTP) y analíticas (OLAP)}
+
+No todas las bases de datos tienen el mismo propósito. En BI conviene
+distinguir dos grandes familias:
+
+\begin{concepto}{OLTP frente a OLAP}
+Una base \termino{OLTP} (\emph{Online Transaction Processing}) es la que
+usan los sistemas del día a día: el punto de venta, el ERP, la tienda en
+línea. Está optimizada para registrar muchísimas operaciones pequeñas y
+rápidas (``inserta este ticket'', ``actualiza el stock de este producto'').
+
+Una base \termino{OLAP} (\emph{Online Analytical Processing}), cuya forma
+más común es el \termino{data warehouse} (almacén de datos), está pensada
+para \emph{analizar}: pocas consultas, pero cada una recorre millones de
+filas para sumar, agrupar y comparar (``ventas por mes, categoría y zona de
+los últimos tres años''). Se alimenta de las bases OLTP mediante procesos
+\termino{ETL} (\emph{Extract, Transform, Load}: extraer, transformar,
+cargar).
+\end{concepto}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Diferencias entre una base transaccional y un data warehouse.}
+\label{tab:m5-oltp-olap}
+\begin{tabularx}{\textwidth}{@{}lXX@{}}
+\toprule
+ & \textbf{OLTP (transaccional)} & \textbf{OLAP (data warehouse)} \\
+\midrule
+Propósito & Operar el negocio & Analizar el negocio \\
+Usuarios & Cajeros, sistemas, clientes & Analistas, directivos, tableros \\
+Operación típica & Insertar o actualizar una fila & Leer y agregar millones de filas \\
+Diseño & Muy normalizado (muchas tablas) & En estrella (hechos y dimensiones) \\
+Historia & Estado actual & Años de historia \\
+Ejemplo & Sistema del punto de venta & Base que alimenta el tablero de ventas \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{negocio}{¿Dónde encaja el analista de BI?}
+Casi nunca vas a escribir directamente en la base OLTP de la empresa (y no
+deberías: una consulta pesada puede volver lento el punto de venta). Tu
+trabajo habitual es \emph{leer} de las bases con permisos de solo lectura,
+construir o alimentar el \emph{data warehouse} y, a partir de él, producir
+reportes, tableros y modelos. R es una herramienta excelente para las tres
+tareas.
+\end{negocio}
+
+\subsection{Motores de bases de datos que encontrarás en las empresas}
+
+Un \termino{motor de base de datos} (o \termino{SGBD}, sistema gestor de
+bases de datos) es el programa que guarda los datos y responde las
+consultas. Todos hablan SQL, con pequeñas diferencias de ``dialecto''. La
+tabla~\ref{tab:m5-motores} resume los más comunes y el paquete de R con el
+que te conectas a cada uno.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Motores de bases de datos frecuentes y cómo conectarte desde R.}
+\label{tab:m5-motores}
+\begin{tabularx}{\textwidth}{@{}lXl@{}}
+\toprule
+\textbf{Motor} & \textbf{Dónde lo verás} & \textbf{Paquete de R} \\
+\midrule
+SQL Server & Empresas con ecosistema Microsoft, ERPs & \paquete{odbc} \\
+PostgreSQL & Startups, aplicaciones web, gobierno & \paquete{RPostgres} \\
+MySQL / MariaDB & Tiendas en línea, sistemas web & \paquete{RMariaDB} \\
+Oracle & Bancos, telecomunicaciones, grandes corporativos & \paquete{odbc} \\
+SQLite & Aplicaciones móviles, prototipos, este curso & \paquete{RSQLite} \\
+BigQuery, Snowflake, Redshift & Data warehouses en la nube & \paquete{bigrquery}, \paquete{odbc} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{consejo}
+Lo que aprendas con SQLite te sirve para cualquier motor: las funciones de
+\paquete{DBI} son idénticas y el 90\% del SQL también. Las diferencias
+suelen estar en funciones de fecha (\codigo{strftime()} en SQLite,
+\codigo{DATEPART()} en SQL Server, \codigo{date\_trunc()} en PostgreSQL) y en
+cómo limitar filas (\codigo{LIMIT} frente a \codigo{TOP}).
+\end{consejo}
+
+% ----------------------------------------------------------------------------
+\section{Conceptos básicos de una base de datos relacional}
+\label{sec:m5-conceptos}
+
+Una \termino{base de datos relacional} organiza la información en
+\termino{tablas} relacionadas entre sí. Si ya dominas los data frames, vas
+con ventaja: una tabla se parece mucho a un data frame.
+
+\begin{concepto}{Vocabulario esencial}
+\begin{itemize}
+  \item \textbf{Tabla}: conjunto de datos sobre un mismo tipo de cosa
+        (clientes, productos, ventas). Equivale a un data frame.
+  \item \textbf{Fila} (registro): un elemento concreto, por ejemplo un
+        cliente.
+  \item \textbf{Columna} (campo): un atributo, por ejemplo la ciudad del
+        cliente. Cada columna tiene un \termino{tipo de dato}: entero
+        (\codigo{INTEGER}), decimal (\codigo{REAL}), texto (\codigo{TEXT}),
+        fecha, etc.
+  \item \textbf{Llave primaria} (\emph{primary key}, PK): columna cuyo valor
+        identifica de forma única cada fila; no se repite ni puede estar
+        vacía. Ejemplo: \codigo{cliente\_id}.
+  \item \textbf{Llave foránea} (\emph{foreign key}, FK): columna de una
+        tabla que apunta a la llave primaria de otra. En
+        \codigo{transacciones}, la columna \codigo{cliente\_id} es una llave
+        foránea hacia \codigo{clientes}. Así se \emph{relacionan} las tablas.
+  \item \textbf{Índice}: estructura auxiliar (como el índice alfabético de
+        un libro) que permite encontrar filas rápidamente sin recorrer toda
+        la tabla.
+\end{itemize}
+\end{concepto}
+
+La figura~\ref{fig:m5-relacional} muestra el modelo relacional de los datos
+del curso. La tabla central es \codigo{transacciones}: cada fila es una venta
+y, mediante sus llaves foráneas, sabemos a qué cliente, producto, tienda y
+vendedor corresponde. Observa que \codigo{vendedor\_id} apunta a
+\codigo{empleado\_id} en la tabla de empleados: la columna no tiene que
+llamarse igual en ambas tablas.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  tabla/.style={draw=primario, rounded corners=2pt, fill=white,
+    font=\ttfamily\scriptsize, align=left, inner sep=3pt,
+    minimum width=3.3cm},
+  titulo/.style={fill=primario, text=white, font=\sffamily\small\bfseries,
+    minimum width=3.3cm, inner sep=3pt},
+  rel/.style={-{Stealth[length=2.5mm]}, draw=acento, thick}
+]
+% Tabla central
+\node[titulo] (tt) at (0,0) {transacciones};
+\node[tabla, below=0pt of tt] (t) {\textbf{PK} transaccion\_id\\
+fecha, hora\\ \textbf{FK} cliente\_id\\ \textbf{FK} producto\_id\\
+\textbf{FK} tienda\_id\\ \textbf{FK} vendedor\_id\\
+cantidad, precio\_venta\\ metodo\_pago\\ total\_transaccion};
+% Clientes
+\node[titulo] (ct) at (-5.2,1.2) {clientes};
+\node[tabla, below=0pt of ct] (c) {\textbf{PK} cliente\_id\\ nombre, edad\\
+ciudad, segmento\\ es\_premium};
+% Productos
+\node[titulo] (pt) at (5.2,1.2) {productos};
+\node[tabla, below=0pt of pt] (p) {\textbf{PK} producto\_id\\
+nombre\_producto\\ categoria, marca\\ precio\_catalogo, costo};
+% Tiendas
+\node[titulo] (tit) at (-5.2,-2.6) {tiendas};
+\node[tabla, below=0pt of tit] (ti) {\textbf{PK} tienda\_id\\
+nombre\_tienda\\ ciudad, zona, tipo};
+% Empleados
+\node[titulo] (et) at (5.2,-2.6) {empleados};
+\node[tabla, below=0pt of et] (e) {\textbf{PK} empleado\_id\\ nombre\\
+departamento, puesto};
+% Relaciones (de la FK a la PK)
+\draw[rel] ($(t.west)+(0,0.9)$) -- node[above, sloped,
+  font=\scriptsize\sffamily, text=gristexto] {cliente\_id} (c.east);
+\draw[rel] ($(t.east)+(0,0.9)$) -- node[above, sloped,
+  font=\scriptsize\sffamily, text=gristexto] {producto\_id} (p.west);
+\draw[rel] ($(t.west)+(0,-0.6)$) -- node[below, sloped,
+  font=\scriptsize\sffamily, text=gristexto] {tienda\_id} (ti.east);
+\draw[rel] ($(t.east)+(0,-0.6)$) -- node[below, sloped,
+  font=\scriptsize\sffamily, text=gristexto] {vendedor\_id} (e.west);
+\end{tikzpicture}
+\caption{Modelo relacional de los datos del curso. Las flechas van de la
+llave foránea (FK) a la llave primaria (PK) de la tabla relacionada.}
+\label{fig:m5-relacional}
+\end{figure}
+
+\begin{advertencia}
+En los datos del curso las llaves foráneas existen ``de palabra'': los CSV
+no obligan a nada. Una base de datos bien diseñada \emph{declara} esas
+relaciones para que el motor rechace, por ejemplo, una venta de un producto
+inexistente. Lo harás en la sección~\ref{sec:m5-estrella}, cuando construyas
+el \emph{data warehouse}.
+\end{advertencia}
+
+\begin{hazlotu}
+Abre \archivo{ventas\_retail.csv} y responde en papel: ¿cuál sería su llave
+primaria? (Pista: no tiene una columna \codigo{\_id} propia, pero hay una
+venta por día.) ¿Qué columnas son llaves foráneas y hacia qué tablas
+apuntan?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Conectarte a una base de datos con DBI y RSQLite}
+\label{sec:m5-dbi}
+
+En R, todas las conexiones a bases de datos siguen el mismo esquema de dos
+capas:
+
+\begin{itemize}
+  \item \paquete{DBI} (\emph{DataBase Interface}) define las funciones que
+        tú usas: \codigo{dbConnect()}, \codigo{dbGetQuery()},
+        \codigo{dbWriteTable()}, etc. Son las mismas para cualquier motor.
+  \item Un \termino{driver} (controlador) traduce esas funciones al
+        protocolo de un motor concreto: \paquete{RSQLite} para SQLite,
+        \paquete{RPostgres} para PostgreSQL, \paquete{odbc} para SQL Server,
+        etc.
+\end{itemize}
+
+Si mañana tu empresa cambia de SQLite a PostgreSQL, solo cambia la línea de
+\codigo{dbConnect()}; el resto de tu código sigue igual. Los paquetes que
+usaremos se instalan como siempre:
+
+\begin{rnoejecutar}
+install.packages(c("DBI", "RSQLite", "dbplyr"))
+\end{rnoejecutar}
+
+\subsection{Preparar la carpeta y crear la base}
+
+Empezamos cargando los paquetes y preparando la ruta del archivo de la base.
+Un detalle importante de reproducibilidad: SQLite \emph{guarda} lo que
+escribes en el archivo, y ese archivo sigue ahí la próxima vez que ejecutes
+el script. Si lo corres dos veces, la segunda vez las tablas ya existirían y
+obtendrías errores del tipo ``la tabla ya existe'' o, peor, datos
+duplicados. Por eso, al inicio del módulo borramos el archivo si existe y
+empezamos siempre desde cero.
+
+\begin{rcode}
+library(tidyverse)
+library(DBI)        # funciones comunes para cualquier base de datos
+library(RSQLite)    # driver (controlador) de SQLite
+library(dbplyr)     # traduce verbos de dplyr a SQL
+library(lubridate)  # fechas
+\end{rcode}
+
+Al cargar \paquete{dbplyr} verás un aviso de que ``enmascara'' las
+funciones \codigo{ident()} y \codigo{sql()} de \paquete{dplyr}; es normal y
+no afecta nada de lo que haremos. Ahora preparamos la carpeta y la ruta del
+archivo:
+
+\begin{rcode}
+# Carpeta donde vivirá la base de datos
+dir.create("datos", showWarnings = FALSE)
+ruta_bd <- "datos/bi_retail.sqlite"
+
+# Si la base ya existe (de una ejecución anterior), la borramos para
+# que el script sea reproducible y siempre empiece desde cero.
+# unlink() no marca error si el archivo no existe.
+unlink(ruta_bd)
+file.exists(ruta_bd)
+\end{rcode}
+
+\begin{rsalida}
+[1] FALSE
+\end{rsalida}
+
+Ahora abrimos la conexión. Con SQLite, si el archivo no existe,
+\codigo{dbConnect()} lo crea vacío:
+
+\begin{rcode}
+# Abrir (y crear) la base de datos en el archivo
+con <- dbConnect(RSQLite::SQLite(), ruta_bd)
+
+# ¿Qué tablas tiene? Ninguna todavía
+dbListTables(con)
+file.exists(ruta_bd)
+\end{rcode}
+
+\begin{rsalida}
+character(0)
+[1] TRUE
+\end{rsalida}
+
+El objeto \codigo{con} es la \termino{conexión}: el ``cable'' entre tu
+sesión de R y la base. Todas las funciones de \paquete{DBI} reciben la
+conexión como primer argumento.
+
+\begin{consejo}
+SQLite también puede crear una base \emph{temporal en memoria} con
+\codigo{dbConnect(RSQLite::SQLite(), ":memory:")}. Desaparece al
+desconectarte, así que es perfecta para pruebas rápidas y ejercicios; las
+soluciones de este módulo la usan mucho.
+\end{consejo}
+
+\subsection{Cargar los CSV del curso a la base con \texorpdfstring{\codigo{dbWriteTable()}}{dbWriteTable()}}
+
+\codigo{dbWriteTable(con, "nombre", datos)} crea una tabla en la base a
+partir de un data frame. Vamos a cargar los seis CSV del curso. Antes de
+escribirlos haremos una pequeña transformación: convertir las columnas de
+fecha y de hora a texto con formato ISO (\codigo{"2023-01-13"},
+\codigo{"13:15:00"}). SQLite no tiene un tipo de dato de fecha propiamente
+dicho y, si le mandas un \codigo{Date} de R tal cual, lo guarda como un
+número. En la sección~\ref{sec:m5-fechas} verás el problema con detalle; por
+ahora quédate con la regla: \emph{en SQLite, las fechas se guardan como texto
+\codigo{'AAAA-MM-DD'}}.
+
+\begin{rcode}
+# Lee un CSV del curso y deja fechas y horas como texto ISO
+leer_para_bd <- function(archivo) {
+  read_csv(file.path("datasets", archivo), show_col_types = FALSE) %>%
+    mutate(
+      across(where(is.Date), ~ format(.x, "%Y-%m-%d")),  # fechas
+      across(where(hms::is_hms), as.character)          # horas
+    )
+}
+
+# Nombre de la tabla en la base = nombre del archivo sin ".csv"
+archivos <- c("ventas_retail", "clientes", "productos",
+              "empleados", "transacciones", "tiendas")
+
+for (tabla in archivos) {
+  datos <- leer_para_bd(paste0(tabla, ".csv"))
+  # overwrite = TRUE: si la tabla existe, la reemplaza
+  dbWriteTable(con, tabla, datos, overwrite = TRUE)
+  cat(sprintf("%-14s %5d filas cargadas\n", tabla, nrow(datos)))
+}
+
+dbListTables(con)
+\end{rcode}
+
+\begin{rsalida}
+ventas_retail    365 filas cargadas
+clientes         200 filas cargadas
+productos         50 filas cargadas
+empleados        100 filas cargadas
+transacciones   1000 filas cargadas
+tiendas           10 filas cargadas
+[1] "clientes"      "empleados"     "productos"     "tiendas"      
+[5] "transacciones" "ventas_retail"
+\end{rsalida}
+
+En unas cuantas líneas tienes una base de datos con seis tablas.
+\codigo{dbListTables()} las devuelve en orden alfabético. Si abres la
+carpeta \archivo{datos/} verás el archivo \archivo{bi\_retail.sqlite}: esa es
+toda la base; puedes copiarlo, respaldarlo o mandarlo por correo.
+
+\subsection{Explorar la base: columnas, tipos y contenido}
+
+\codigo{dbListFields()} te dice qué columnas tiene una tabla, y la
+instrucción especial de SQLite \codigo{PRAGMA table\_info()} te muestra
+además el tipo de dato con el que se guardó cada una:
+
+\begin{rcode}
+# Columnas de la tabla de tiendas
+dbListFields(con, "tiendas")
+
+# Tipo de dato de cada columna (instrucción propia de SQLite)
+dbGetQuery(con, "PRAGMA table_info(tiendas)") %>%
+  select(name, type)
+\end{rcode}
+
+\begin{rsalida}
+[1] "tienda_id"      "nombre_tienda"  "ciudad"        
+[4] "zona"           "tamano_m2"      "empleados"     
+[7] "fecha_apertura" "tipo"          
+            name type
+1      tienda_id REAL
+2  nombre_tienda TEXT
+3         ciudad TEXT
+4           zona TEXT
+5      tamano_m2 REAL
+6      empleados REAL
+7 fecha_apertura TEXT
+8           tipo TEXT
+\end{rsalida}
+
+Observa la traducción de tipos: los números de R (\codigo{double}) se
+guardaron como \codigo{REAL}, el texto como \codigo{TEXT} y la fecha de
+apertura, gracias a nuestra conversión, también como \codigo{TEXT}. Los
+valores lógicos (\codigo{TRUE}/\codigo{FALSE}, como \codigo{es\_premium} en
+clientes) se guardan como enteros \codigo{1}/\codigo{0}, porque SQLite no
+tiene tipo lógico.
+
+Para traer una tabla \emph{completa} a R usa \codigo{dbReadTable()}. Devuelve
+un data frame normal:
+
+\begin{rcode}
+tiendas_bd <- dbReadTable(con, "tiendas")
+class(tiendas_bd)
+tiendas_bd %>% select(tienda_id, nombre_tienda, ciudad, zona) %>% head(4)
+\end{rcode}
+
+\begin{rsalida}
+[1] "data.frame"
+  tienda_id   nombre_tienda      ciudad   zona
+1         1 Sucursal Centro        CDMX Centro
+2         2  Sucursal Norte Guadalajara  Norte
+3         3    Sucursal Sur   Monterrey  Norte
+4         4   Sucursal Este        CDMX   Este
+\end{rsalida}
+
+\begin{advertencia}
+\codigo{dbReadTable()} trae \emph{todas} las filas y columnas. Con la tabla
+de tiendas (10 filas) no pasa nada, pero con la tabla de ventas de una
+empresa real (cientos de millones de filas) puedes congelar tu computadora.
+Lo profesional es pedirle a la base \emph{solo lo que necesitas} con una
+consulta SQL, que es justo lo que viene.
+\end{advertencia}
+
+\subsection{Consultar y modificar: \texorpdfstring{\codigo{dbGetQuery()}}{dbGetQuery()} y \texorpdfstring{\codigo{dbExecute()}}{dbExecute()}}
+
+Las dos funciones que más vas a usar son:
+
+\begin{itemize}
+  \item \codigo{dbGetQuery(con, sql)}: ejecuta una consulta que
+        \emph{devuelve datos} (\codigo{SELECT}) y te regresa un data frame.
+  \item \codigo{dbExecute(con, sql)}: ejecuta una instrucción que
+        \emph{modifica} la base (\codigo{CREATE}, \codigo{INSERT},
+        \codigo{UPDATE}, \codigo{DELETE}) y te regresa el número de filas
+        afectadas.
+\end{itemize}
+
+\begin{rcode}
+# Una consulta: ¿cuántas transacciones hay?
+dbGetQuery(con, "SELECT COUNT(*) AS num_transacciones
+                 FROM transacciones")
+
+# Una modificación: crear una tabla de metas mensuales y llenarla
+dbExecute(con, "CREATE TABLE metas (mes TEXT, meta REAL)")
+dbExecute(con, "INSERT INTO metas VALUES ('2023-01', 80000),
+                                         ('2023-02', 75000)")
+dbGetQuery(con, "SELECT * FROM metas")
+
+# Borrar la tabla de prueba
+dbExecute(con, "DROP TABLE metas")
+\end{rcode}
+
+\begin{rsalida}
+  num_transacciones
+1              1000
+[1] 0
+[1] 2
+      mes  meta
+1 2023-01 80000
+2 2023-02 75000
+[1] 0
+\end{rsalida}
+
+El texto SQL puede ocupar varias líneas dentro de las comillas; a la base no
+le importan los saltos de línea. \codigo{CREATE TABLE} devolvió \codigo{0}
+(no afectó filas), el \codigo{INSERT} devolvió \codigo{2} (insertó dos filas)
+y el \codigo{DROP TABLE} volvió a devolver \codigo{0}.
+
+\subsection{Cerrar la conexión: \texorpdfstring{\codigo{dbDisconnect()}}{dbDisconnect()} y \texorpdfstring{\codigo{on.exit()}}{on.exit()}}
+
+Cuando terminas, cierra la conexión con \codigo{dbDisconnect(con)}. Con
+SQLite no cerrarla es un descuido menor, pero en un servidor real cada
+conexión abierta consume recursos y muchas empresas limitan cuántas puede
+tener abierta cada usuario. Si escribes una \emph{función} que abre su
+propia conexión, la buena práctica es usar \codigo{on.exit()}: registra una
+acción que se ejecutará al salir de la función, \emph{incluso si ocurre un
+error a la mitad}.
+
+\begin{rcode}
+# Función que abre su propia conexión y SIEMPRE la cierra
+contar_filas <- function(ruta, tabla) {
+  con_local <- dbConnect(RSQLite::SQLite(), ruta)
+  on.exit(dbDisconnect(con_local))   # se ejecuta al salir, pase lo que pase
+  sql <- paste("SELECT COUNT(*) AS n FROM", tabla)
+  dbGetQuery(con_local, sql)$n
+}
+
+contar_filas(ruta_bd, "clientes")
+contar_filas(ruta_bd, "productos")
+\end{rcode}
+
+\begin{rsalida}
+[1] 200
+[1] 50
+\end{rsalida}
+
+Aquí usamos \codigo{paste()} para armar el SQL porque el nombre de la tabla
+lo escribes tú, en tu propio código. En la sección~\ref{sec:m5-parametros}
+verás por qué \emph{nunca} debes hacer lo mismo con valores que escribe un
+usuario. En el resto del módulo seguiremos usando la conexión global
+\codigo{con}, que cerraremos al final.
+
+\begin{hazlotu}
+Usa \codigo{dbListFields()} para ver las columnas de la tabla
+\codigo{empleados} y \codigo{contar\_filas()} para confirmar que tiene 100
+filas.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{SQL desde cero con preguntas de negocio}
+\label{sec:m5-sql}
+
+SQL es un lenguaje \emph{declarativo}: le dices a la base \emph{qué} quieres,
+no \emph{cómo} conseguirlo; el motor decide la forma más eficiente de
+obtenerlo. Una consulta tiene siempre la misma estructura, con las
+cláusulas en este orden (las que están entre corchetes son opcionales):
+
+\begin{sqlcode}
+SELECT   columnas o cálculos          -- ¿qué quiero ver?
+FROM     tabla                        -- ¿de dónde?
+[JOIN    otra_tabla ON condición]     -- ¿con qué la combino?
+[WHERE   condición sobre filas]       -- ¿qué filas me interesan?
+[GROUP BY columnas]                   -- ¿por qué agrupo?
+[HAVING  condición sobre grupos]      -- ¿qué grupos me interesan?
+[ORDER BY columnas]                   -- ¿en qué orden?
+[LIMIT   n]                           -- ¿cuántas filas como máximo?
+\end{sqlcode}
+
+Algunas convenciones: las palabras clave de SQL se escriben en mayúsculas
+por costumbre (no es obligatorio), los comentarios empiezan con
+\codigo{-{}-}, el texto va entre \emph{comillas simples}
+(\codigo{'CDMX'}) y cada consulta puede terminar con punto y coma. En R,
+toda la consulta va dentro de una cadena de texto que le pasas a
+\codigo{dbGetQuery()}.
+
+\begin{concepto}{SQL y dplyr piensan igual}
+Si dominas \paquete{dplyr} (Módulo~\ref{cap:manipulacion}), ya conoces la
+lógica de SQL: \codigo{SELECT} es \codigo{select()}/\codigo{mutate()},
+\codigo{WHERE} es \codigo{filter()}, \codigo{GROUP BY} +
+funciones de agregación es \codigo{group\_by()} + \codigo{summarise()},
+\codigo{ORDER BY} es \codigo{arrange()} y \codigo{JOIN} es
+\codigo{left\_join()} y compañía. De hecho, \paquete{dplyr} se diseñó
+inspirándose en SQL. Al final del módulo tienes una tabla de equivalencias.
+\end{concepto}
+
+\subsection{SELECT y FROM: elegir columnas}
+
+\begin{ejemplo}{Directorio de sucursales}
+Recursos Humanos quiere un directorio con el nombre, la ciudad y la zona de
+cada sucursal.
+\end{ejemplo}
+
+\begin{rcode}
+dbGetQuery(con, "
+  SELECT nombre_tienda, ciudad, zona   -- columnas que quiero
+  FROM tiendas                         -- tabla de origen
+")
+\end{rcode}
+
+\begin{rsalida}
+      nombre_tienda      ciudad   zona
+1   Sucursal Centro        CDMX Centro
+2    Sucursal Norte Guadalajara  Norte
+3      Sucursal Sur   Monterrey  Norte
+4     Sucursal Este        CDMX   Este
+5    Sucursal Oeste      Puebla Centro
+6  Sucursal Plaza A        CDMX  Oeste
+7  Sucursal Plaza B Guadalajara  Norte
+8   Sucursal Outlet     Tijuana  Norte
+9  Sucursal Premium        CDMX    Sur
+10 Sucursal Express   Querétaro Centro
+\end{rsalida}
+
+\codigo{SELECT *} trae todas las columnas; es cómodo para explorar, pero en
+reportes conviene listar solo las que necesitas. \codigo{LIMIT} restringe el
+número de filas, ideal para ``echar un vistazo'' a una tabla grande:
+
+\begin{rcode}
+dbGetQuery(con, "SELECT * FROM transacciones LIMIT 3")
+\end{rcode}
+
+\begin{rsalida}
+  transaccion_id      fecha     hora cliente_id producto_id cantidad
+1              1 2023-01-13 13:15:00        155           3        4
+2              2 2023-01-09 10:45:00        155          47        4
+3              3 2023-02-20 10:30:00         75           6        3
+  precio_venta     metodo_pago tienda_id vendedor_id
+1       303.97 Tarjeta Crédito        10           4
+2        58.07  Tarjeta Débito         2          22
+3       275.46  Tarjeta Débito         7          14
+  total_transaccion     mes trimestre dia_semana
+1           1215.88 2023-01        Q1    viernes
+2            232.28 2023-01        Q1      lunes
+3            826.38 2023-02        Q1      lunes
+\end{rsalida}
+
+Como la tabla tiene muchas columnas, R la imprime en varios renglones. Nota
+que la fecha y la hora se ven como texto, justo como las guardamos.
+
+\subsection{WHERE: filtrar filas}
+
+\codigo{WHERE} se queda solo con las filas que cumplen una condición. Los
+operadores de comparación son \codigo{=} (¡un solo signo igual, no dos como
+en R!), \codigo{<>} o \codigo{!=} (distinto), \codigo{<}, \codigo{>},
+\codigo{<=} y \codigo{>=}. Las condiciones se combinan con \codigo{AND},
+\codigo{OR} y \codigo{NOT}.
+
+\begin{ejemplo}{Clientes premium del norte}
+Marketing prepara una campaña para los clientes premium de Monterrey y
+Guadalajara. ¿Cuántos son y quiénes?
+\end{ejemplo}
+
+\begin{rcode}
+# IN (...) equivale a varias condiciones unidas con OR
+dbGetQuery(con, "
+  SELECT COUNT(*) AS clientes
+  FROM clientes
+  WHERE es_premium = 1
+    AND ciudad IN ('Monterrey', 'Guadalajara')
+")
+
+dbGetQuery(con, "
+  SELECT nombre, ciudad, edad
+  FROM clientes
+  WHERE es_premium = 1
+    AND ciudad IN ('Monterrey', 'Guadalajara')
+  ORDER BY ciudad, nombre
+  LIMIT 6
+")
+\end{rcode}
+
+\begin{rsalida}
+  clientes
+1       16
+              nombre      ciudad edad
+1       Carmen Reyes Guadalajara   33
+2 Fernando Hernández Guadalajara   26
+3     Marta González Guadalajara   38
+4      Marta Morales Guadalajara   55
+5        Miguel Díaz Guadalajara   62
+6     Ricardo Torres Guadalajara   72
+\end{rsalida}
+
+Recuerda que los lógicos se guardaron como \codigo{1}/\codigo{0}, por eso
+filtramos con \codigo{es\_premium = 1}. La primera consulta cuenta, la
+segunda muestra los primeros seis ordenados por ciudad y nombre.
+
+\begin{ejemplo}{Ventas navideñas y tickets grandes}
+Queremos ver las transacciones entre el 22 y el 24 de diciembre y saber
+cuántos tickets superan los \$2\,800.
+\end{ejemplo}
+
+\begin{rcode}
+# BETWEEN incluye ambos extremos; las fechas son texto ISO
+dbGetQuery(con, "
+  SELECT transaccion_id, fecha, producto_id, total_transaccion
+  FROM transacciones
+  WHERE fecha BETWEEN '2023-12-22' AND '2023-12-24'
+  ORDER BY fecha
+")
+
+dbGetQuery(con, "
+  SELECT COUNT(*) AS tickets_grandes
+  FROM transacciones
+  WHERE total_transaccion > 2800
+")
+\end{rcode}
+
+\begin{rsalida}
+  transaccion_id      fecha producto_id total_transaccion
+1            693 2023-12-22          17           1130.45
+2            828 2023-12-22          32           1300.50
+3            452 2023-12-23          31            480.65
+4            558 2023-12-23          29            334.40
+5            926 2023-12-23          27           2709.85
+6            518 2023-12-24           3            356.36
+7            796 2023-12-24          34            584.71
+8            941 2023-12-24          17           1717.96
+  tickets_grandes
+1              26
+\end{rsalida}
+
+Comparar fechas con \codigo{BETWEEN} funciona porque el texto
+\codigo{'AAAA-MM-DD'} se ordena alfabéticamente igual que cronológicamente
+(\codigo{'2023-12-22'} va antes que \codigo{'2023-12-24'}). Esa es otra
+razón para guardar las fechas en formato ISO.
+
+\codigo{LIKE} busca patrones en texto: \codigo{\%} representa ``cualquier
+cantidad de caracteres'' y \codigo{\_} ``exactamente un carácter''.
+
+\begin{rcode}
+# Clientes cuyo apellido es García y cuyo nombre empieza con "Laura"
+dbGetQuery(con, "
+  SELECT
+    SUM(nombre LIKE '%García') AS apellido_garcia,
+    SUM(nombre LIKE 'Laura%')  AS nombre_laura
+  FROM clientes
+")
+\end{rcode}
+
+\begin{rsalida}
+  apellido_garcia nombre_laura
+1              10            9
+\end{rsalida}
+
+Aquí usamos un truco útil: una comparación en SQLite vale \codigo{1} si es
+verdadera y \codigo{0} si es falsa, así que \codigo{SUM()} de una condición
+cuenta cuántas filas la cumplen (igual que \codigo{sum()} de un vector
+lógico en R).
+
+\begin{advertencia}
+Cuando combines \codigo{AND} y \codigo{OR}, usa paréntesis.
+\codigo{WHERE ciudad = 'CDMX' OR ciudad = 'Puebla' AND edad > 60} significa
+``todos los de CDMX, más los de Puebla mayores de 60'', porque
+\codigo{AND} se evalúa antes que \codigo{OR}. Si querías ``mayores de 60 de
+CDMX o Puebla'', escribe
+\codigo{WHERE (ciudad = 'CDMX' OR ciudad = 'Puebla') AND edad > 60}. Y para
+valores vacíos no uses \codigo{= NULL}: usa \codigo{IS NULL} o
+\codigo{IS NOT NULL}.
+\end{advertencia}
+
+\subsection{ORDER BY y LIMIT: los primeros de la lista}
+
+\begin{ejemplo}{Los cinco tickets más grandes del año}
+La gerencia quiere revisar las cinco ventas de mayor importe para validar
+que no sean errores de captura.
+\end{ejemplo}
+
+\begin{rcode}
+dbGetQuery(con, "
+  SELECT transaccion_id, fecha, cantidad, precio_venta,
+         total_transaccion
+  FROM transacciones
+  ORDER BY total_transaccion DESC   -- DESC = de mayor a menor
+  LIMIT 5
+")
+\end{rcode}
+
+\begin{rsalida}
+  transaccion_id      fecha cantidad precio_venta total_transaccion
+1            176 2023-04-03        5       598.47           2992.35
+2            172 2023-06-14        5       598.09           2990.45
+3            835 2023-08-19        5       596.74           2983.70
+4            535 2023-06-25        5       595.24           2976.20
+5            451 2023-05-02        5       594.71           2973.55
+\end{rsalida}
+
+\codigo{ORDER BY} ordena de menor a mayor por omisión (\codigo{ASC});
+\codigo{DESC} invierte el orden. Los cinco tickets más grandes son de cinco
+unidades con precio cercano al máximo de \$600: son plausibles, no parecen
+errores de captura.
+
+\subsection{Funciones de agregación, GROUP BY y HAVING}
+
+Las \termino{funciones de agregación} resumen muchas filas en un solo
+valor: \codigo{COUNT()}, \codigo{SUM()}, \codigo{AVG()}, \codigo{MIN()} y
+\codigo{MAX()}. \codigo{COUNT(*)} cuenta filas y
+\codigo{COUNT(DISTINCT columna)} cuenta valores distintos.
+
+\begin{ejemplo}{KPIs generales del año}
+Antes de cualquier análisis, el director quiere los números grandes de
+2023: número de tickets, clientes distintos, ventas totales, ticket
+promedio y ticket máximo.
+\end{ejemplo}
+
+\begin{rcode}
+dbGetQuery(con, "
+  SELECT COUNT(*)                         AS tickets,
+         COUNT(DISTINCT cliente_id)       AS clientes,
+         ROUND(SUM(total_transaccion), 2) AS ventas,
+         ROUND(AVG(total_transaccion), 2) AS ticket_promedio,
+         MAX(total_transaccion)           AS ticket_maximo
+  FROM transacciones
+")
+\end{rcode}
+
+\begin{rsalida}
+  tickets clientes   ventas ticket_promedio ticket_maximo
+1    1000      198 959992.7          959.99       2992.35
+\end{rsalida}
+
+Con \codigo{AS} pones un \termino{alias}, es decir, un nombre a la columna
+calculada (sin él, la columna se llamaría literalmente
+\codigo{ROUND(SUM(total\_transaccion), 2)}). En 2023 hubo 1\,000 tickets por
+\$959\,992.7, con un ticket promedio de \$959.99. De los 200 clientes
+registrados, 198 compraron al menos una vez.
+
+\codigo{GROUP BY} calcula las agregaciones \emph{por grupo}, igual que
+\codigo{group\_by()} + \codigo{summarise()}:
+
+\begin{ejemplo}{¿Cómo pagan nuestros clientes?}
+Finanzas negocia comisiones con el banco y necesita saber cuántas ventas y
+cuánto dinero entra por cada método de pago.
+\end{ejemplo}
+
+\begin{rcode}
+dbGetQuery(con, "
+  SELECT metodo_pago,
+         COUNT(*)                         AS tickets,
+         ROUND(SUM(total_transaccion), 0) AS ventas,
+         ROUND(AVG(total_transaccion), 2) AS ticket_promedio
+  FROM transacciones
+  GROUP BY metodo_pago
+  ORDER BY ventas DESC
+")
+\end{rcode}
+
+\begin{rsalida}
+      metodo_pago tickets ventas ticket_promedio
+1 Tarjeta Crédito     350 351171         1003.34
+2        Efectivo     315 303735          964.24
+3  Tarjeta Débito     233 220855          947.88
+4   Transferencia     102  84232          825.80
+\end{rsalida}
+
+La tarjeta de crédito es el método más usado (350 tickets) y el que más
+dinero trae (\$351\,171), además de tener el ticket promedio más alto
+(\$1\,003). La transferencia es minoritaria: 102 tickets con un ticket
+promedio de solo \$826. Si la comisión bancaria de la tarjeta de crédito es
+alta, esta tabla dice cuánto dinero está en juego.
+
+\codigo{WHERE} filtra \emph{filas antes} de agrupar; para filtrar
+\emph{grupos después} de agregarlos se usa \codigo{HAVING}:
+
+\begin{ejemplo}{Clientes frecuentes}
+El programa de lealtad quiere invitar a los clientes con 10 compras o más en
+el año.
+\end{ejemplo}
+
+\begin{rcode}
+dbGetQuery(con, "
+  SELECT cliente_id,
+         COUNT(*)                         AS compras,
+         ROUND(SUM(total_transaccion), 2) AS gasto_total
+  FROM transacciones
+  GROUP BY cliente_id
+  HAVING COUNT(*) >= 10      -- condición sobre el grupo
+  ORDER BY compras DESC, gasto_total DESC
+")
+\end{rcode}
+
+\begin{rsalida}
+  cliente_id compras gasto_total
+1          5      13    14680.10
+2         55      13    11355.70
+3        105      13    10715.72
+4        168      12    11675.62
+5        125      10    11239.83
+6        162      10    11176.45
+\end{rsalida}
+
+Solo seis clientes compraron 10 veces o más; el cliente 5 encabeza la lista
+con 13 compras y \$14\,680. Observa que el \codigo{HAVING} usa
+\codigo{COUNT(*)} (el valor del grupo), algo que \codigo{WHERE} no puede
+hacer porque se evalúa antes de agrupar.
+
+\begin{advertencia}
+Toda columna del \codigo{SELECT} que no esté dentro de una función de
+agregación debe aparecer en el \codigo{GROUP BY}. SQLite es permisivo y no
+marca error si lo olvidas (devuelve un valor cualquiera del grupo), pero SQL
+Server y PostgreSQL sí lo rechazan. Acostúmbrate a hacerlo bien desde el
+principio.
+\end{advertencia}
+
+\subsection{CASE WHEN: clasificar dentro de la consulta}
+
+\codigo{CASE WHEN} es el \codigo{case\_when()} de SQL: evalúa condiciones en
+orden y devuelve el valor de la primera que se cumple.
+
+\begin{ejemplo}{Distribución de tickets por rango}
+El área comercial quiere saber cuántas ventas son pequeñas, medianas o
+grandes, y cuánto aporta cada rango.
+\end{ejemplo}
+
+\begin{rcode}
+dbGetQuery(con, "
+  SELECT CASE
+           WHEN total_transaccion < 500  THEN '1. Menos de 500'
+           WHEN total_transaccion < 1500 THEN '2. De 500 a 1,500'
+           ELSE '3. 1,500 o más'
+         END AS rango_ticket,
+         COUNT(*) AS tickets,
+         ROUND(SUM(total_transaccion), 0) AS ventas
+  FROM transacciones
+  GROUP BY rango_ticket
+  ORDER BY rango_ticket
+")
+\end{rcode}
+
+\begin{rsalida}
+       rango_ticket tickets ventas
+1   1. Menos de 500     377 101783
+2 2. De 500 a 1,500     379 347606
+3    3. 1,500 o más     244 510603
+\end{rsalida}
+
+Los tickets de \$1\,500 o más son solo 244 de 1\,000 (menos de la cuarta
+parte), pero aportan \$510\,603, más de la mitad de las ventas. Los 377
+tickets pequeños apenas suman \$101\,783. Es la clásica regla de Pareto:
+pocas ventas grandes explican gran parte del ingreso. Numerar las etiquetas (\codigo{'1. \ldots'}) es un
+truco sencillo para que \codigo{ORDER BY} las deje en el orden lógico y no
+en orden alfabético.
+
+\begin{hazlotu}
+Escribe una consulta que muestre, para cada ciudad, cuántos clientes hay y
+su edad promedio, solo para las ciudades con más de 20 clientes, ordenadas
+de mayor a menor número de clientes. (Pista: \codigo{GROUP BY ciudad} y
+\codigo{HAVING COUNT(*) > 20}.)
+\end{hazlotu}
+
+\subsection{Fechas en SQLite}
+\label{sec:m5-fechas}
+
+Las fechas son la fuente número uno de dolores de cabeza al pasar datos de
+R a SQLite. Veamos el problema con calma y luego la solución.
+
+\subsubsection{El problema: los Date de R se guardan como números}
+
+SQLite solo tiene cinco clases de almacenamiento: \codigo{NULL},
+\codigo{INTEGER}, \codigo{REAL}, \codigo{TEXT} y \codigo{BLOB}; no existe un
+tipo fecha. Internamente, R guarda un \codigo{Date} como el número de días
+transcurridos desde el 1 de enero de 1970. Si escribes el data frame tal
+cual, eso es lo que llega a la base. Hagamos la prueba en una base temporal
+en memoria, leyendo el CSV de tiendas \emph{sin} convertir las fechas:
+
+\begin{rcode}
+# Base temporal para experimentar (no toca bi_retail.sqlite)
+con_prueba <- dbConnect(RSQLite::SQLite(), ":memory:")
+
+tiendas_r <- read_csv("datasets/tiendas.csv", show_col_types = FALSE)
+class(tiendas_r$fecha_apertura)       # en R es una fecha
+
+dbWriteTable(con_prueba, "tiendas", tiendas_r)
+dbGetQuery(con_prueba, "
+  SELECT nombre_tienda, fecha_apertura,
+         typeof(fecha_apertura)             AS tipo,
+         strftime('%Y', fecha_apertura)     AS anio
+  FROM tiendas
+  LIMIT 3
+")
+\end{rcode}
+
+\begin{rsalida}
+[1] "Date"
+    nombre_tienda fecha_apertura tipo  anio
+1 Sucursal Centro          14683 real -4672
+2  Sucursal Norte          15511 real -4670
+3    Sucursal Sur          15227 real -4671
+\end{rsalida}
+
+La fecha de apertura de la Sucursal Centro (15 de marzo de 2010) quedó
+guardada como el número \codigo{14683} (días desde 1970), de tipo
+\codigo{real}. Peor aún: las funciones de fecha de SQLite interpretan ese
+número de otra forma (como un ``día juliano'', contado desde el año 4714
+antes de Cristo), así que \codigo{strftime('\%Y', \ldots)} devuelve un año
+absurdo, \codigo{-4672}, sin marcar ningún error. Es un error silencioso: el
+más peligroso de todos.
+
+\subsubsection{La solución: fechas como texto ISO}
+
+La práctica recomendada es convertir las fechas a texto con formato ISO
+\codigo{'AAAA-MM-DD'} antes de escribirlas, justo lo que hizo nuestra
+función \codigo{leer\_para\_bd()}. Las funciones de fecha de SQLite
+entienden ese formato de forma nativa:
+
+\begin{rcode}
+tiendas_ok <- tiendas_r %>%
+  mutate(fecha_apertura = format(fecha_apertura, "%Y-%m-%d"))
+
+dbWriteTable(con_prueba, "tiendas", tiendas_ok, overwrite = TRUE)
+dbGetQuery(con_prueba, "
+  SELECT nombre_tienda, fecha_apertura,
+         typeof(fecha_apertura)             AS tipo,
+         strftime('%Y', fecha_apertura)     AS anio
+  FROM tiendas
+  LIMIT 3
+")
+
+# De regreso en R, la columna es texto: la convertimos con as.Date()
+dbReadTable(con_prueba, "tiendas") %>%
+  mutate(fecha_apertura = as.Date(fecha_apertura)) %>%
+  pull(fecha_apertura) %>%
+  class()
+
+dbDisconnect(con_prueba)
+\end{rcode}
+
+\begin{rsalida}
+    nombre_tienda fecha_apertura tipo anio
+1 Sucursal Centro     2010-03-15 text 2010
+2  Sucursal Norte     2012-06-20 text 2012
+3    Sucursal Sur     2011-09-10 text 2011
+[1] "Date"
+\end{rsalida}
+
+Ahora la fecha se ve bien, es de tipo \codigo{text} y el año es correcto.
+Al leerla de regreso en R llega como texto, y basta un \codigo{as.Date()}
+(o \codigo{ymd()} de \paquete{lubridate}) para volver a tener una fecha.
+
+\begin{consejo}
+\paquete{RSQLite} ofrece una alternativa:
+\codigo{dbConnect(RSQLite::SQLite(), ruta, extended\_types = TRUE)}. Con esa
+opción, RSQLite guarda la fecha con el tipo declarado \codigo{DATE} y la
+convierte de ida y vuelta a \codigo{Date} de R automáticamente. Es cómodo si
+solo R va a leer la base, pero otras herramientas (Power BI, Python, un
+visor de SQLite) seguirán viendo el número. El texto ISO funciona con
+todas, por eso es la opción que usamos en el libro. El mismo cuidado aplica
+a las horas (\codigo{hms}) y a las fechas con hora (\codigo{POSIXct}): se
+guardan como segundos si no las conviertes a texto.
+\end{consejo}
+
+\subsubsection{Funciones de fecha de SQLite}
+
+La función estrella es \codigo{strftime(formato, fecha)}, que extrae partes
+de una fecha: \codigo{'\%Y'} año, \codigo{'\%m'} mes, \codigo{'\%d'} día,
+\codigo{'\%Y-\%m'} año-mes, \codigo{'\%w'} día de la semana
+(0 = domingo). También existen \codigo{date()} para sumar o restar
+intervalos y \codigo{julianday()} para calcular diferencias en días.
+
+\begin{ejemplo}{Ventas por mes}
+La pregunta más común en BI: ¿cuánto vendimos cada mes?
+\end{ejemplo}
+
+\begin{rcode}
+ventas_mes_sql <- dbGetQuery(con, "
+  SELECT strftime('%Y-%m', fecha)         AS mes,
+         COUNT(*)                         AS tickets,
+         ROUND(SUM(total_transaccion), 2) AS ventas
+  FROM transacciones
+  GROUP BY mes
+  ORDER BY mes
+")
+ventas_mes_sql
+\end{rcode}
+
+\begin{rsalida}
+       mes tickets   ventas
+1  2023-01      98 82559.66
+2  2023-02      79 65899.34
+3  2023-03      91 90930.61
+4  2023-04      71 57037.74
+5  2023-05      88 93910.21
+6  2023-06      84 88509.12
+7  2023-07      83 86456.05
+8  2023-08      75 78929.49
+9  2023-09      86 68855.87
+10 2023-10      74 70004.10
+11 2023-11      80 80506.89
+12 2023-12      91 96393.61
+\end{rsalida}
+
+Diciembre es el mejor mes (\$96\,394) y abril el más flojo (\$57\,038, con
+solo 71 tickets). Guardamos el resultado en \codigo{ventas\_mes\_sql} porque
+más adelante lo compararemos con el cálculo equivalente en \paquete{dplyr}. Aunque la tabla ya trae una columna \codigo{mes}, es
+buena práctica saber calcularla desde la fecha: muchas tablas reales solo
+tienen la fecha.
+
+\begin{ejemplo}{¿Qué día de la semana vendemos más?}
+Operaciones quiere ajustar los turnos del personal según el día de la
+semana.
+\end{ejemplo}
+
+\begin{rcode}
+dbGetQuery(con, "
+  SELECT strftime('%w', fecha) AS num_dia,   -- 0 = domingo
+         CASE strftime('%w', fecha)
+           WHEN '0' THEN 'domingo'   WHEN '1' THEN 'lunes'
+           WHEN '2' THEN 'martes'    WHEN '3' THEN 'miércoles'
+           WHEN '4' THEN 'jueves'    WHEN '5' THEN 'viernes'
+           ELSE 'sábado'
+         END AS dia,
+         COUNT(*) AS tickets,
+         ROUND(AVG(total_transaccion), 2) AS ticket_promedio
+  FROM transacciones
+  GROUP BY num_dia
+  ORDER BY num_dia
+")
+\end{rcode}
+
+\begin{rsalida}
+  num_dia       dia tickets ticket_promedio
+1       0   domingo     146         1018.51
+2       1     lunes     136          947.63
+3       2    martes     129          925.31
+4       3 miércoles     155          911.80
+5       4    jueves     146          995.07
+6       5   viernes     158         1020.67
+7       6    sábado     130          885.94
+\end{rsalida}
+
+Viernes y miércoles tienen más tickets (158 y 155); el viernes y el domingo
+tienen además los tickets promedio más altos (alrededor de \$1\,020). El
+sábado es el día más flojo en ticket promedio (\$886). Observa que \codigo{CASE} tiene una forma abreviada
+(\codigo{CASE expresión WHEN valor THEN \ldots}) cuando comparas siempre la
+misma expresión contra varios valores.
+
+\begin{rcode}
+# Antigüedad de los clientes al 31 de diciembre de 2023
+dbGetQuery(con, "
+  SELECT nombre, fecha_registro,
+         CAST(julianday('2023-12-31') - julianday(fecha_registro)
+              AS INTEGER)                    AS dias_antiguedad,
+         date(fecha_registro, '+1 year')     AS primer_aniversario
+  FROM clientes
+  ORDER BY fecha_registro
+  LIMIT 4
+")
+\end{rcode}
+
+\begin{rsalida}
+            nombre fecha_registro dias_antiguedad primer_aniversario
+1  Carlos González     2020-01-03            1458         2021-01-03
+2    Luis Martínez     2020-01-10            1451         2021-01-10
+3 Patricia Ramírez     2020-01-15            1446         2021-01-15
+4      Luis Flores     2020-01-17            1444         2021-01-17
+\end{rsalida}
+
+\codigo{julianday()} convierte la fecha a un número de días, así que la
+resta da la diferencia en días; \codigo{CAST(\ldots{} AS INTEGER)} quita los
+decimales. \codigo{date(fecha, '+1 year')} suma un año (también acepta
+\codigo{'+7 days'}, \codigo{'-1 month'}, \codigo{'start of month'}, etc.).
+
+\begin{hazlotu}
+Calcula las ventas por trimestre usando la fecha. Pista: el mes se obtiene
+con \codigo{CAST(strftime('\%m', fecha) AS INTEGER)} y el trimestre es
+\codigo{(mes + 2) / 3} (en SQLite, la división entre enteros descarta los
+decimales).
+\end{hazlotu}
+
+\subsection{JOIN: combinar tablas}
+
+Casi ninguna pregunta de negocio se responde con una sola tabla. La tabla de
+transacciones solo tiene \codigo{producto\_id}; para saber la
+\emph{categoría} hay que ir a la tabla de productos. Eso es un
+\termino{JOIN}. Los dos tipos que usarás el 95\% del tiempo son:
+
+\begin{itemize}
+  \item \codigo{INNER JOIN}: solo las filas que tienen pareja en ambas
+        tablas (equivale a \codigo{inner\_join()}).
+  \item \codigo{LEFT JOIN}: todas las filas de la tabla de la izquierda,
+        tengan o no pareja; si no la tienen, las columnas de la derecha
+        quedan en \codigo{NULL} (\codigo{NA} en R). Equivale a
+        \codigo{left\_join()}.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  conj/.style={circle, minimum size=2.3cm, draw=primario, thick},
+  etq/.style={font=\sffamily\small\bfseries, text=primario}
+]
+% INNER JOIN
+\begin{scope}
+  \begin{scope}
+    \clip (0,0) circle (1.15cm);
+    \fill[secundario!45] (1.3,0) circle (1.15cm);
+  \end{scope}
+  \node[conj] at (0,0) {};
+  \node[conj] at (1.3,0) {};
+  \node[font=\scriptsize\sffamily, text=gristexto] at (-0.45,0) {A};
+  \node[font=\scriptsize\sffamily, text=gristexto] at (1.75,0) {B};
+  \node[etq] at (0.65,-1.6) {INNER JOIN};
+  \node[font=\scriptsize\sffamily, text=gristexto, align=center]
+    at (0.65,-2.15) {solo filas con pareja\\en ambas tablas};
+\end{scope}
+% LEFT JOIN
+\begin{scope}[xshift=6cm]
+  \fill[secundario!45] (0,0) circle (1.15cm);
+  \node[conj] at (0,0) {};
+  \node[conj] at (1.3,0) {};
+  \node[font=\scriptsize\sffamily, text=gristexto] at (-0.45,0) {A};
+  \node[font=\scriptsize\sffamily, text=gristexto] at (1.75,0) {B};
+  \node[etq] at (0.65,-1.6) {LEFT JOIN};
+  \node[font=\scriptsize\sffamily, text=gristexto, align=center]
+    at (0.65,-2.15) {todas las filas de A;\\NULL si no hay pareja en B};
+\end{scope}
+\end{tikzpicture}
+\caption{Los dos tipos de JOIN más usados. A es la tabla después de
+\texttt{FROM} y B la tabla después de \texttt{JOIN}.}
+\label{fig:m5-joins}
+\end{figure}
+
+\begin{ejemplo}{Ventas por categoría de producto}
+El gerente de compras quiere saber qué categorías venden más para
+negociar mejor con los proveedores.
+\end{ejemplo}
+
+\begin{rcode}
+dbGetQuery(con, "
+  SELECT p.categoria,
+         COUNT(*)                           AS tickets,
+         SUM(t.cantidad)                    AS unidades,
+         ROUND(SUM(t.total_transaccion), 0) AS ventas
+  FROM transacciones AS t
+  INNER JOIN productos AS p
+          ON t.producto_id = p.producto_id  -- llave de unión
+  GROUP BY p.categoria
+  ORDER BY ventas DESC
+")
+\end{rcode}
+
+\begin{rsalida}
+     categoria tickets unidades ventas
+1      Belleza     187      551 182143
+2  Electrónica     137      403 132672
+3     Juguetes     118      356 125093
+4    Alimentos     115      356 121543
+5   Automotriz     105      325 104085
+6     Deportes      92      280  86171
+7        Hogar      64      187  63407
+8     Mascotas      74      201  57668
+9       Libros      70      204  57162
+10        Ropa      38      106  30048
+\end{rsalida}
+
+Fíjate en los alias de tabla: \codigo{transacciones AS t} permite escribir
+\codigo{t.cantidad} en lugar de \codigo{transacciones.cantidad}. Cuando dos
+tablas tienen una columna con el mismo nombre (aquí,
+\codigo{producto\_id}), \emph{debes} indicar de qué tabla viene; si no, la
+base responde con un error de columna ambigua. Belleza es por mucho la categoría líder
+(\$182\,143, 187 tickets), seguida de Electrónica; Ropa queda al final con
+\$30\,048. Parte de la explicación está en el catálogo: Belleza tiene 9
+productos y Ropa solo 2.
+
+\begin{ejemplo}{Clientes que nunca han comprado}
+El CRM tiene 200 clientes registrados, pero solo 198 compraron. ¿Quiénes
+son los que faltan? Son candidatos perfectos para una campaña de
+activación.
+\end{ejemplo}
+
+\begin{rcode}
+dbGetQuery(con, "
+  SELECT c.cliente_id, c.nombre, c.ciudad, c.fecha_registro
+  FROM clientes AS c
+  LEFT JOIN transacciones AS t
+         ON c.cliente_id = t.cliente_id
+  WHERE t.transaccion_id IS NULL   -- sin pareja en transacciones
+")
+\end{rcode}
+
+\begin{rsalida}
+  cliente_id            nombre ciudad fecha_registro
+1        171      Rosa Jiménez Mérida     2022-08-27
+2        199 Ricardo Hernández Puebla     2023-09-16
+\end{rsalida}
+
+Este patrón (\codigo{LEFT JOIN} + \codigo{WHERE \ldots{} IS NULL}) es el
+equivalente SQL de \codigo{anti\_join()}: encuentra las filas de la
+izquierda que \emph{no} tienen pareja. Son Rosa Jiménez, de Mérida, y Ricardo
+Hernández, de Puebla. Este último se registró en septiembre de 2023, así que
+quizá solo necesita tiempo; Rosa lleva más de un año registrada sin
+comprar.
+
+Puedes encadenar varios JOIN en la misma consulta:
+
+\begin{ejemplo}{Precio de venta contra precio de catálogo por zona}
+Auditoría sospecha que en algunas zonas se vende muy por debajo del precio
+de catálogo. Compara, por zona de la tienda, el precio promedio de venta
+con el de catálogo.
+\end{ejemplo}
+
+\begin{rcode}
+dbGetQuery(con, "
+  SELECT ti.zona,
+         COUNT(*)                         AS tickets,
+         ROUND(AVG(t.precio_venta), 2)    AS precio_venta_prom,
+         ROUND(AVG(p.precio_catalogo), 2) AS precio_catalogo_prom
+  FROM transacciones AS t
+  INNER JOIN productos AS p  ON t.producto_id = p.producto_id
+  INNER JOIN tiendas   AS ti ON t.tienda_id   = ti.tienda_id
+  GROUP BY ti.zona
+  ORDER BY tickets DESC
+")
+\end{rcode}
+
+\begin{rsalida}
+    zona tickets precio_venta_prom precio_catalogo_prom
+1  Norte     399            326.93               422.66
+2 Centro     290            311.12               414.57
+3  Oeste     109            306.93               394.45
+4    Sur     108            303.23               425.21
+5   Este      94            334.45               399.15
+\end{rsalida}
+
+En todas las zonas el precio promedio de venta (alrededor de \$300 a \$335)
+está muy por debajo del precio promedio de catálogo (\$395 a \$425). Es un
+\emph{hallazgo de calidad de datos} que ya conoces: en los datos del curso,
+\codigo{precio\_venta} se generó sin relación con
+\codigo{precio\_catalogo}. En una empresa real, una diferencia así
+merecería una investigación con el área comercial antes de publicar
+cualquier análisis de márgenes.
+
+\begin{advertencia}
+Un JOIN mal planteado puede \emph{multiplicar} filas. Si unes por una
+columna que se repite en ambas tablas (por ejemplo, \codigo{ciudad} entre
+clientes y tiendas), cada cliente se empareja con todas las tiendas de su
+ciudad y tus sumas se inflan. Antes de sumar después de un JOIN, verifica
+con \codigo{COUNT(*)} que el número de filas es el que esperas.
+\end{advertencia}
+
+\subsection{Subconsultas}
+
+Una \termino{subconsulta} es una consulta dentro de otra, escrita entre
+paréntesis. Sirve, por ejemplo, para comparar contra un valor que primero
+hay que calcular.
+
+\begin{ejemplo}{Productos más caros que el promedio}
+Queremos la lista de productos cuyo precio de catálogo supera el promedio
+del catálogo, con su margen.
+\end{ejemplo}
+
+\begin{rcode}
+dbGetQuery(con, "
+  SELECT nombre_producto, categoria, precio_catalogo, margen_pct
+  FROM productos
+  WHERE precio_catalogo > (SELECT AVG(precio_catalogo)
+                           FROM productos)
+  ORDER BY precio_catalogo DESC
+  LIMIT 5
+")
+
+# ¿Cuál es ese promedio y cuántos productos lo superan?
+dbGetQuery(con, "
+  SELECT ROUND(AVG(precio_catalogo), 2) AS promedio,
+         (SELECT COUNT(*) FROM productos
+          WHERE precio_catalogo > (SELECT AVG(precio_catalogo)
+                                   FROM productos)) AS arriba
+  FROM productos
+")
+\end{rcode}
+
+\begin{rsalida}
+  nombre_producto   categoria precio_catalogo margen_pct
+1     Producto 28    Mascotas          774.03      97.77
+2     Producto 47  Automotriz          766.07      92.82
+3     Producto 41 Electrónica          756.54      48.47
+4     Producto 04    Juguetes          743.84      72.42
+5     Producto 20     Belleza          741.63      81.42
+  promedio arriba
+1   416.92     25
+\end{rsalida}
+
+El precio promedio del catálogo es \$416.92 y 25 de los 50 productos lo
+superan. Fíjate en la última consulta: una subconsulta puede ir incluso en
+el \codigo{SELECT}, siempre que devuelva un solo valor.
+
+Una subconsulta también puede ir en el \codigo{FROM}, como si fuera una
+tabla temporal. Es útil para agregar en dos pasos:
+
+\begin{rcode}
+# Paso 1 (subconsulta): gasto total de cada cliente
+# Paso 2: estadísticas sobre esos totales
+dbGetQuery(con, "
+  SELECT COUNT(*)                   AS clientes,
+         ROUND(AVG(gasto), 2)       AS gasto_promedio,
+         ROUND(MAX(gasto), 2)       AS gasto_maximo,
+         SUM(gasto > 8000)          AS clientes_mas_de_8000
+  FROM (SELECT cliente_id, SUM(total_transaccion) AS gasto
+        FROM transacciones
+        GROUP BY cliente_id) AS gasto_cliente
+")
+\end{rcode}
+
+\begin{rsalida}
+  clientes gasto_promedio gasto_maximo clientes_mas_de_8000
+1      198        4848.45      14680.1                   23
+\end{rsalida}
+
+Los 198 clientes con compras gastaron en promedio \$4\,848 en el año; el
+máximo es \$14\,680 (el cliente 5 que vimos antes) y 23 clientes superan los
+\$8\,000. Cada subconsulta en el \codigo{FROM} necesita un alias (aquí,
+\codigo{gasto\_cliente}).
+
+\subsection{CTE: consultas legibles con WITH}
+
+Cuando las subconsultas se anidan, el SQL se vuelve difícil de leer. Una
+\termino{CTE} (\emph{Common Table Expression}) le pone nombre a un paso
+intermedio con \codigo{WITH nombre AS (\ldots)} y luego lo usas como si
+fuera una tabla. Es el equivalente SQL de guardar un resultado intermedio
+en un objeto de R.
+
+\begin{ejemplo}{Participación de cada tienda en las ventas}
+¿Qué porcentaje de las ventas totales aporta cada sucursal?
+\end{ejemplo}
+
+\begin{rcode}
+dbGetQuery(con, "
+  WITH ventas_tienda AS (          -- paso 1: ventas por tienda
+    SELECT tienda_id, SUM(total_transaccion) AS ventas
+    FROM transacciones
+    GROUP BY tienda_id
+  ),
+  total AS (                       -- paso 2: total de la empresa
+    SELECT SUM(ventas) AS ventas_total FROM ventas_tienda
+  )
+  SELECT ti.nombre_tienda,         -- paso 3: combinar y calcular %
+         ROUND(v.ventas, 0) AS ventas,
+         ROUND(100.0 * v.ventas / total.ventas_total, 1) AS pct
+  FROM ventas_tienda AS v
+  INNER JOIN tiendas AS ti ON v.tienda_id = ti.tienda_id
+  CROSS JOIN total
+  ORDER BY v.ventas DESC
+")
+\end{rcode}
+
+\begin{rsalida}
+      nombre_tienda ventas  pct
+1   Sucursal Outlet 114377 11.9
+2      Sucursal Sur 105305 11.0
+3  Sucursal Plaza A 105216 11.0
+4  Sucursal Express 102791 10.7
+5  Sucursal Premium 101538 10.6
+6    Sucursal Norte  89024  9.3
+7     Sucursal Este  88420  9.2
+8   Sucursal Centro  88414  9.2
+9    Sucursal Oeste  84672  8.8
+10 Sucursal Plaza B  80236  8.4
+\end{rsalida}
+
+Las ventas están muy repartidas: la Sucursal Outlet lidera con 11.9\% y la
+Plaza B cierra con 8.4\%. Llama la atención que el Outlet, la tienda más
+pequeña después de Express (350~m²), sea la que más vende. \codigo{CROSS JOIN total} pega la única fila de
+\codigo{total} a cada tienda. Y observa el \codigo{100.0}: en SQL, la
+división entre dos enteros descarta los decimales (\codigo{5 / 2} da
+\codigo{2}), así que multiplicar por \codigo{100.0} obliga a usar decimales.
+
+\subsection{Funciones de ventana}
+\label{sec:m5-ventanas}
+
+Las \termino{funciones de ventana} calculan un valor para cada fila
+mirando un grupo de filas relacionadas (la ``ventana''), \emph{sin colapsar}
+las filas como hace \codigo{GROUP BY}. Son el equivalente de
+\codigo{group\_by()} + \codigo{mutate()} en dplyr. Su sintaxis es:
+
+\begin{sqlcode}
+funcion() OVER (PARTITION BY grupo ORDER BY orden)
+\end{sqlcode}
+
+\codigo{PARTITION BY} define los grupos (como \codigo{group\_by()}) y
+\codigo{ORDER BY} el orden dentro de cada grupo. Las más útiles en BI son
+\codigo{ROW\_NUMBER()}, \codigo{RANK()}, \codigo{SUM() OVER} (acumulados) y
+\codigo{LAG()} (valor de la fila anterior). SQLite las soporta desde la
+versión 3.25; la que trae \paquete{RSQLite} es mucho más reciente.
+
+\begin{ejemplo}{El producto estrella de cada categoría}
+Para el catálogo impreso, Marketing quiere destacar el producto más vendido
+(en dinero) de cada categoría.
+\end{ejemplo}
+
+\begin{rcode}
+dbGetQuery(con, "
+  WITH ventas_producto AS (
+    SELECT p.categoria, p.nombre_producto,
+           SUM(t.total_transaccion) AS ventas
+    FROM transacciones AS t
+    INNER JOIN productos AS p ON t.producto_id = p.producto_id
+    GROUP BY p.categoria, p.nombre_producto
+  ),
+  ranking AS (
+    SELECT categoria, nombre_producto, ROUND(ventas, 0) AS ventas,
+           ROW_NUMBER() OVER (PARTITION BY categoria
+                              ORDER BY ventas DESC) AS posicion
+    FROM ventas_producto
+  )
+  SELECT * FROM ranking
+  WHERE posicion = 1
+  ORDER BY ventas DESC
+")
+\end{rcode}
+
+\begin{rsalida}
+     categoria nombre_producto ventas posicion
+1     Juguetes     Producto 06  34028        1
+2     Deportes     Producto 19  28368        1
+3    Alimentos     Producto 31  25430        1
+4   Automotriz     Producto 47  24527        1
+5        Hogar     Producto 32  24333        1
+6      Belleza     Producto 14  24023        1
+7  Electrónica     Producto 21  22083        1
+8       Libros     Producto 16  20501        1
+9         Ropa     Producto 42  17448        1
+10    Mascotas     Producto 22  16949        1
+\end{rsalida}
+
+\codigo{ROW\_NUMBER()} numera los productos de cada categoría de mayor a
+menor venta, y el \codigo{WHERE} externo se queda con el número 1. No se
+puede filtrar por una función de ventana en el mismo nivel donde se calcula;
+por eso va en una CTE. Como la lista está ordenada por
+ventas, su primera fila es también el producto más vendido de todo el
+catálogo: el Producto 06, de Juguetes, con \$34\,028.
+
+\begin{ejemplo}{Ventas acumuladas y crecimiento mensual}
+La directora quiere ver, mes a mes, las ventas, el acumulado del año y el
+crecimiento contra el mes anterior.
+\end{ejemplo}
+
+\begin{rcode}
+dbGetQuery(con, "
+  WITH mensual AS (
+    SELECT strftime('%Y-%m', fecha) AS mes,
+           SUM(total_transaccion)   AS ventas
+    FROM transacciones
+    GROUP BY mes
+  )
+  SELECT mes,
+         ROUND(ventas, 0)                           AS ventas,
+         ROUND(SUM(ventas) OVER (ORDER BY mes), 0)  AS acumulado,
+         ROUND(LAG(ventas) OVER (ORDER BY mes), 0)  AS mes_anterior,
+         ROUND(100.0 * (ventas - LAG(ventas) OVER (ORDER BY mes)) /
+               LAG(ventas) OVER (ORDER BY mes), 1)  AS crec_pct
+  FROM mensual
+  ORDER BY mes
+")
+\end{rcode}
+
+\begin{rsalida}
+       mes ventas acumulado mes_anterior crec_pct
+1  2023-01  82560     82560           NA       NA
+2  2023-02  65899    148459        82560    -20.2
+3  2023-03  90931    239390        65899     38.0
+4  2023-04  57038    296427        90931    -37.3
+5  2023-05  93910    390338        57038     64.6
+6  2023-06  88509    478847        93910     -5.8
+7  2023-07  86456    565303        88509     -2.3
+8  2023-08  78929    644232        86456     -8.7
+9  2023-09  68856    713088        78929    -12.8
+10 2023-10  70004    783092        68856      1.7
+11 2023-11  80507    863599        70004     15.0
+12 2023-12  96394    959993        80507     19.7
+\end{rsalida}
+
+\codigo{SUM(ventas) OVER (ORDER BY mes)} suma todas las filas desde el
+inicio hasta la actual: el acumulado de diciembre, \$959\,993, coincide con
+el total del año. \codigo{LAG(ventas)} trae el valor del mes anterior (en
+enero es \codigo{NA} porque no hay mes previo) y con él calculamos el
+crecimiento: abril cayó 37.3\% y mayo se recuperó 64.6\%. Es exactamente lo
+que en dplyr harías con \codigo{cumsum()} y \codigo{lag()}.
+
+\begin{ejemplo}{Ranking de tiendas con empates}
+¿Qué lugar ocupa cada tienda por número de tickets? Si dos tiendas empatan,
+deben compartir lugar.
+\end{ejemplo}
+
+\begin{rcode}
+dbGetQuery(con, "
+  SELECT tienda_id,
+         COUNT(*)                                   AS tickets,
+         RANK()       OVER (ORDER BY COUNT(*) DESC) AS rank,
+         DENSE_RANK() OVER (ORDER BY COUNT(*) DESC) AS dense_rank,
+         ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS row_number
+  FROM transacciones
+  GROUP BY tienda_id
+  ORDER BY tickets DESC
+")
+\end{rcode}
+
+\begin{rsalida}
+   tienda_id tickets rank dense_rank row_number
+1          6     109    1          1          1
+2          3     109    1          1          2
+3         10     108    3          2          3
+4          9     108    3          2          4
+5          8     106    5          3          5
+6          2      99    6          4          6
+7          5      95    7          5          7
+8          4      94    8          6          8
+9          1      87    9          7          9
+10         7      85   10          8         10
+\end{rsalida}
+
+Las tiendas 6 y 3 empatan con 109 tickets. \codigo{RANK()} les da el lugar
+1 a ambas y salta al 3 (como en una competencia deportiva);
+\codigo{DENSE\_RANK()} no deja huecos (1, 1, 2\ldots) y
+\codigo{ROW\_NUMBER()} numera sin empates, desempatando de forma arbitraria.
+Elige según la regla de negocio: para ``premiar a los tres primeros
+lugares'' suele usarse \codigo{RANK()}; para ``quedarme exactamente con
+una fila por grupo'', \codigo{ROW\_NUMBER()}.
+
+\begin{hazlotu}
+Modifica la consulta del producto estrella para mostrar los
+\emph{tres} productos más vendidos de cada categoría (\codigo{posicion <= 3}).
+¿Cuántas filas obtienes? ¿Por qué no son exactamente 30?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Consultas parametrizadas e inyección SQL}
+\label{sec:m5-parametros}
+
+Muy pronto querrás que tus consultas dependan de un valor que cambia: la
+ciudad que el usuario elige en un tablero de Shiny, el rango de fechas del
+reporte de este mes, el cliente que se está consultando. La tentación es
+armar el texto de la consulta con \codigo{paste()}. \textbf{No lo hagas}
+con valores que vienen de fuera de tu código.
+
+\subsection{El peligro de pegar texto: inyección SQL}
+
+\begin{ejemplo}{Un buscador de clientes por ciudad}
+Imagina un tablero donde el usuario escribe una ciudad en una caja de texto
+y ve cuántos clientes hay. Un usuario malicioso (o simplemente descuidado)
+escribe algo raro en la caja.
+\end{ejemplo}
+
+\begin{rcode}
+# Lo que escribió el usuario en la caja de texto
+ciudad_usuario <- "Mérida' OR '1'='1"
+
+# MAL: pegar el texto del usuario dentro del SQL
+sql_peligroso <- paste0(
+  "SELECT COUNT(*) AS clientes FROM clientes WHERE ciudad = '",
+  ciudad_usuario, "'"
+)
+cat(sql_peligroso, "\n")
+dbGetQuery(con, sql_peligroso)
+\end{rcode}
+
+\begin{rsalida}
+SELECT COUNT(*) AS clientes FROM clientes WHERE ciudad = 'Mérida' OR '1'='1' 
+  clientes
+1      200
+\end{rsalida}
+
+El usuario cerró la comilla de \codigo{'Mérida'} y agregó
+\codigo{OR '1'='1'}, una condición que siempre es verdadera. Resultado: la
+consulta devolvió los 200 clientes de la base en lugar de los de Mérida. A
+esto se le llama \termino{inyección SQL}: el texto del usuario deja de ser
+un \emph{dato} y se convierte en \emph{código} que la base ejecuta. Con un
+poco más de malicia, el texto podría intentar algo destructivo:
+
+\begin{sqlcode}
+-- Si el usuario escribiera:   x'; DROP TABLE clientes; --
+-- la consulta armada con paste() quedaría así:
+SELECT COUNT(*) FROM clientes WHERE ciudad = 'x'; DROP TABLE clientes; --'
+\end{sqlcode}
+
+Según el motor y el driver, esa segunda instrucción podría ejecutarse y
+borrar la tabla. La inyección SQL es una de las vulnerabilidades más
+explotadas en la historia de la informática; no es un riesgo teórico.
+
+\subsection{La solución: consultas parametrizadas}
+
+En una \termino{consulta parametrizada} escribes el SQL con
+\emph{marcadores} (\codigo{?}) donde irán los valores, y pasas los valores
+por separado en el argumento \codigo{params}. La base recibe el SQL y los
+datos por canales distintos, así que el valor \emph{nunca} se interpreta
+como código, contenga lo que contenga.
+
+\begin{rcode}
+sql_seguro <- "SELECT COUNT(*) AS clientes FROM clientes WHERE ciudad = ?"
+
+# Con el texto malicioso: busca literalmente esa "ciudad" y no la halla
+dbGetQuery(con, sql_seguro, params = list(ciudad_usuario))
+
+# Con un valor legítimo funciona normalmente
+dbGetQuery(con, sql_seguro, params = list("Mérida"))
+\end{rcode}
+
+\begin{rsalida}
+  clientes
+1        0
+  clientes
+1       17
+\end{rsalida}
+
+Con el texto malicioso ahora obtenemos 0 clientes (no existe ninguna ciudad
+que se llame así, con todo y comillas), y con \codigo{"Mérida"} obtenemos
+la respuesta correcta. Además, los parámetros te ahorran pelearte con las
+comillas: no tienes que escribir \codigo{'} alrededor de los textos.
+
+También puedes usar marcadores con nombre (\codigo{:nombre}) y pasar una
+lista con nombres, lo que hace más legibles las consultas con varios
+parámetros:
+
+\begin{ejemplo}{Reporte de ventas por método de pago en un periodo}
+Finanzas quiere un reporte reutilizable: ventas de un método de pago entre
+dos fechas cualesquiera.
+\end{ejemplo}
+
+\begin{rcode}
+reporte_pago <- function(con, metodo, desde, hasta) {
+  dbGetQuery(con, "
+    SELECT metodo_pago,
+           COUNT(*)                         AS tickets,
+           ROUND(SUM(total_transaccion), 2) AS ventas
+    FROM transacciones
+    WHERE metodo_pago = :metodo
+      AND fecha BETWEEN :desde AND :hasta
+    GROUP BY metodo_pago",
+    params = list(metodo = metodo,
+                  desde  = format(as.Date(desde)),   # fecha como texto
+                  hasta  = format(as.Date(hasta))))
+}
+
+reporte_pago(con, "Transferencia", "2023-01-01", "2023-03-31")
+reporte_pago(con, "Efectivo", "2023-12-01", "2023-12-31")
+\end{rcode}
+
+\begin{rsalida}
+    metodo_pago tickets   ventas
+1 Transferencia      22 19523.79
+  metodo_pago tickets   ventas
+1    Efectivo      24 25212.12
+\end{rsalida}
+
+En el primer trimestre entraron 22 transferencias por \$19\,523.79, y en
+diciembre hubo 24 pagos en efectivo por \$25\,212.12. La misma función sirve
+para cualquier combinación sin tocar el SQL. Observa que convertimos las fechas con
+\codigo{format(as.Date(\ldots))}: así la función acepta tanto texto como
+objetos \codigo{Date} y siempre manda a la base el texto ISO que espera.
+
+Si pasas en \codigo{params} un vector con varios valores, la consulta se
+ejecuta una vez por valor y los resultados se apilan:
+
+\begin{rcode}
+dbGetQuery(con,
+  "SELECT ciudad, COUNT(*) AS clientes, ROUND(AVG(edad), 1) AS edad_prom
+   FROM clientes WHERE ciudad = ?",
+  params = list(c("CDMX", "Puebla", "Mérida")))
+\end{rcode}
+
+\begin{rsalida}
+  ciudad clientes edad_prom
+1   CDMX       27      56.2
+2 Puebla       28      51.3
+3 Mérida       17      47.6
+\end{rsalida}
+
+\subsection{Alternativas: \texorpdfstring{\codigo{glue\_sql()}}{glue\_sql()} y \texorpdfstring{\codigo{sqlInterpolate()}}{sqlInterpolate()}}
+
+A veces necesitas construir el texto SQL de forma dinámica (por ejemplo, una
+lista \codigo{IN (\ldots)} de longitud variable, o el nombre de una tabla).
+Para eso hay dos herramientas seguras que \emph{escapan} los valores (les
+ponen las comillas correctas y neutralizan las comillas internas):
+
+\begin{itemize}
+  \item \codigo{glue::glue\_sql()}, del paquete \paquete{glue} (se instala
+        con el tidyverse): usa llaves \codigo{\{\}} para insertar valores;
+        \codigo{\{valor*\}} expande un vector separado por comas y
+        \codigo{\{`nombre`\}} (con acentos graves) inserta un nombre de
+        tabla o columna.
+  \item \codigo{DBI::sqlInterpolate()}: usa marcadores \codigo{?nombre}.
+\end{itemize}
+
+\begin{rcode}
+library(glue)
+
+ciudades <- c("Monterrey", "Guadalajara", "Tijuana")
+edad_min <- 40
+sql_glue <- glue_sql("
+  SELECT ciudad, COUNT(*) AS clientes
+  FROM clientes
+  WHERE ciudad IN ({ciudades*}) AND edad >= {edad_min}
+  GROUP BY ciudad", .con = con)
+sql_glue
+dbGetQuery(con, sql_glue)
+
+# El texto malicioso queda "desactivado": sus comillas se duplican
+glue_sql("SELECT * FROM clientes WHERE ciudad = {ciudad_usuario}",
+         .con = con)
+sqlInterpolate(con, "SELECT * FROM clientes WHERE ciudad = ?ciudad",
+               ciudad = ciudad_usuario)
+\end{rcode}
+
+\begin{rsalida}
+<SQL> SELECT ciudad, COUNT(*) AS clientes
+FROM clientes
+WHERE ciudad IN ('Monterrey', 'Guadalajara', 'Tijuana') AND edad >= 40
+GROUP BY ciudad
+       ciudad clientes
+1 Guadalajara       13
+2   Monterrey       11
+3     Tijuana        6
+<SQL> SELECT * FROM clientes WHERE ciudad = 'Mérida'' OR ''1''=''1'
+<SQL> SELECT * FROM clientes WHERE ciudad = 'Mérida'' OR ''1''=''1'
+\end{rsalida}
+
+\codigo{glue\_sql()} convirtió el vector \codigo{ciudades} en
+\codigo{'Monterrey', 'Guadalajara', 'Tijuana'}, con sus comillas, y el número
+40 sin comillas. Entre los clientes de 40 años o más, Guadalajara tiene 13,
+Monterrey 11 y Tijuana 6. En las dos últimas consultas, las comillas simples del
+texto malicioso se duplicaron (\codigo{''}), que en SQL es la forma de
+escribir una comilla \emph{dentro} de un texto: todo el valor queda como un
+solo texto inofensivo.
+
+\begin{advertencia}
+Regla de oro: \textbf{nunca} armes SQL con \codigo{paste()},
+\codigo{paste0()} o \codigo{sprintf()} usando valores que escribe un usuario
+o que vienen de un archivo externo. Usa \codigo{params}, y si necesitas
+construir el texto, \codigo{glue\_sql()} o \codigo{sqlInterpolate()}. Esto
+será especialmente importante en el Módulo~\ref{cap:shiny}, donde los
+usuarios escriben en cajas de texto de tus tableros.
+\end{advertencia}
+
+\begin{hazlotu}
+Escribe una función \codigo{clientes\_por\_segmento(con, segmento)} que
+devuelva cuántos clientes premium y no premium hay en el segmento indicado
+(\codigo{"Joven"}, \codigo{"Adulto"}, \codigo{"Maduro"} o
+\codigo{"Senior"}), usando una consulta parametrizada.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{dbplyr: usar dplyr contra la base de datos}
+\label{sec:m5-dbplyr}
+
+¿Y si pudieras consultar la base con los mismos verbos de \paquete{dplyr}
+que ya dominas, sin escribir SQL? Eso hace \paquete{dbplyr}: traduce tu
+código de dplyr a SQL, lo manda a la base y solo te trae el resultado.
+
+\subsection{Tablas remotas con \texorpdfstring{\codigo{tbl()}}{tbl()}}
+
+\codigo{tbl(con, "tabla")} crea una \termino{tabla remota}: un objeto que
+\emph{apunta} a la tabla dentro de la base pero no la descarga.
+
+\begin{rcode}
+transacciones_bd <- tbl(con, "transacciones")
+productos_bd     <- tbl(con, "productos")
+
+transacciones_bd %>%
+  select(transaccion_id, fecha, producto_id, total_transaccion) %>%
+  head(3)
+\end{rcode}
+
+%RECORTE 1-1,...,3-$
+\begin{rsalida}
+# Source:   SQL [3 x 4]
+...
+  transaccion_id fecha      producto_id total_transaccion
+           <dbl> <chr>            <dbl>             <dbl>
+1              1 2023-01-13           3             1216.
+2              2 2023-01-09          47              232.
+3              3 2023-02-20           6              826.
+\end{rsalida}
+
+La primera línea indica que el origen es una consulta SQL (de 3 filas y 4
+columnas, por el \codigo{head(3)}); la segunda, que omitimos, indica el
+motor y la ruta del archivo de la base. dbplyr no descargó la tabla: solo
+pidió a la base las tres primeras filas para mostrártelas. Los importes se
+ven redondeados (\codigo{1216.}) porque así imprime los números un tibble;
+el valor completo sigue siendo 1215.88.
+
+\subsection{Verbos de dplyr, \texorpdfstring{\codigo{show\_query()}}{show\_query()} y \texorpdfstring{\codigo{collect()}}{collect()}}
+
+\begin{ejemplo}{Ventas por método de pago, versión dplyr}
+Repitamos el reporte de métodos de pago, ahora con dplyr contra la base.
+\end{ejemplo}
+
+\begin{rcode}
+consulta_pago <- transacciones_bd %>%
+  group_by(metodo_pago) %>%
+  summarise(tickets = n(),
+            ventas  = round(sum(total_transaccion, na.rm = TRUE), 0)) %>%
+  arrange(desc(ventas))
+
+# ¿Qué SQL generó dbplyr?
+show_query(consulta_pago)
+\end{rcode}
+
+\begin{rsalida}
+<SQL>
+SELECT
+  `metodo_pago`,
+  COUNT(*) AS `tickets`,
+  ROUND(SUM(`total_transaccion`), 0) AS `ventas`
+FROM `transacciones`
+GROUP BY `metodo_pago`
+ORDER BY `ventas` DESC
+\end{rsalida}
+
+\codigo{show\_query()} te enseña el SQL que dbplyr escribió por ti. Es una
+excelente forma de \emph{aprender} SQL: escribe el código en dplyr y mira
+cómo se traduce. Nota el \codigo{na.rm = TRUE}: en SQL las funciones de
+agregación siempre ignoran los valores nulos, y dbplyr te lo recuerda con
+un aviso si no lo escribes.
+
+Para traer el resultado a R como un tibble normal usa \codigo{collect()}:
+
+\begin{rcode}
+resultado_pago <- collect(consulta_pago)
+resultado_pago
+class(resultado_pago)
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 4 x 3
+  metodo_pago     tickets ventas
+  <chr>             <int>  <dbl>
+1 Tarjeta Crédito     350 351171
+2 Efectivo            315 303735
+3 Tarjeta Débito      233 220855
+4 Transferencia       102  84232
+[1] "tbl_df"     "tbl"        "data.frame"
+\end{rsalida}
+
+Las cifras coinciden con las que obtuvimos con SQL escrito a mano. Ahora
+\codigo{resultado\_pago} es un tibble en la memoria de R y puedes usarlo con
+\paquete{ggplot2} o exportarlo a Excel.
+
+\begin{concepto}{Evaluación diferida (\emph{lazy evaluation})}
+Con dbplyr, cada verbo \emph{no ejecuta nada}: solo va construyendo la
+receta de la consulta. La base trabaja únicamente cuando pides ver el
+resultado (imprimirlo) o cuando llamas a \codigo{collect()}. Por eso puedes
+encadenar muchos pasos sobre una tabla de 100 millones de filas sin
+problema: todo el trabajo pesado lo hace el motor, y a R solo llega el
+resultado final, normalmente pequeño.
+\end{concepto}
+
+Los \emph{joins} también se traducen. Repitamos las ventas por categoría:
+
+\begin{rcode}
+ventas_categoria_dbplyr <- transacciones_bd %>%
+  inner_join(productos_bd, by = "producto_id") %>%
+  group_by(categoria) %>%
+  summarise(tickets = n(),
+            ventas  = round(sum(total_transaccion, na.rm = TRUE), 0)) %>%
+  arrange(desc(ventas)) %>%
+  collect()
+
+head(ventas_categoria_dbplyr, 4)
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 4 x 3
+  categoria   tickets ventas
+  <chr>         <int>  <dbl>
+1 Belleza         187 182143
+2 Electrónica     137 132672
+3 Juguetes        118 125093
+4 Alimentos       115 121543
+\end{rsalida}
+
+Los números son idénticos a los del \codigo{INNER JOIN} en SQL: Belleza
+lidera con \$182\,143.
+
+\subsection{Límites de la traducción}
+
+dbplyr traduce muchas funciones de R (aritmética, \codigo{if\_else()},
+\codigo{case\_when()}, \codigo{substr()}, \codigo{paste0()},
+\codigo{min\_rank()}, \codigo{lag()}, \codigo{cumsum()}, las funciones de
+agregación\ldots), pero no todas. Algunas reglas prácticas:
+
+\begin{rcode}
+# Funciona: month() de lubridate se traduce a strftime() en SQLite
+transacciones_bd %>%
+  mutate(num_mes = month(fecha)) %>%
+  count(num_mes) %>%
+  head(3) %>%
+  show_query()
+\end{rcode}
+
+\begin{rsalida}
+<SQL>
+SELECT `num_mes`, COUNT(*) AS `n`
+FROM (
+  SELECT
+    `transacciones`.*,
+    CAST(STRFTIME('%m', `fecha`) AS NUMERIC) AS `num_mes`
+  FROM `transacciones`
+) AS `q01`
+GROUP BY `num_mes`
+LIMIT 3
+\end{rsalida}
+
+\begin{itemize}
+  \item Si una función no tiene traducción, dbplyr la pasa \emph{tal cual}
+        a la base, y la base marca error de función inexistente. Por
+        ejemplo, \codigo{floor\_date()} no se traduce en SQLite.
+  \item Algunas funciones solo se traducen parcialmente. Por ejemplo,
+        \codigo{str\_detect(x, "Tarjeta")} falla con
+        \codigo{Only fixed patterns are supported on database backends};
+        la solución es \codigo{str\_detect(x, fixed("Tarjeta"))}.
+  \item Puedes escribir un fragmento de SQL literal con \codigo{sql()}:
+        \codigo{mutate(mes = sql("strftime('\%Y-\%m', fecha)"))}.
+  \item Si algo no se puede traducir, filtra y agrega primero en la base,
+        haz \codigo{collect()} y termina el cálculo en R.
+\end{itemize}
+
+\subsection{¿SQL directo o dbplyr?}
+
+Ambos caminos llegan al mismo resultado. La tabla~\ref{tab:m5-sql-dbplyr}
+te ayuda a elegir.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Cuándo conviene escribir SQL y cuándo usar dbplyr.}
+\label{tab:m5-sql-dbplyr}
+\begin{tabularx}{\textwidth}{@{}XX@{}}
+\toprule
+\textbf{Usa SQL directo (\codigo{dbGetQuery()}) cuando\ldots} &
+\textbf{Usa dbplyr cuando\ldots} \\
+\midrule
+Ya tienes la consulta escrita (te la pasó el área de TI o viene de otro
+reporte). & Quieres un solo estilo de código en todo tu proyecto. \\
+Necesitas funciones propias del motor (\codigo{PRAGMA},
+\codigo{EXPLAIN}, funciones de fecha especiales). & Estás explorando y
+cambias la consulta a cada rato. \\
+Creas o modificas estructura: \codigo{CREATE TABLE}, \codigo{CREATE VIEW},
+\codigo{INSERT}, índices. & Quieres combinar pasos en la base con pasos en R
+(\codigo{collect()} en medio). \\
+La consulta la compartirás con personas que no usan R. & Prefieres que el
+mismo código funcione con varios motores sin cambiar el dialecto. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{consejo}
+En la práctica, los analistas combinan ambos: dbplyr para explorar y
+prototipar, y SQL escrito a mano para las consultas ``oficiales'' que se
+guardan como vistas en el data warehouse. Si una consulta de dbplyr va a
+producción, copia el resultado de \codigo{show\_query()}, revísalo y
+guárdalo.
+\end{consejo}
+
+\begin{hazlotu}
+Con dbplyr, calcula el ticket promedio por tienda (\codigo{tienda\_id}) solo
+para pagos en efectivo, ordénalo de mayor a menor y mira el SQL con
+\codigo{show\_query()} antes de hacer \codigo{collect()}.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Diseño de un data warehouse en estrella}
+\label{sec:m5-estrella}
+
+Hasta ahora la base es una copia fiel de los CSV. Funciona, pero tiene
+problemas típicos de los datos ``crudos'': no hay llaves declaradas, los
+nombres de columnas son inconsistentes, faltan atributos útiles para
+analizar (¿la fecha cae en fin de semana?, ¿cuánto costó lo vendido?) y
+cualquiera podría insertar una venta de un producto inexistente. Un
+\emph{data warehouse} resuelve esto con un diseño pensado para el análisis:
+el \termino{esquema en estrella}.
+
+\begin{concepto}{Hechos y dimensiones}
+\begin{itemize}
+  \item La \termino{tabla de hechos} (\emph{fact table}) registra los
+        eventos del negocio que quieres medir, uno por fila, con sus
+        \termino{métricas} numéricas: cantidad, importe, costo, margen.
+        Tiene muchas filas y pocas columnas, casi todas numéricas o
+        llaves.
+  \item Las \termino{tablas de dimensión} describen el contexto de cada
+        hecho: \emph{quién} compró (cliente), \emph{qué} (producto),
+        \emph{dónde} (tienda), \emph{quién vendió} (vendedor) y
+        \emph{cuándo} (fecha). Tienen pocas filas y muchas columnas de
+        texto que sirven para filtrar y agrupar.
+  \item La \termino{granularidad} (\emph{grain}) es el nivel de detalle de
+        una fila de hechos. En nuestro caso: \emph{una fila por ticket de
+        venta}.
+\end{itemize}
+Dibujado, la tabla de hechos queda al centro y las dimensiones alrededor,
+como las puntas de una estrella (figura~\ref{fig:m5-estrella}).
+\end{concepto}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  tabla/.style={draw=#1, rounded corners=2pt, fill=white,
+    font=\ttfamily\scriptsize, align=left, inner sep=3pt,
+    minimum width=3.2cm},
+  titulo/.style={fill=#1, text=white, font=\sffamily\small\bfseries,
+    minimum width=3.2cm, inner sep=3pt},
+  rel/.style={-{Stealth[length=2.5mm]}, draw=gristexto, thick}
+]
+% Hechos
+\node[titulo=acento] (ft) at (0,0) {fact\_ventas};
+\node[tabla=acento, below=0pt of ft] (f) {\textbf{PK} venta\_id\\
+\textbf{FK} fecha\_id\\ \textbf{FK} cliente\_id\\ \textbf{FK} producto\_id\\
+\textbf{FK} tienda\_id\\ \textbf{FK} vendedor\_id\\ hora, metodo\_pago\\
+cantidad, precio\_venta\\ total, costo\_total, margen};
+% Dimensiones
+\node[titulo=secundario] (dft) at (-5.3,1.3) {dim\_fecha};
+\node[tabla=secundario, below=0pt of dft] (df) {\textbf{PK} fecha\_id\\
+fecha, anio, trimestre\\ mes, nombre\_mes\\ dia\_semana, es\_fin\_semana};
+\node[titulo=secundario] (dct) at (5.3,1.3) {dim\_cliente};
+\node[tabla=secundario, below=0pt of dct] (dc) {\textbf{PK} cliente\_id\\
+nombre, edad, genero\\ ciudad, segmento\\ es\_premium};
+\node[titulo=secundario] (dpt) at (-5.3,-2.3) {dim\_producto};
+\node[tabla=secundario, below=0pt of dpt] (dp) {\textbf{PK} producto\_id\\
+nombre\_producto\\ categoria, marca\\ precio\_catalogo, costo};
+\node[titulo=secundario] (dtt) at (5.3,-2.3) {dim\_tienda};
+\node[tabla=secundario, below=0pt of dtt] (dt) {\textbf{PK} tienda\_id\\
+nombre\_tienda, ciudad\\ zona, tipo, tamano\_m2};
+\node[titulo=secundario] (dvt) at (0,-4.6) {dim\_vendedor};
+\node[tabla=secundario, below=0pt of dvt] (dv) {\textbf{PK} vendedor\_id\\
+nombre, puesto, sucursal};
+% Relaciones
+\draw[rel] ($(f.west)+(0,0.9)$) -- (df.east);
+\draw[rel] ($(f.east)+(0,0.9)$) -- (dc.west);
+\draw[rel] ($(f.west)+(0,-0.6)$) -- (dp.east);
+\draw[rel] ($(f.east)+(0,-0.6)$) -- (dt.west);
+\draw[rel] (f.south) -- (dvt.north);
+\end{tikzpicture}
+\caption{Esquema en estrella del data warehouse \texttt{bi\_retail}: la
+tabla de hechos (naranja) al centro y cinco dimensiones alrededor.}
+\label{fig:m5-estrella}
+\end{figure}
+
+\begin{negocio}{¿Por qué en estrella?}
+El esquema en estrella es el estándar de facto en BI porque las consultas
+son siempre iguales: ``suma las métricas de la tabla de hechos, filtrando y
+agrupando por atributos de las dimensiones''. Power BI, Tableau y Qlik
+están optimizados para él, los usuarios de negocio lo entienden de un
+vistazo y los motores lo resuelven muy rápido. Si algún día trabajas con
+Power BI, verás que su ``modelo de datos'' es justamente una estrella.
+\end{negocio}
+
+\subsection{Crear las tablas con llaves primarias y foráneas}
+
+Esta vez no dejaremos que \codigo{dbWriteTable()} adivine los tipos:
+escribiremos nosotros el \codigo{CREATE TABLE} de cada tabla con su llave
+primaria, sus llaves foráneas y algunas reglas de validación
+(\codigo{NOT NULL}, \codigo{CHECK}). A este código que define estructura se
+le llama \termino{DDL} (\emph{Data Definition Language}). Lo guardamos en un
+vector con nombre para poder reutilizarlo.
+
+\begin{rcode}
+ddl_estrella <- c(
+  dim_fecha = "
+    CREATE TABLE dim_fecha (
+      fecha_id       INTEGER PRIMARY KEY,  -- AAAAMMDD, ej. 20230113
+      fecha          TEXT NOT NULL UNIQUE, -- texto ISO 'AAAA-MM-DD'
+      anio           INTEGER, trimestre INTEGER, mes INTEGER,
+      nombre_mes     TEXT, dia INTEGER, dia_semana TEXT,
+      num_dia_semana INTEGER,              -- 1 = lunes ... 7 = domingo
+      es_fin_semana  INTEGER               -- 1 = sábado o domingo
+    )",
+  dim_producto = "
+    CREATE TABLE dim_producto (
+      producto_id INTEGER PRIMARY KEY, nombre_producto TEXT NOT NULL,
+      categoria TEXT, subcategoria TEXT, marca TEXT,
+      precio_catalogo REAL, costo REAL, proveedor TEXT, activo INTEGER
+    )",
+  dim_cliente = "
+    CREATE TABLE dim_cliente (
+      cliente_id INTEGER PRIMARY KEY, nombre TEXT NOT NULL,
+      edad INTEGER, genero TEXT, ciudad TEXT, segmento TEXT,
+      es_premium INTEGER, fecha_registro TEXT
+    )",
+  dim_tienda = "
+    CREATE TABLE dim_tienda (
+      tienda_id INTEGER PRIMARY KEY, nombre_tienda TEXT NOT NULL,
+      ciudad TEXT, zona TEXT, tipo TEXT, tamano_m2 REAL,
+      fecha_apertura TEXT
+    )",
+  dim_vendedor = "
+    CREATE TABLE dim_vendedor (
+      vendedor_id INTEGER PRIMARY KEY, nombre TEXT NOT NULL,
+      departamento TEXT, puesto TEXT, sucursal TEXT, fecha_ingreso TEXT
+    )",
+  fact_ventas = "
+    CREATE TABLE fact_ventas (
+      venta_id     INTEGER PRIMARY KEY,
+      fecha_id     INTEGER NOT NULL REFERENCES dim_fecha(fecha_id),
+      cliente_id   INTEGER NOT NULL REFERENCES dim_cliente(cliente_id),
+      producto_id  INTEGER NOT NULL REFERENCES dim_producto(producto_id),
+      tienda_id    INTEGER NOT NULL REFERENCES dim_tienda(tienda_id),
+      vendedor_id  INTEGER NOT NULL REFERENCES dim_vendedor(vendedor_id),
+      hora TEXT, metodo_pago TEXT,
+      cantidad     INTEGER NOT NULL CHECK (cantidad > 0),
+      precio_venta REAL    NOT NULL CHECK (precio_venta > 0),
+      total REAL NOT NULL, costo_total REAL, margen REAL
+    )",
+  log_etl = "
+    CREATE TABLE log_etl (
+      ejecucion_id  INTEGER PRIMARY KEY AUTOINCREMENT,
+      fecha_hora    TEXT, archivo TEXT,
+      filas_leidas  INTEGER, filas_validas INTEGER,
+      filas_nuevas  INTEGER, estado TEXT, mensaje TEXT
+    )"
+)
+
+crear_esquema <- function(con) {
+  # SQLite trae apagada la revisión de llaves foráneas: la encendemos
+  dbExecute(con, "PRAGMA foreign_keys = ON")
+  for (sql in ddl_estrella) dbExecute(con, sql)
+  invisible(names(ddl_estrella))
+}
+
+crear_esquema(con)
+dbListTables(con)
+\end{rcode}
+
+\begin{rsalida}
+ [1] "clientes"        "dim_cliente"     "dim_fecha"      
+ [4] "dim_producto"    "dim_tienda"      "dim_vendedor"   
+ [7] "empleados"       "fact_ventas"     "log_etl"        
+[10] "productos"       "sqlite_sequence" "tiendas"        
+[13] "transacciones"   "ventas_retail"  
+\end{rsalida}
+
+Ahora la base tiene las seis tablas crudas que cargamos al principio y las
+nuevas tablas del \emph{data warehouse}, además de \codigo{log\_etl}, que
+usaremos como bitácora del proceso de carga. La tabla
+\codigo{sqlite\_sequence} la crea SQLite automáticamente para llevar la
+cuenta del \codigo{AUTOINCREMENT}. Tres detalles del diseño:
+
+\begin{itemize}
+  \item \codigo{PRAGMA foreign\_keys = ON} es imprescindible en SQLite: sin
+        él, las cláusulas \codigo{REFERENCES} se aceptan pero \emph{no se
+        verifican}. Hay que activarlo en cada conexión nueva.
+  \item La llave de la fecha es un entero con forma \codigo{AAAAMMDD}
+        (\codigo{20230113}). Es una convención muy común en data warehouses:
+        es compacta, se ordena bien y se lee a simple vista.
+  \item Las columnas \codigo{CHECK (cantidad > 0)} hacen que la base
+        rechace datos imposibles, sin importar quién o qué programa intente
+        cargarlos.
+\end{itemize}
+
+\subsection{La dimensión de fechas, construida en R}
+
+Una \termino{dimensión de fechas} (o calendario) tiene una fila por día con
+todos los atributos que alguien podría querer para filtrar o agrupar: año,
+trimestre, mes, nombre del mes, día de la semana, si es fin de semana, si es
+feriado\ldots{} No viene de ningún sistema: la construimos nosotros, y
+\paquete{lubridate} lo hace muy fácil.
+
+\begin{rcode}
+construir_dim_fecha <- function(desde, hasta) {
+  tibble(fecha = seq(as.Date(desde), as.Date(hasta), by = "day")) %>%
+    mutate(
+      fecha_id   = as.integer(format(fecha, "%Y%m%d")),
+      anio       = year(fecha),
+      trimestre  = quarter(fecha),
+      mes        = month(fecha),
+      nombre_mes = as.character(month(fecha, label = TRUE, abbr = FALSE)),
+      dia        = day(fecha),
+      dia_semana = as.character(wday(fecha, label = TRUE, abbr = FALSE,
+                                     week_start = 1)),
+      num_dia_semana = wday(fecha, week_start = 1),   # 1 = lunes
+      es_fin_semana  = as.integer(num_dia_semana >= 6),
+      fecha      = format(fecha, "%Y-%m-%d")          # texto ISO
+    ) %>%
+    relocate(fecha_id)
+}
+
+dim_fecha <- construir_dim_fecha("2023-01-01", "2023-12-31")
+nrow(dim_fecha)
+dim_fecha %>% filter(fecha >= "2023-12-29") %>% select(-dia)
+\end{rcode}
+
+\begin{rsalida}
+[1] 365
+# A tibble: 3 x 9
+  fecha_id fecha       anio trimestre   mes nombre_mes dia_semana
+     <int> <chr>      <dbl>     <int> <dbl> <chr>      <chr>     
+1 20231229 2023-12-29  2023         4    12 diciembre  viernes   
+2 20231230 2023-12-30  2023         4    12 diciembre  sábado    
+3 20231231 2023-12-31  2023         4    12 diciembre  domingo   
+# i 2 more variables: num_dia_semana <dbl>, es_fin_semana <int>
+\end{rsalida}
+
+Tenemos 365 días con sus atributos. Los nombres de meses y días salen en
+español porque R usa la configuración regional de tu sistema; si en tu
+computadora salen en inglés, revisa \codigo{Sys.getlocale()}.
+
+\subsection{Las demás dimensiones}
+
+Las otras dimensiones salen de los CSV del curso con algunas
+transformaciones: elegimos columnas, convertimos tipos (identificadores a
+entero, lógicos a 0/1, fechas a texto ISO) y dejamos fuera los datos
+personales que el análisis no necesita (el correo y el teléfono de los
+clientes). Lo escribimos como una función que devuelve una lista con todas
+las dimensiones listas para cargar:
+
+\begin{rcode}
+preparar_dimensiones <- function(carpeta = "datasets") {
+  leer <- function(archivo) {
+    read_csv(file.path(carpeta, archivo), show_col_types = FALSE)
+  }
+  empleados     <- leer("empleados.csv")
+  transacciones <- leer("transacciones.csv")
+
+  list(
+    dim_fecha = construir_dim_fecha("2023-01-01", "2023-12-31"),
+
+    dim_producto = leer("productos.csv") %>%
+      transmute(producto_id = as.integer(producto_id), nombre_producto,
+                categoria, subcategoria, marca, precio_catalogo, costo,
+                proveedor, activo = as.integer(activo)),
+
+    dim_cliente = leer("clientes.csv") %>%       # sin email ni teléfono
+      transmute(cliente_id = as.integer(cliente_id), nombre,
+                edad = as.integer(edad), genero, ciudad,
+                segmento, es_premium = as.integer(es_premium),
+                fecha_registro = format(fecha_registro, "%Y-%m-%d")),
+
+    dim_tienda = leer("tiendas.csv") %>%
+      transmute(tienda_id = as.integer(tienda_id), nombre_tienda, ciudad,
+                zona, tipo, tamano_m2,
+                fecha_apertura = format(fecha_apertura, "%Y-%m-%d")),
+
+    # Los vendedores son los empleados que aparecen como vendedor_id
+    dim_vendedor = empleados %>%
+      semi_join(transacciones, by = c("empleado_id" = "vendedor_id")) %>%
+      transmute(vendedor_id = as.integer(empleado_id), nombre,
+                departamento, puesto, sucursal,
+                fecha_ingreso = format(fecha_ingreso, "%Y-%m-%d"))
+  )
+}
+
+dimensiones <- preparar_dimensiones()
+map_int(dimensiones, nrow)
+\end{rcode}
+
+\begin{rsalida}
+   dim_fecha dim_producto  dim_cliente   dim_tienda dim_vendedor 
+         365           50          200           10           25 
+\end{rsalida}
+
+Ahora las cargamos. Aquí hay una diferencia importante con lo que hicimos al
+principio: usamos \codigo{dbAppendTable()} y no \codigo{dbWriteTable()}.
+\codigo{dbAppendTable()} \emph{agrega} filas a una tabla que ya existe,
+respetando la estructura que diseñamos. En cambio,
+\codigo{dbWriteTable(\ldots, overwrite = TRUE)} borraría la tabla y la
+volvería a crear a su manera, sin llaves ni reglas de validación.
+
+\begin{rcode}
+cargar_dimensiones <- function(con, dimensiones) {
+  dbBegin(con)                          # todo o nada (ver más adelante)
+  for (tabla in names(dimensiones)) {
+    dbAppendTable(con, tabla, dimensiones[[tabla]])
+  }
+  dbCommit(con)
+  # Devolver cuántas filas quedaron en cada tabla
+  map_int(names(dimensiones), function(tabla) {
+    dbGetQuery(con, paste("SELECT COUNT(*) AS n FROM", tabla))$n
+  }) %>% set_names(names(dimensiones))
+}
+
+cargar_dimensiones(con, dimensiones)
+\end{rcode}
+
+\begin{rsalida}
+   dim_fecha dim_producto  dim_cliente   dim_tienda dim_vendedor 
+         365           50          200           10           25 
+\end{rsalida}
+
+\begin{advertencia}
+Un \emph{hallazgo de calidad de datos}: según el catálogo de empleados, de
+los 25 vendedores solo unos cuantos pertenecen al departamento de Ventas;
+los demás aparecen en Marketing, Finanzas, IT\ldots{} Compruébalo:
+\end{advertencia}
+
+\begin{rcode}
+dbGetQuery(con, "
+  SELECT departamento, COUNT(*) AS vendedores
+  FROM dim_vendedor
+  GROUP BY departamento
+  ORDER BY vendedores DESC
+")
+\end{rcode}
+
+\begin{rsalida}
+         departamento vendedores
+1 Atención al Cliente         10
+2              Ventas          4
+3                RRHH          4
+4           Marketing          3
+5            Finanzas          2
+6         Operaciones          1
+7                  IT          1
+\end{rsalida}
+
+Solo 4 de los 25 vendedores pertenecen al departamento de Ventas; 10 están
+en Atención al Cliente y hay incluso uno de IT. Puede ser un error de los
+datos simulados, o una realidad (personal de otras áreas que apoya en
+caja). En una empresa lo reportarías a Recursos Humanos antes de publicar
+un ranking de ``vendedores''. Lo importante es que un buen modelo de datos
+hace visibles estas inconsistencias.
+
+La base ya aplica las reglas que diseñamos. Si alguien intenta cargar un
+producto con un identificador que ya existe, la llave primaria lo impide:
+
+\begin{rcode}
+resultado <- tryCatch(
+  dbExecute(con, "INSERT INTO dim_producto (producto_id, nombre_producto)
+                  VALUES (1, 'Producto repetido')"),
+  error = function(e) conditionMessage(e)
+)
+resultado
+\end{rcode}
+
+\begin{rsalida}
+[1] "UNIQUE constraint failed: dim_producto.producto_id"
+\end{rsalida}
+
+Usamos \codigo{tryCatch()} para \emph{atrapar} el error y mostrar su
+mensaje sin detener el script: la base respondió que la restricción de
+unicidad de \codigo{dim\_producto.producto\_id} falló. Es exactamente lo que
+queremos.
+
+\begin{hazlotu}
+Intenta insertar en \codigo{dim\_cliente} una fila sin nombre
+(\codigo{INSERT INTO dim\_cliente (cliente\_id) VALUES (999)}) dentro de un
+\codigo{tryCatch()}. ¿Qué regla del diseño lo impide?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{ETL con R: extraer, transformar y cargar}
+\label{sec:m5-etl}
+
+Las dimensiones cambian poco; la tabla de hechos, en cambio, crece todos los
+días. En una empresa, cada noche un proceso toma las ventas nuevas del
+sistema de punto de venta y las agrega al \emph{data warehouse}. Ese
+proceso es el \termino{ETL}:
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  caja/.style={draw=#1, fill=#1!8, rounded corners=3pt, minimum width=3cm,
+    minimum height=1.25cm, align=center, font=\sffamily\small},
+  flecha/.style={-{Stealth[length=3mm]}, thick, draw=gristexto}
+]
+\node[caja=gristexto] (src) at (0,0) {\textbf{Fuentes}\\[-1pt]
+  {\scriptsize CSV, Excel, sistemas}};
+\node[caja=primario] (e) at (3.6,0) {\textbf{Extraer}\\[-1pt]
+  {\scriptsize\ttfamily extraer\_*()}};
+\node[caja=secundario] (t) at (7.2,0) {\textbf{Transformar}\\[-1pt]
+  {\scriptsize\ttfamily transformar\_*()}};
+\node[caja=acento] (l) at (10.8,0) {\textbf{Cargar}\\[-1pt]
+  {\scriptsize\ttfamily cargar\_*()}};
+\draw[flecha] (src) -- (e);
+\draw[flecha] (e) -- (t);
+\draw[flecha] (t) -- (l);
+\node[font=\scriptsize\sffamily, text=gristexto, align=center, below=2pt of e]
+  {leer sin modificar};
+\node[font=\scriptsize\sffamily, text=gristexto, align=center, below=2pt of t]
+  {limpiar, tipar,\\validar, llaves};
+\node[font=\scriptsize\sffamily, text=gristexto, align=center, below=2pt of l]
+  {transacción, sin\\duplicados, bitácora};
+\end{tikzpicture}
+\caption{Las tres etapas de un proceso ETL y las funciones de R que
+escribiremos para cada una.}
+\label{fig:m5-etl}
+\end{figure}
+
+Escribiremos cada etapa como una función pequeña y reutilizable, y una
+función \codigo{ejecutar\_etl()} que las orquesta. Así, cuando llegue el
+archivo de mañana, basta una línea para cargarlo.
+
+\subsection{Transacciones: todo o nada}
+
+Antes de escribir el ETL necesitas un concepto clave. Una
+\termino{transacción} agrupa varias operaciones para que se apliquen
+\emph{todas o ninguna}. Piensa en un pedido: se guarda el encabezado (quién
+compra) y después los renglones (qué compra). Si los renglones fallan, no
+quieres un encabezado huérfano en la base.
+
+\begin{ejemplo}{Un pedido que falla a la mitad}
+Probemos en una base en memoria qué pasa sin transacción y con transacción.
+\end{ejemplo}
+
+\begin{rcode}
+con_pedidos <- dbConnect(RSQLite::SQLite(), ":memory:")
+dbExecute(con_pedidos, "PRAGMA foreign_keys = ON")
+dbExecute(con_pedidos, "CREATE TABLE productos (id INTEGER PRIMARY KEY)")
+dbExecute(con_pedidos, "INSERT INTO productos VALUES (1), (2)")
+dbExecute(con_pedidos, "CREATE TABLE pedidos (pedido_id INTEGER
+                          PRIMARY KEY, cliente TEXT)")
+dbExecute(con_pedidos, "CREATE TABLE renglones (pedido_id INTEGER,
+            producto_id INTEGER REFERENCES productos(id))")
+
+guardar_pedido <- function(con, id, cliente, productos) {
+  dbAppendTable(con, "pedidos", tibble(pedido_id = id,
+                                       cliente = cliente))
+  dbAppendTable(con, "renglones", tibble(pedido_id = id,
+                                         producto_id = productos))
+}
+
+# 1) SIN transacción: el producto 99 no existe y los renglones fallan
+try(guardar_pedido(con_pedidos, 1, "Ana", c(1, 99)), silent = TRUE)
+dbGetQuery(con_pedidos, "SELECT * FROM pedidos")   # ¡encabezado huérfano!
+\end{rcode}
+
+\begin{rsalida}
+[1] 0
+[1] 0
+[1] 2
+[1] 0
+[1] 0
+  pedido_id cliente
+1         1     Ana
+\end{rsalida}
+
+El encabezado del pedido 1 se guardó, pero sus renglones no: la base quedó
+inconsistente. Ahora con transacción. \codigo{dbBegin()} la inicia,
+\codigo{dbCommit()} confirma los cambios y \codigo{dbRollback()} los
+deshace todos:
+
+\begin{rcode}
+# 2) CON transacción: si algo falla, se deshace todo
+dbBegin(con_pedidos)
+tryCatch({
+  guardar_pedido(con_pedidos, 2, "Luis", c(1, 99))
+  dbCommit(con_pedidos)
+}, error = function(e) {
+  dbRollback(con_pedidos)
+  cat("Se canceló el pedido:", conditionMessage(e), "\n")
+})
+dbGetQuery(con_pedidos, "SELECT * FROM pedidos")   # el 2 no quedó
+dbDisconnect(con_pedidos)
+\end{rcode}
+
+\begin{rsalida}
+Se canceló el pedido: FOREIGN KEY constraint failed 
+  pedido_id cliente
+1         1     Ana
+\end{rsalida}
+
+Con la transacción, el pedido 2 no dejó rastro: la base quedó exactamente
+como estaba antes. \paquete{DBI} también ofrece
+\codigo{dbWithTransaction(con, \{ \ldots{} \})}, que hace el
+\codigo{dbBegin()}, \codigo{dbCommit()} y \codigo{dbRollback()} por ti.
+
+\subsection{Extraer}
+
+La etapa de extracción lee los datos \emph{sin modificarlos}. En nuestro
+caso, archivos CSV que el sistema de punto de venta exporta cada cierto
+tiempo. Forzamos la hora a texto con \codigo{col\_types} para conservarla
+tal como viene (\codigo{"13:15"}).
+
+\begin{rcode}
+extraer_transacciones <- function(ruta) {
+  read_csv(ruta, show_col_types = FALSE,
+           col_types = cols(hora = col_character()))
+}
+
+# Otra fuente frecuente: una hoja de Excel
+extraer_excel <- function(ruta, hoja) {
+  readxl::read_excel(ruta, sheet = hoja)
+}
+\end{rcode}
+
+Para simular la operación real, partimos \archivo{transacciones.csv} en dos
+``exportaciones'' del sistema: el primer semestre y otra que va de mayo a
+diciembre. A propósito, las dos se \emph{traslapan} en mayo y junio, algo
+muy común cuando un sistema reenvía datos por seguridad. Nuestro ETL debe
+evitar cargar esas ventas dos veces.
+
+\begin{rcode}
+dir.create("datos/entrada", showWarnings = FALSE)
+trans_origen <- extraer_transacciones("datasets/transacciones.csv")
+
+trans_origen %>% filter(fecha < as.Date("2023-07-01")) %>%
+  write_csv("datos/entrada/ventas_2023_s1.csv")
+trans_origen %>% filter(fecha >= as.Date("2023-05-01")) %>%
+  write_csv("datos/entrada/ventas_2023_s2.csv")
+
+list.files("datos/entrada")
+\end{rcode}
+
+\begin{rsalida}
+[1] "ventas_2023_12_31.csv" "ventas_2023_s1.csv"   
+[3] "ventas_2023_s2.csv"   
+\end{rsalida}
+
+\subsection{Transformar}
+
+La transformación convierte los datos crudos en filas válidas para
+\codigo{fact\_ventas}: descarta registros imposibles o duplicados, calcula
+la llave de fecha, convierte tipos, agrega el costo desde la dimensión de
+productos y calcula las métricas. Nota que \emph{recalculamos} el total
+(\codigo{cantidad * precio\_venta}) en lugar de confiar en la columna del
+archivo: en un ETL las métricas derivadas se calculan con una regla única.
+
+\begin{rcode}
+transformar_transacciones <- function(datos, costos) {
+  datos %>%
+    # 1. Calidad: quitar filas sin llave, imposibles o repetidas
+    filter(!is.na(transaccion_id), cantidad > 0, precio_venta > 0) %>%
+    distinct(transaccion_id, .keep_all = TRUE) %>%
+    # 2. Enriquecer con el costo unitario del producto
+    left_join(costos, by = "producto_id") %>%
+    # 3. Tipos, llaves y métricas con los nombres del data warehouse
+    transmute(
+      venta_id    = as.integer(transaccion_id),
+      fecha_id    = as.integer(format(as.Date(fecha), "%Y%m%d")),
+      cliente_id  = as.integer(cliente_id),
+      producto_id = as.integer(producto_id),
+      tienda_id   = as.integer(tienda_id),
+      vendedor_id = as.integer(vendedor_id),
+      hora, metodo_pago,
+      cantidad    = as.integer(cantidad),
+      precio_venta,
+      total       = round(cantidad * precio_venta, 2),
+      costo_total = round(cantidad * costo, 2),
+      margen      = round(total - costo_total, 2)
+    )
+}
+
+# Prueba rápida con las primeras filas del archivo
+costos <- dbGetQuery(con, "SELECT producto_id, costo FROM dim_producto")
+trans_origen %>% head(3) %>% transformar_transacciones(costos) %>%
+  select(venta_id, fecha_id, cantidad, total, costo_total, margen)
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 3 x 6
+  venta_id fecha_id cantidad total costo_total margen
+     <int>    <int>    <int> <dbl>       <dbl>  <dbl>
+1        1 20230113        4 1216.       1177.   38.7
+2        2 20230109        4  232.        220    12.3
+3        3 20230220        3  826.        254.  573. 
+\end{rsalida}
+
+La venta 1 (4 piezas a \$303.97) suma \$1\,215.88, le costó a la empresa
+\$1\,177 y dejó un margen de solo \$38.7; la venta 3, en cambio, dejó
+\$573 de margen sobre \$826. El tibble redondea al imprimir, pero en la
+tabla se guardan los valores con dos decimales. Probar la transformación
+con unas cuantas filas antes de cargar es una buena costumbre.
+
+\subsection{Cargar sin duplicados}
+
+Una \termino{carga incremental} agrega solo lo nuevo. Hay dos formas
+habituales de evitar duplicados:
+
+\begin{enumerate}
+  \item \textbf{En R}, con \codigo{anti\_join()}: consultas qué llaves ya
+        existen en la base y te quedas con las filas cuya llave no está.
+  \item \textbf{En la base}, con \codigo{INSERT OR IGNORE}: como
+        \codigo{venta\_id} es llave primaria, SQLite ignora en silencio las
+        filas cuya llave ya existe. (En PostgreSQL el equivalente es
+        \codigo{INSERT \ldots{} ON CONFLICT DO NOTHING}; en SQL Server, un
+        \codigo{MERGE} o un \codigo{WHERE NOT EXISTS}.)
+\end{enumerate}
+
+\begin{rcode}
+# Opción 1: evitar duplicados en R con anti_join()
+cargar_hechos <- function(con, datos) {
+  existentes <- dbGetQuery(con, "SELECT venta_id FROM fact_ventas")
+  nuevos <- anti_join(datos, existentes, by = "venta_id")
+  if (nrow(nuevos) > 0) dbAppendTable(con, "fact_ventas", nuevos)
+  nrow(nuevos)                  # devuelve cuántas filas se cargaron
+}
+
+# Opción 2: dejar que la base ignore las llaves repetidas
+cargar_hechos_sql <- function(con, datos) {
+  dbWriteTable(con, "stg_ventas", datos, temporary = TRUE,
+               overwrite = TRUE)          # tabla temporal de paso
+  n <- dbExecute(con, "INSERT OR IGNORE INTO fact_ventas
+                       SELECT * FROM stg_ventas")
+  dbExecute(con, "DROP TABLE stg_ventas")
+  n
+}
+\end{rcode}
+
+La opción 1 es muy clara y funciona bien con miles o cientos de miles de
+filas. La opción 2 escala mejor (no trae las llaves a R) y usa una
+\termino{tabla de paso} o \emph{staging}: una tabla temporal donde se
+depositan los datos antes de pasarlos a la tabla definitiva. La tabla
+temporal solo existe mientras dura la conexión.
+
+\begin{advertencia}
+En SQLite, \codigo{INSERT OR IGNORE} ignora en silencio \emph{cualquier}
+fila que viole una restricción, no solo las de llave repetida: también las
+que no cumplen un \codigo{CHECK} o un \codigo{NOT NULL}. Una venta con
+cantidad negativa simplemente ``desaparecería'' sin error. Si quieres que
+esas filas detengan la carga, usa la opción 1 o un \codigo{INSERT \ldots{}
+SELECT \ldots{} WHERE venta\_id NOT IN (SELECT venta\_id FROM
+fact\_ventas)}. En nuestro ETL, además, las reglas de calidad de
+\codigo{transformar\_transacciones()} ya descartan esas filas antes de
+llegar a la base.
+\end{advertencia}
+
+\subsection{Bitácora y orquestación: \texorpdfstring{\codigo{ejecutar\_etl()}}{ejecutar\_etl()}}
+
+Un ETL profesional deja rastro de cada ejecución: cuándo corrió, qué archivo
+procesó, cuántas filas leyó, cuántas cargó y si terminó bien o con error.
+Esa \termino{bitácora} (\emph{log}) es lo primero que revisas cuando
+alguien pregunta ``¿por qué el tablero no tiene las ventas de ayer?''.
+
+\begin{rcode}
+registrar_log <- function(con, archivo, leidas, validas, nuevas,
+                          estado, mensaje = NA_character_) {
+  dbAppendTable(con, "log_etl", tibble(
+    fecha_hora    = format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+    archivo       = basename(archivo),
+    filas_leidas  = leidas,  filas_validas = validas,
+    filas_nuevas  = nuevas,  estado = estado,  mensaje = mensaje
+  ))
+}
+
+ejecutar_etl <- function(con, ruta, cargar = cargar_hechos) {
+  leidas <- validas <- NA_integer_
+  en_transaccion <- FALSE
+  estado <- tryCatch({
+    datos   <- extraer_transacciones(ruta)                  # E
+    leidas  <- nrow(datos)
+    costos  <- dbGetQuery(con, "SELECT producto_id, costo
+                                FROM dim_producto")
+    limpios <- transformar_transacciones(datos, costos)     # T
+    validas <- nrow(limpios)
+    dbBegin(con); en_transaccion <- TRUE
+    nuevas  <- cargar(con, limpios)                         # L
+    registrar_log(con, ruta, leidas, validas, nuevas, "OK")
+    dbCommit(con)
+    sprintf("OK: %d leídas, %d nuevas", leidas, nuevas)
+  }, error = function(e) {
+    if (en_transaccion) dbRollback(con)     # deshacer la carga a medias
+    registrar_log(con, ruta, leidas, validas, 0L, "ERROR",
+                  conditionMessage(e))
+    paste("ERROR:", conditionMessage(e))
+  })
+  cat(basename(ruta), "->", estado, "\n")
+  invisible(estado)
+}
+\end{rcode}
+
+Observa cómo encajan las piezas: si cualquier paso falla, el bloque
+\codigo{error} deshace la transacción (si ya había empezado) y registra el
+error en la bitácora; la función nunca deja la base a medias. Ahora
+ejecutemos el ETL como lo haría el proceso nocturno:
+
+\begin{rcode}
+ejecutar_etl(con, "datos/entrada/ventas_2023_s1.csv")
+ejecutar_etl(con, "datos/entrada/ventas_2023_s2.csv")
+
+# ¿Y si por error se vuelve a ejecutar el mismo archivo?
+ejecutar_etl(con, "datos/entrada/ventas_2023_s2.csv")
+
+# Lo mismo con la opción 2 (INSERT OR IGNORE)
+ejecutar_etl(con, "datos/entrada/ventas_2023_s2.csv",
+             cargar = cargar_hechos_sql)
+
+dbGetQuery(con, "SELECT COUNT(*) AS filas FROM fact_ventas")
+\end{rcode}
+
+\begin{rsalida}
+ventas_2023_s1.csv -> OK: 511 leídas, 511 nuevas 
+ventas_2023_s2.csv -> OK: 661 leídas, 489 nuevas 
+ventas_2023_s2.csv -> OK: 661 leídas, 0 nuevas 
+ventas_2023_s2.csv -> OK: 661 leídas, 0 nuevas 
+  filas
+1  1000
+\end{rsalida}
+
+El primer archivo cargó sus 511 ventas. El segundo leyó 661, pero solo 489
+eran nuevas: las 172 de mayo y junio ya estaban y se descartaron. Las dos
+ejecuciones repetidas (una con \codigo{anti\_join()} y otra con
+\codigo{INSERT OR IGNORE}) no cargaron nada. Resultado: exactamente 1\,000
+filas, las mismas del archivo original, sin un solo duplicado.
+
+Probemos ahora el caso de error. Llega un archivo con tres ventas nuevas,
+pero una tiene un producto que no existe en el catálogo (el 999):
+
+\begin{rcode}
+lote_malo <- trans_origen %>%
+  slice(1:3) %>%
+  mutate(transaccion_id = 1001:1003, fecha = as.Date("2023-12-31"),
+         producto_id = c(5, 999, 7))
+write_csv(lote_malo, "datos/entrada/ventas_2023_12_31.csv")
+
+ejecutar_etl(con, "datos/entrada/ventas_2023_12_31.csv")
+dbGetQuery(con, "SELECT COUNT(*) AS filas FROM fact_ventas")
+\end{rcode}
+
+\begin{rsalida}
+ventas_2023_12_31.csv -> ERROR: FOREIGN KEY constraint failed 
+  filas
+1  1000
+\end{rsalida}
+
+La llave foránea hacia \codigo{dim\_producto} rechazó el lote, la
+transacción se deshizo y la tabla de hechos sigue con 1\,000 filas: ni
+siquiera las dos ventas válidas del archivo entraron. ¿Es eso lo que
+queremos? En la mayoría de los data warehouses, sí: es preferible cargar el
+archivo completo una vez corregido que tener un día ``a medias''. Veamos la
+bitácora (omitimos la columna de fecha y hora, que cambia en cada
+ejecución):
+
+\begin{rcode}
+dbGetQuery(con, "
+  SELECT ejecucion_id AS id, archivo, filas_leidas AS leidas,
+         filas_validas AS validas, filas_nuevas AS nuevas, estado
+  FROM log_etl
+")
+dbGetQuery(con, "SELECT mensaje FROM log_etl WHERE estado = 'ERROR'")
+\end{rcode}
+
+\begin{rsalida}
+  id               archivo leidas validas nuevas estado
+1  1    ventas_2023_s1.csv    511     511    511     OK
+2  2    ventas_2023_s2.csv    661     661    489     OK
+3  3    ventas_2023_s2.csv    661     661      0     OK
+4  4    ventas_2023_s2.csv    661     661      0     OK
+5  5 ventas_2023_12_31.csv      3       3      0  ERROR
+                        mensaje
+1 FOREIGN KEY constraint failed
+\end{rsalida}
+
+La bitácora cuenta la historia completa de las cargas. En un proceso
+programado (por ejemplo, con el Programador de tareas de Windows o
+\codigo{cron}, que verás en el Módulo~\ref{cap:reportes}), revisarías esta
+tabla cada mañana o, mejor, harías que el propio script te avise por
+correo si hay un \codigo{ERROR}.
+
+\begin{consejo}
+Tres reglas de oro de un ETL confiable: \textbf{(1)} que sea
+\emph{idempotente}, es decir, que ejecutarlo dos veces con el mismo archivo
+deje la base igual que ejecutarlo una vez (lo logramos con la llave primaria
+y el \codigo{anti\_join()}); \textbf{(2)} que sea \emph{atómico}: o carga
+todo el lote o nada (la transacción); y \textbf{(3)} que sea
+\emph{trazable}: cada ejecución deja registro (la bitácora).
+\end{consejo}
+
+\subsection{Extraer desde Excel}
+
+Muchas fuentes llegan en Excel. El archivo \archivo{datos\_empresa.xlsx} del
+curso tiene una hoja \codigo{Tiendas}. ¿Coincide con lo que cargamos en
+\codigo{dim\_tienda}? Es una validación típica de ETL:
+
+\begin{rcode}
+tiendas_excel <- extraer_excel("datasets/datos_empresa.xlsx", "Tiendas")
+class(tiendas_excel$fecha_apertura)
+
+tiendas_excel_t <- tiendas_excel %>%
+  transmute(tienda_id = as.integer(tienda_id), nombre_tienda,
+            fecha_apertura = format(as.Date(fecha_apertura), "%Y-%m-%d"))
+
+# Filas del Excel que no coinciden exactamente con la dimensión
+tiendas_excel_t %>%
+  anti_join(dbReadTable(con, "dim_tienda"),
+            by = c("tienda_id", "nombre_tienda", "fecha_apertura"))
+\end{rcode}
+
+\begin{rsalida}
+[1] "POSIXct" "POSIXt" 
+# A tibble: 0 x 3
+# i 3 variables: tienda_id <int>, nombre_tienda <chr>,
+#   fecha_apertura <chr>
+\end{rsalida}
+
+\codigo{readxl} lee las fechas de Excel como fecha con hora
+(\codigo{POSIXct}); por eso las pasamos a \codigo{Date} y luego a texto ISO
+antes de comparar. El \codigo{anti\_join()} no devolvió ninguna fila: la
+hoja de Excel y la dimensión coinciden.
+
+\begin{hazlotu}
+Crea un archivo \archivo{datos/entrada/ventas\_2023\_12\_31\_v2.csv}
+corrigiendo el lote malo (cambia el producto 999 por el 9) y ejecútalo con
+\codigo{ejecutar\_etl()}. ¿Cuántas filas nuevas se cargan? ¿Qué muestra la
+bitácora? (Si lo haces, recuerda que la tabla de hechos tendrá 1\,003 filas
+y los resultados de las siguientes secciones cambiarán ligeramente.)
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Vistas e índices: el data warehouse listo para BI}
+\label{sec:m5-vistas}
+
+\subsection{Vistas para los KPIs}
+
+Una \termino{vista} (\codigo{CREATE VIEW}) es una consulta guardada en la
+base con un nombre; se consulta como si fuera una tabla, pero no guarda
+datos: cada vez que la consultas, se ejecuta la consulta con los datos
+actuales. Son ideales para publicar los KPIs ``oficiales'': todos (tus
+scripts de R, Power BI, el tablero de Shiny) leen la misma definición.
+
+\begin{rcode}
+vistas <- c(
+  # Vista "ancha": cada venta con todos sus atributos descriptivos
+  "CREATE VIEW vw_ventas_detalle AS
+   SELECT f.*, d.fecha, d.anio, d.mes, d.nombre_mes, d.dia_semana,
+          d.es_fin_semana, p.nombre_producto, p.categoria, p.marca,
+          c.nombre AS cliente, c.ciudad AS ciudad_cliente, c.segmento,
+          c.es_premium, t.nombre_tienda, t.ciudad AS ciudad_tienda,
+          t.zona, t.tipo AS tipo_tienda, v.nombre AS vendedor
+   FROM fact_ventas AS f
+   JOIN dim_fecha    AS d ON f.fecha_id    = d.fecha_id
+   JOIN dim_producto AS p ON f.producto_id = p.producto_id
+   JOIN dim_cliente  AS c ON f.cliente_id  = c.cliente_id
+   JOIN dim_tienda   AS t ON f.tienda_id   = t.tienda_id
+   JOIN dim_vendedor AS v ON f.vendedor_id = v.vendedor_id",
+  # KPIs mensuales
+  "CREATE VIEW vw_kpi_mensual AS
+   SELECT d.anio, d.mes, d.nombre_mes,
+          COUNT(*)                     AS tickets,
+          COUNT(DISTINCT f.cliente_id) AS clientes,
+          ROUND(SUM(f.total), 2)       AS ventas,
+          ROUND(SUM(f.margen), 2)      AS margen,
+          ROUND(AVG(f.total), 2)       AS ticket_promedio
+   FROM fact_ventas AS f
+   JOIN dim_fecha AS d ON f.fecha_id = d.fecha_id
+   GROUP BY d.anio, d.mes, d.nombre_mes"
+)
+for (sql in vistas) dbExecute(con, sql)
+
+dbGetQuery(con, "SELECT * FROM vw_kpi_mensual") %>% head(6)
+\end{rcode}
+
+\begin{rsalida}
+  anio mes nombre_mes tickets clientes   ventas   margen
+1 2023   1      enero      98       80 82559.66 34415.12
+2 2023   2    febrero      79       67 65899.34 29212.36
+3 2023   3      marzo      91       72 90930.61 46572.20
+4 2023   4      abril      71       57 57037.74 19817.86
+5 2023   5       mayo      88       73 93910.21 49550.60
+6 2023   6      junio      84       68 88509.12 42049.19
+  ticket_promedio
+1          842.45
+2          834.17
+3          999.24
+4          803.35
+5         1067.16
+6         1053.68
+\end{rsalida}
+
+La vista entrega, mes por mes, tickets, clientes distintos, ventas, margen
+y ticket promedio. Marzo y mayo destacan por su margen (\$46\,572 y
+\$49\,551), mientras que abril es el mes más débil también en margen
+(\$19\,818). La vista ancha \codigo{vw\_ventas\_detalle} es
+útil para analistas que no quieren escribir \emph{joins}: consultan una sola
+``tabla'' con todo.
+
+\begin{rcode}
+dbGetQuery(con, "
+  SELECT zona, ROUND(SUM(total), 0) AS ventas,
+         ROUND(SUM(margen), 0) AS margen,
+         ROUND(100.0 * SUM(margen) / SUM(total), 1) AS margen_pct
+  FROM vw_ventas_detalle
+  GROUP BY zona
+  ORDER BY ventas DESC
+")
+\end{rcode}
+
+\begin{rsalida}
+    zona ventas margen margen_pct
+1  Norte 388941 174227       44.8
+2 Centro 275878 126667       45.9
+3  Oeste 105216  48086       45.7
+4    Sur 101538  49097       48.4
+5   Este  88420  46559       52.7
+\end{rsalida}
+
+La zona Norte concentra las ventas (\$388\,941, con cuatro tiendas), pero su
+margen porcentual (44.8\%) es el más bajo; la zona Este, con una sola
+tienda, tiene el margen más alto (52.7\%). Con una sola consulta a la vista
+respondiste una pregunta que cruza hechos, productos (costo) y tiendas
+(zona).
+
+\subsection{Índices y planes de ejecución}
+
+Cuando filtras una tabla por una columna (\codigo{WHERE cliente\_id = 5}),
+el motor, sin ayuda, tiene que revisar \emph{todas} las filas: un
+\termino{escaneo completo} (\emph{full scan}). Un \termino{índice} sobre esa
+columna le permite ir directo a las filas que buscas, como el índice
+alfabético al final de un libro. \codigo{EXPLAIN QUERY PLAN} te muestra
+cómo piensa resolver el motor una consulta, sin ejecutarla.
+
+\begin{rcode}
+consulta_cliente <- "SELECT SUM(total) FROM fact_ventas
+                     WHERE cliente_id = 5"
+
+# Antes del índice
+dbGetQuery(con, paste("EXPLAIN QUERY PLAN", consulta_cliente))$detail
+
+dbExecute(con, "CREATE INDEX idx_fact_cliente
+                ON fact_ventas(cliente_id)")
+
+# Después del índice
+dbGetQuery(con, paste("EXPLAIN QUERY PLAN", consulta_cliente))$detail
+\end{rcode}
+
+\begin{rsalida}
+[1] "SCAN fact_ventas"
+[1] 0
+[1] "SEARCH fact_ventas USING INDEX idx_fact_cliente (cliente_id=?)"
+\end{rsalida}
+
+Antes, el plan decía \codigo{SCAN fact\_ventas}: recorrer la tabla completa.
+Después, \codigo{SEARCH fact\_ventas USING INDEX idx\_fact\_cliente}: buscar
+directamente con el índice. Con 1\,000 filas la diferencia es
+imperceptible, pero con 100 millones es la diferencia entre una consulta de
+minutos y una de milisegundos.
+
+¿Qué columnas indexar? En un esquema en estrella, las llaves foráneas de la
+tabla de hechos (se usan en todos los \emph{joins} y filtros) y las
+columnas por las que filtras con frecuencia. Guardamos la creación de
+vistas e índices en una función para reutilizarla:
+
+\begin{rcode}
+indices <- c(
+  "CREATE INDEX IF NOT EXISTS idx_fact_cliente ON fact_ventas(cliente_id)",
+  "CREATE INDEX IF NOT EXISTS idx_fact_fecha ON fact_ventas(fecha_id)",
+  "CREATE INDEX IF NOT EXISTS idx_fact_producto
+     ON fact_ventas(producto_id)",
+  "CREATE INDEX IF NOT EXISTS idx_fact_tienda ON fact_ventas(tienda_id)",
+  "CREATE INDEX IF NOT EXISTS idx_fact_vendedor
+     ON fact_ventas(vendedor_id)"
+)
+
+crear_vistas_indices <- function(con) {
+  for (sql in c(indices, vistas)) dbExecute(con, sql)
+  invisible(TRUE)
+}
+for (sql in indices) dbExecute(con, sql)
+
+dbGetQuery(con, "SELECT type, name FROM sqlite_master
+                 WHERE type IN ('index', 'view') ORDER BY type, name")
+\end{rcode}
+
+\begin{rsalida}
+   type                         name
+1 index             idx_fact_cliente
+2 index               idx_fact_fecha
+3 index            idx_fact_producto
+4 index              idx_fact_tienda
+5 index            idx_fact_vendedor
+6 index sqlite_autoindex_dim_fecha_1
+7  view               vw_kpi_mensual
+8  view            vw_ventas_detalle
+\end{rsalida}
+
+\codigo{sqlite\_master} es el catálogo interno de SQLite: lista todas las
+tablas, vistas e índices. El índice \codigo{sqlite\_autoindex\_\ldots} lo
+creó SQLite solo para la restricción \codigo{UNIQUE} de la fecha.
+\codigo{IF NOT EXISTS} evita el error si el índice ya existe.
+
+\begin{advertencia}
+Los índices no son gratis: ocupan espacio y hacen un poco más lentas las
+inserciones, porque cada fila nueva también actualiza cada índice. No
+indexes todas las columnas ``por si acaso''; indexa las que realmente usas
+para unir y filtrar. En cargas masivas, a veces conviene borrar los
+índices, cargar y volver a crearlos.
+\end{advertencia}
+
+\begin{hazlotu}
+Escribe \codigo{EXPLAIN QUERY PLAN} para una consulta que sume las ventas
+de la tienda 3 (\codigo{WHERE tienda\_id = 3}). ¿Usa el índice
+\codigo{idx\_fact\_tienda}?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Trabajar con datos grandes}
+\label{sec:m5-grandes}
+
+Con los datos del curso todo cabe en memoria, pero en tu trabajo te
+toparás con tablas de decenas de millones de filas. Tres principios te
+ahorrarán muchos problemas:
+
+\begin{enumerate}
+  \item \textbf{Agrega en la base, no en R.} Si necesitas ventas por mes,
+        pide a la base 12 filas, no 10 millones para agruparlas en R.
+  \item \textbf{Trae solo las columnas y filas que necesitas.} Nada de
+        \codigo{SELECT *} ni \codigo{dbReadTable()} sobre tablas grandes.
+  \item \textbf{Si de verdad necesitas el detalle, tráelo por bloques.}
+\end{enumerate}
+
+\begin{ejemplo}{Cuánto pesa traer datos de más}
+Compara el tamaño en memoria de tres formas de obtener las ventas
+mensuales.
+\end{ejemplo}
+
+\begin{rcode}
+# a) Todo el detalle, todas las columnas
+todo <- dbGetQuery(con, "SELECT * FROM fact_ventas")
+# b) Solo las columnas necesarias
+dos_columnas <- dbGetQuery(con, "SELECT fecha_id, total FROM fact_ventas")
+# c) Ya agregado en la base
+agregado <- dbGetQuery(con, "
+  SELECT fecha_id / 100 AS anio_mes, SUM(total) AS ventas
+  FROM fact_ventas GROUP BY anio_mes")
+
+tibble(forma = c("a) todo", "b) dos columnas", "c) agregado"),
+       filas = c(nrow(todo), nrow(dos_columnas), nrow(agregado)),
+       kb    = round(c(object.size(todo), object.size(dos_columnas),
+                       object.size(agregado)) / 1024, 1))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 3 x 3
+  forma           filas    kb
+  <chr>           <int> <dbl>
+1 a) todo          1000  79.6
+2 b) dos columnas  1000  12.6
+3 c) agregado        12   1  
+\end{rsalida}
+
+Traer toda la tabla ocupa 79.6~KB; solo las dos columnas necesarias, 12.6~KB
+(seis veces menos); y el resultado ya agregado, 1~KB con 12 filas. Con
+1\,000 filas da igual, pero escala: con 10 millones de filas, la opción a)
+ocuparía cientos de megabytes en tu computadora y la c) seguiría siendo de
+12 filas. Por cierto, \codigo{fecha\_id / 100} es un truco de la
+llave \codigo{AAAAMMDD}: al dividir entre enteros, 20230113 / 100 da 202301,
+el año-mes.
+
+Cuando necesitas procesar el detalle completo (por ejemplo, para exportarlo
+a otro sistema), usa \codigo{dbSendQuery()} + \codigo{dbFetch(n = \ldots)}.
+\codigo{dbSendQuery()} manda la consulta pero no trae datos; cada
+\codigo{dbFetch()} trae el siguiente bloque de \codigo{n} filas, y
+\codigo{dbHasCompleted()} te dice si ya no quedan más. Así la memoria solo
+contiene un bloque a la vez.
+
+\begin{rcode}
+resultado <- dbSendQuery(con, "SELECT venta_id, metodo_pago, total
+                               FROM fact_ventas")
+bloque <- 0
+total_acumulado <- 0
+while (!dbHasCompleted(resultado)) {
+  datos_bloque <- dbFetch(resultado, n = 300)     # 300 filas a la vez
+  bloque <- bloque + 1
+  total_acumulado <- total_acumulado + sum(datos_bloque$total)
+  cat(sprintf("Bloque %d: %d filas, acumulado $%s\n", bloque,
+              nrow(datos_bloque),
+              format(round(total_acumulado), big.mark = ",")))
+}
+dbClearResult(resultado)   # liberar el resultado en la base
+\end{rcode}
+
+\begin{rsalida}
+Bloque 1: 300 filas, acumulado $298,877
+Bloque 2: 300 filas, acumulado $584,379
+Bloque 3: 300 filas, acumulado $868,613
+Bloque 4: 100 filas, acumulado $959,993
+\end{rsalida}
+
+Procesamos las 1\,000 ventas en cuatro bloques (tres de 300 y uno de 100),
+y el acumulado final coincide con el total del año. Con 10 millones de
+filas usarías bloques de 100\,000 y el mismo código funcionaría sin
+agotar la memoria. No olvides \codigo{dbClearResult()}: un resultado
+pendiente mantiene ocupados recursos en la base.
+
+\begin{consejo}
+Para cargas grandes en la otra dirección (de R a la base), escribe por
+bloques con \codigo{dbAppendTable()} dentro de una transacción: insertar
+un millón de filas en una sola transacción es muchísimo más rápido que en
+un millón de transacciones pequeñas. Y si tus datos analíticos crecen
+mucho, investiga \paquete{duckdb}: un motor analítico en archivo, tan fácil
+de usar como SQLite pero optimizado para agregar millones de filas, que
+funciona con \paquete{DBI} y \paquete{dbplyr} exactamente igual.
+\end{consejo}
+
+% ----------------------------------------------------------------------------
+\section{Conectarte a las bases de datos de tu empresa}
+\label{sec:m5-empresa}
+
+Todo lo que aprendiste funciona igual con un servidor real: solo cambia
+\codigo{dbConnect()}. El código de esta sección es de referencia (usa
+servidores y credenciales ficticias), así que no se ejecuta en el libro.
+
+\subsection{SQL Server (y otros) con ODBC}
+
+\termino{ODBC} (\emph{Open Database Connectivity}) es un estándar para
+conectarse a casi cualquier base de datos mediante un \emph{driver}
+instalado en el sistema operativo. Es la vía habitual para SQL Server y
+Oracle. Primero verifica qué drivers tienes instalados (si no aparece el de
+tu motor, pídelo a TI o descárgalo del sitio del fabricante):
+
+\begin{rnoejecutar}
+install.packages("odbc")
+odbc::odbcListDrivers()          # drivers ODBC instalados en tu equipo
+odbc::odbcListDataSources()      # conexiones (DSN) ya configuradas
+\end{rnoejecutar}
+
+\begin{rnoejecutar}
+# SQL Server con autenticación de Windows (la más común en empresas)
+con_sql <- dbConnect(
+  odbc::odbc(),
+  Driver   = "ODBC Driver 18 for SQL Server",
+  Server   = "srv-datos.miempresa.local",
+  Database = "VentasDW",
+  Trusted_Connection = "yes",
+  TrustServerCertificate = "yes"
+)
+
+# SQL Server con usuario y contraseña (tomados de variables de entorno)
+con_sql <- dbConnect(
+  odbc::odbc(),
+  Driver   = "ODBC Driver 18 for SQL Server",
+  Server   = Sys.getenv("SQLSERVER_HOST"),
+  Database = "VentasDW",
+  UID      = Sys.getenv("SQLSERVER_USER"),
+  PWD      = Sys.getenv("SQLSERVER_PASS")
+)
+
+# Desde aquí, todo es igual: dbGetQuery(), tbl(), dbDisconnect()...
+# Ojo con el dialecto: SQL Server usa TOP en lugar de LIMIT
+dbGetQuery(con_sql, "SELECT TOP 10 * FROM dbo.fact_ventas")
+\end{rnoejecutar}
+
+\subsection{PostgreSQL y MySQL/MariaDB}
+
+\begin{rnoejecutar}
+install.packages(c("RPostgres", "RMariaDB"))
+
+# PostgreSQL
+con_pg <- dbConnect(
+  RPostgres::Postgres(),
+  host     = Sys.getenv("PG_HOST"),
+  port     = 5432,
+  dbname   = "analitica",
+  user     = Sys.getenv("PG_USER"),
+  password = Sys.getenv("PG_PASS")
+)
+
+# MySQL o MariaDB
+con_my <- dbConnect(
+  RMariaDB::MariaDB(),
+  host     = Sys.getenv("MYSQL_HOST"),
+  port     = 3306,
+  dbname   = "tienda_en_linea",
+  user     = Sys.getenv("MYSQL_USER"),
+  password = Sys.getenv("MYSQL_PASS")
+)
+
+dbListTables(con_pg)
+dbDisconnect(con_pg)
+dbDisconnect(con_my)
+\end{rnoejecutar}
+
+\subsection{Credenciales: nunca en el script}
+
+Observa que en ningún ejemplo escribimos la contraseña. Un script con
+\codigo{password = "Ventas2024!"} termina tarde o temprano en un correo, en
+una carpeta compartida o en un repositorio de Git, y la contraseña queda
+expuesta para siempre (borrarla después no basta: Git guarda el historial).
+La práctica estándar es guardar las credenciales en
+\termino{variables de entorno}, en el archivo \archivo{.Renviron} de tu
+carpeta de usuario, y leerlas con \codigo{Sys.getenv()}.
+
+Abre el archivo con \codigo{usethis::edit\_r\_environ()} (o créalo a mano)
+y escribe una línea por variable, sin comillas ni espacios alrededor del
+\codigo{=}; los valores de este ejemplo son ficticios:
+
+\begin{textocodigo}[title=Archivo .Renviron (ejemplo ficticio)]
+SQLSERVER_HOST=srv-datos.miempresa.local
+SQLSERVER_USER=analista_bi
+SQLSERVER_PASS=cambia-esta-clave
+PG_HOST=pg.miempresa.local
+PG_USER=lector_bi
+PG_PASS=otra-clave-ficticia
+\end{textocodigo}
+
+Reinicia R (\menu{Session > Restart R}) para que lea el archivo. A partir de
+ahí, \codigo{Sys.getenv("SQLSERVER\_USER")} devuelve
+\codigo{"analista\_bi"} y tu script no contiene ningún secreto:
+
+\begin{rnoejecutar}
+usethis::edit_r_environ()          # abre ~/.Renviron para editarlo
+Sys.getenv("SQLSERVER_USER")       # "analista_bi"
+nchar(Sys.getenv("SQLSERVER_PASS")) > 0   # comprobar sin imprimirla
+\end{rnoejecutar}
+
+\begin{advertencia}
+\begin{itemize}
+  \item Nunca subas \archivo{.Renviron} a Git: agrégalo a tu
+        \archivo{.gitignore}.
+  \item No imprimas la contraseña en la consola ni en un reporte.
+  \item En RStudio también puedes pedir la contraseña al momento con
+        \codigo{rstudioapi::askForPassword("Contraseña")}, útil en scripts
+        interactivos.
+\end{itemize}
+\end{advertencia}
+
+\begin{negocio}{Permisos y buenas prácticas en la empresa}
+\begin{itemize}
+  \item Pide a TI un usuario de \textbf{solo lectura} para analizar. Así es
+        imposible que un \codigo{DELETE} accidental borre datos de
+        producción.
+  \item Consulta de preferencia una \textbf{réplica} o el \emph{data
+        warehouse}, no la base transaccional que usa el punto de venta.
+  \item Evita consultas pesadas en horario pico, y usa \codigo{LIMIT}/
+        \codigo{TOP} mientras exploras.
+  \item En aplicaciones Shiny con muchos usuarios no abras una conexión por
+        cada consulta: usa el paquete \paquete{pool}, que mantiene un
+        conjunto de conexiones abiertas y las reparte
+        (\codigo{pool::dbPool()} en lugar de \codigo{dbConnect()}). Lo
+        retomarás en el Módulo~\ref{cap:shiny}.
+\end{itemize}
+\end{negocio}
+
+% ----------------------------------------------------------------------------
+\section{Caso práctico integral: el data warehouse de ventas}
+\label{sec:m5-caso}
+
+\begin{ejemplo}{Del CSV al tablero, pasando por el data warehouse}
+La dirección te pide dejar lista una base analítica que cualquiera pueda
+consultar, y responder con ella siete preguntas para la junta mensual:
+\begin{enumerate}
+  \item ¿Cómo evolucionaron las ventas y el margen mes a mes?
+  \item ¿Cuáles son los productos que más venden y cuánto margen dejan?
+  \item ¿Quiénes son los clientes más valiosos?
+  \item ¿Qué tiendas son más productivas por metro cuadrado?
+  \item ¿Quiénes son los dos mejores vendedores de cada zona?
+  \item ¿Cuánto crecemos mes contra mes?
+  \item ¿Se compra distinto en fin de semana?
+\end{enumerate}
+\end{ejemplo}
+
+\subsection{Paso 1: construir la base desde cero}
+
+Gracias a que escribimos todo como funciones, reconstruir el \emph{data
+warehouse} completo es un script corto. Cerramos la conexión actual,
+borramos el archivo y ejecutamos cada etapa. Esta vez la base solo
+contendrá el esquema en estrella (sin las tablas crudas del principio): es
+lo que publicarías para los usuarios de negocio.
+
+\begin{rcode}
+dbDisconnect(con)
+
+reconstruir_dw <- function(ruta_bd, archivos_ventas) {
+  unlink(ruta_bd)                                 # empezar desde cero
+  con <- dbConnect(RSQLite::SQLite(), ruta_bd)
+  crear_esquema(con)                              # tablas y llaves
+  cargar_dimensiones(con, preparar_dimensiones()) # dimensiones
+  for (archivo in archivos_ventas) {              # hechos (ETL)
+    ejecutar_etl(con, archivo)
+  }
+  crear_vistas_indices(con)                       # vistas e índices
+  con
+}
+
+con <- reconstruir_dw("datos/bi_retail.sqlite",
+                      c("datos/entrada/ventas_2023_s1.csv",
+                        "datos/entrada/ventas_2023_s2.csv"))
+dbListTables(con)
+\end{rcode}
+
+\begin{rsalida}
+ventas_2023_s1.csv -> OK: 511 leídas, 511 nuevas 
+ventas_2023_s2.csv -> OK: 661 leídas, 489 nuevas 
+ [1] "dim_cliente"       "dim_fecha"         "dim_producto"     
+ [4] "dim_tienda"        "dim_vendedor"      "fact_ventas"      
+ [7] "log_etl"           "sqlite_sequence"   "vw_kpi_mensual"   
+[10] "vw_ventas_detalle"
+\end{rsalida}
+
+En segundos tienes la base completa: cinco dimensiones, la tabla de hechos
+con sus 1\,000 ventas, la bitácora y dos vistas. Si mañana llega un archivo
+nuevo, solo hay que llamar a \codigo{ejecutar\_etl()}.
+
+\subsection{Paso 2: responder las preguntas con SQL}
+
+\subsubsection{Pregunta 1. Ventas y margen por mes}
+
+\begin{rcode}
+kpi_mensual <- dbGetQuery(con, "
+  SELECT mes, nombre_mes, tickets, ventas, margen,
+         ROUND(100.0 * margen / ventas, 1) AS margen_pct
+  FROM vw_kpi_mensual
+  ORDER BY anio, mes
+")
+kpi_mensual
+\end{rcode}
+
+\begin{rsalida}
+   mes nombre_mes tickets   ventas   margen margen_pct
+1    1      enero      98 82559.66 34415.12       41.7
+2    2    febrero      79 65899.34 29212.36       44.3
+3    3      marzo      91 90930.61 46572.20       51.2
+4    4      abril      71 57037.74 19817.86       34.7
+5    5       mayo      88 93910.21 49550.60       52.8
+6    6      junio      84 88509.12 42049.19       47.5
+7    7      julio      83 86456.05 41120.26       47.6
+8    8     agosto      75 78929.49 33268.92       42.2
+9    9 septiembre      86 68855.87 29467.75       42.8
+10  10    octubre      74 70004.10 31690.67       45.3
+11  11  noviembre      80 80506.89 36578.96       45.4
+12  12  diciembre      91 96393.61 50893.04       52.8
+\end{rsalida}
+
+Las ventas oscilan entre \$57\,038 (abril) y \$96\,394 (diciembre), y el
+margen porcentual va de 34.7\% en abril a 52.8\% en mayo y diciembre. Abril
+fue malo por partida doble: vendió menos \emph{y} con menor margen. ¿Podemos confiar en estas cifras? Una buena práctica es
+\emph{reconciliar}: calcular lo mismo por otro camino y comprobar que
+coincide. Hagámoslo con \paquete{dplyr} directamente sobre el CSV original,
+sin pasar por la base:
+
+\begin{rcode}
+kpi_dplyr <- read_csv("datasets/transacciones.csv",
+                      show_col_types = FALSE) %>%
+  group_by(mes = month(fecha)) %>%
+  summarise(tickets = n(),
+            ventas  = round(sum(cantidad * precio_venta), 2),
+            .groups = "drop")
+
+comparacion <- kpi_mensual %>%
+  select(mes, tickets, ventas) %>%
+  inner_join(kpi_dplyr, by = "mes", suffix = c("_sql", "_dplyr"))
+
+all.equal(comparacion$ventas_sql, comparacion$ventas_dplyr)
+all(comparacion$tickets_sql == comparacion$tickets_dplyr)
+\end{rcode}
+
+\begin{rsalida}
+[1] TRUE
+[1] TRUE
+\end{rsalida}
+
+Las ventas y los tickets de los 12 meses coinciden exactamente: el ETL no
+perdió ni duplicó nada. Con los datos ya validados, la gráfica para la
+junta es inmediata (figura~\ref{fig:m05-ventas-mensuales}):
+
+\begin{rcode}
+color_principal <- "#2a78d6"
+
+grafica_mensual <- kpi_mensual %>%
+  mutate(nombre_mes = factor(nombre_mes, levels = nombre_mes)) %>%
+  ggplot(aes(x = nombre_mes, y = ventas, group = 1)) +
+  geom_line(color = color_principal, linewidth = 0.8) +
+  geom_point(color = color_principal, size = 2) +
+  scale_y_continuous(labels = scales::dollar,
+                     limits = c(0, NA)) +
+  labs(title = "Ventas mensuales 2023",
+       subtitle = "Fuente: vista vw_kpi_mensual del data warehouse",
+       x = NULL, y = "Ventas") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+grafica_mensual
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m05-ventas-mensuales}
+\caption{Ventas mensuales calculadas con SQL a partir del data warehouse.}
+\label{fig:m05-ventas-mensuales}
+\end{figure}
+
+\subsubsection{Pregunta 2. Productos que más venden y su margen}
+
+\begin{rcode}
+dbGetQuery(con, "
+  SELECT p.nombre_producto, p.categoria,
+         SUM(f.cantidad)                            AS unidades,
+         ROUND(SUM(f.total), 0)                     AS ventas,
+         ROUND(SUM(f.margen), 0)                    AS margen,
+         ROUND(100.0 * SUM(f.margen) / SUM(f.total), 1) AS margen_pct
+  FROM fact_ventas AS f
+  JOIN dim_producto AS p ON f.producto_id = p.producto_id
+  GROUP BY p.producto_id
+  ORDER BY ventas DESC
+  LIMIT 5
+")
+\end{rcode}
+
+\begin{rsalida}
+  nombre_producto  categoria unidades ventas margen margen_pct
+1     Producto 06   Juguetes       82  34028  27095       79.6
+2     Producto 19   Deportes       85  28368   7557       26.6
+3     Producto 31  Alimentos       74  25430  23622       92.9
+4     Producto 47 Automotriz       82  24527  20017       81.6
+5     Producto 46 Automotriz       74  24470  11333       46.3
+\end{rsalida}
+
+El Producto 06 (Juguetes) lidera en ventas y además deja un margen de
+79.6\%. En cambio, el Producto 19 (Deportes), segundo en ventas, apenas
+deja 26.6\%: vende mucho pero aporta poco. Un producto que vende mucho no
+necesariamente es el más rentable.
+
+\begin{rcode}
+# ¿Hay productos que se venden con pérdida?
+dbGetQuery(con, "
+  SELECT p.nombre_producto, p.costo,
+         ROUND(AVG(f.precio_venta), 2) AS precio_venta_prom,
+         ROUND(SUM(f.margen), 0)       AS margen_total
+  FROM fact_ventas AS f
+  JOIN dim_producto AS p ON f.producto_id = p.producto_id
+  GROUP BY p.producto_id
+  HAVING SUM(f.margen) < 0
+  ORDER BY margen_total
+")
+\end{rcode}
+
+\begin{rsalida}
+  nombre_producto  costo precio_venta_prom margen_total
+1     Producto 13 392.63            257.58        -8602
+2     Producto 35 353.50            230.62        -6530
+3     Producto 41 389.86            294.97        -6046
+4     Producto 12 368.62            296.11        -4332
+5     Producto 02 399.12            304.00        -4137
+6     Producto 29 391.67            355.31        -2258
+7     Producto 10 283.26            260.12        -1282
+\end{rsalida}
+
+Siete productos se vendieron con pérdida en el año: su costo unitario es
+mayor que el precio promedio al que se vendieron. El Producto 13, por
+ejemplo, cuesta \$392.63 y se vendió en promedio a \$257.58, con una
+pérdida acumulada de \$8\,602. Es el hallazgo de calidad de datos que ya
+conocías (precios de venta generados sin relación con el costo), pero en
+una empresa real sería una alerta roja para el área comercial.
+
+\subsubsection{Pregunta 3. Clientes más valiosos}
+
+\begin{rcode}
+dbGetQuery(con, "
+  SELECT c.nombre, c.ciudad, c.segmento,
+         CASE c.es_premium WHEN 1 THEN 'Sí' ELSE 'No' END AS premium,
+         COUNT(*)               AS compras,
+         ROUND(SUM(f.total), 0) AS gasto,
+         ROUND(SUM(f.margen), 0) AS margen
+  FROM fact_ventas AS f
+  JOIN dim_cliente AS c ON f.cliente_id = c.cliente_id
+  GROUP BY c.cliente_id
+  ORDER BY gasto DESC
+  LIMIT 5
+")
+\end{rcode}
+
+\begin{rsalida}
+          nombre      ciudad segmento premium compras gasto margen
+1     Pedro Cruz      Toluca   Adulto      No      13 14680   5882
+2  Pedro Morales        León   Senior      No       9 12504   8669
+3 Carmen Jiménez Guadalajara   Adulto      No       9 11848   5001
+4 Sofia González      Cancún   Maduro      No      12 11676   6778
+5  Alberto Reyes Guadalajara   Maduro      No      13 11356   5905
+\end{rsalida}
+
+Pedro Cruz, de Toluca, es el cliente más valioso por gasto (\$14\,680 en 13
+compras); es el cliente 5 que ya habíamos visto. Pero si ordenamos por
+margen, Pedro Morales, de León, deja más (\$8\,669 con solo 9 compras). Un
+dato curioso: ninguno de los cinco es cliente premium, una pista para
+revisar los criterios del programa.
+
+\subsubsection{Pregunta 4. Productividad de las tiendas}
+
+\begin{rcode}
+dbGetQuery(con, "
+  SELECT t.nombre_tienda, t.tipo, t.tamano_m2,
+         ROUND(SUM(f.total), 0)               AS ventas,
+         ROUND(SUM(f.total) / t.tamano_m2, 1) AS ventas_m2,
+         ROUND(AVG(f.total), 0)               AS ticket_prom
+  FROM fact_ventas AS f
+  JOIN dim_tienda AS t ON f.tienda_id = t.tienda_id
+  GROUP BY t.tienda_id
+  ORDER BY ventas_m2 DESC
+")
+\end{rcode}
+
+\begin{rsalida}
+      nombre_tienda      tipo tamano_m2 ventas ventas_m2 ticket_prom
+1  Sucursal Express   Express       300 102791     342.6         952
+2   Sucursal Outlet    Outlet       350 114377     326.8        1079
+3     Sucursal Este  Estándar       400  88420     221.0         941
+4    Sucursal Norte  Estándar       450  89024     197.8         899
+5   Sucursal Centro Principal       500  88414     176.8        1016
+6      Sucursal Sur  Estándar       600 105305     175.5         966
+7  Sucursal Plaza B  Estándar       480  80236     167.2         944
+8    Sucursal Oeste  Estándar       550  84672     153.9         891
+9  Sucursal Plaza A Principal       700 105216     150.3         965
+10 Sucursal Premium   Premium       800 101538     126.9         940
+\end{rsalida}
+
+Por metro cuadrado, las tiendas pequeñas ganan: la Sucursal Express
+(300~m²) vende \$342.6 por m² y el Outlet \$326.8, mientras que la Sucursal
+Premium, la más grande (800~m²), queda al final con \$126.9. Las ventas
+totales son parecidas entre tiendas, así que el tamaño no se traduce en más
+ventas: una conclusión valiosa para decidir el tamaño de las próximas
+aperturas.
+
+\subsubsection{Pregunta 5. Los dos mejores vendedores de cada zona}
+
+Aquí combinamos una CTE con una función de ventana particionada por zona.
+Un vendedor puede vender en tiendas de varias zonas, así que el ranking es
+``por lo que vendió en esa zona''.
+
+\begin{rcode}
+dbGetQuery(con, "
+  WITH ventas_vendedor_zona AS (
+    SELECT t.zona, v.nombre AS vendedor, SUM(f.total) AS ventas
+    FROM fact_ventas AS f
+    JOIN dim_tienda   AS t ON f.tienda_id   = t.tienda_id
+    JOIN dim_vendedor AS v ON f.vendedor_id = v.vendedor_id
+    GROUP BY t.zona, v.vendedor_id
+  ),
+  ranking AS (
+    SELECT zona, vendedor, ROUND(ventas, 0) AS ventas,
+           RANK() OVER (PARTITION BY zona ORDER BY ventas DESC) AS lugar
+    FROM ventas_vendedor_zona
+  )
+  SELECT * FROM ranking
+  WHERE lugar <= 2
+  ORDER BY zona, lugar
+")
+\end{rcode}
+
+\begin{rsalida}
+     zona        vendedor ventas lugar
+1  Centro   Isabel García  21198     1
+2  Centro    Sofia Rivera  17066     2
+3    Este  Fernando Pérez   8881     1
+4    Este   Pedro Morales   7589     2
+5   Norte Ricardo Ramírez  22238     1
+6   Norte  Marta González  21909     2
+7   Oeste   Isabel García  11709     1
+8   Oeste    Juan Sánchez  10093     2
+9     Sur     Marta Gómez  11526     1
+10    Sur    Marta Rivera   9124     2
+\end{rsalida}
+
+Ricardo Ramírez lidera la zona Norte (\$22\,238) y Isabel García aparece
+como la mejor vendedora \emph{en dos zonas} (Centro y Oeste), señal de que
+atiende en varias sucursales. En la zona Este, con una sola tienda, las
+cifras son mucho menores. Recuerda el hallazgo anterior: varios de estos
+``vendedores'' no pertenecen al departamento de Ventas.
+
+\subsubsection{Pregunta 6. Crecimiento mes contra mes}
+
+\begin{rcode}
+dbGetQuery(con, "
+  SELECT nombre_mes, ventas,
+         ROUND(100.0 * (ventas - LAG(ventas) OVER (ORDER BY mes)) /
+               LAG(ventas) OVER (ORDER BY mes), 1) AS crec_ventas_pct,
+         ROUND(100.0 * (margen - LAG(margen) OVER (ORDER BY mes)) /
+               LAG(margen) OVER (ORDER BY mes), 1) AS crec_margen_pct
+  FROM vw_kpi_mensual
+  ORDER BY mes
+")
+\end{rcode}
+
+\begin{rsalida}
+   nombre_mes   ventas crec_ventas_pct crec_margen_pct
+1       enero 82559.66              NA              NA
+2     febrero 65899.34           -20.2           -15.1
+3       marzo 90930.61            38.0            59.4
+4       abril 57037.74           -37.3           -57.4
+5        mayo 93910.21            64.6           150.0
+6       junio 88509.12            -5.8           -15.1
+7       julio 86456.05            -2.3            -2.2
+8      agosto 78929.49            -8.7           -19.1
+9  septiembre 68855.87           -12.8           -11.4
+10    octubre 70004.10             1.7             7.5
+11  noviembre 80506.89            15.0            15.4
+12  diciembre 96393.61            19.7            39.1
+\end{rsalida}
+
+El margen se mueve mucho más que las ventas: en mayo las ventas crecieron
+64.6\% pero el margen 150\%, y en abril las ventas cayeron 37.3\% y el
+margen 57.4\%. Es decir, la mezcla de productos vendidos cambia de un mes a
+otro, y los meses buenos lo son también por vender productos más
+rentables.
+
+\subsubsection{Pregunta 7. Fin de semana contra entre semana}
+
+\begin{rcode}
+dbGetQuery(con, "
+  SELECT CASE d.es_fin_semana WHEN 1 THEN 'Fin de semana'
+                              ELSE 'Entre semana' END AS tipo_dia,
+         COUNT(DISTINCT d.fecha_id)                    AS dias,
+         COUNT(*)                                      AS tickets,
+         ROUND(1.0 * COUNT(*) / COUNT(DISTINCT d.fecha_id), 2)
+                                                  AS tickets_por_dia,
+         ROUND(AVG(f.total), 2)                        AS ticket_prom
+  FROM fact_ventas AS f
+  JOIN dim_fecha AS d ON f.fecha_id = d.fecha_id
+  GROUP BY tipo_dia
+")
+\end{rcode}
+
+\begin{rsalida}
+       tipo_dia dias tickets tickets_por_dia ticket_prom
+1  Entre semana  246     724            2.94      961.49
+2 Fin de semana   99     276            2.79      956.07
+\end{rsalida}
+
+Hubo ventas en 246 días entre semana y 99 de fin de semana (345 días en
+total: 20 días del año no registraron ninguna venta). Entre semana se
+venden 2.94 tickets por día contra 2.79 en fin de semana, y el ticket
+promedio es prácticamente igual (\$961 contra \$956). No hay un patrón de
+fin de semana marcado. Este tipo de pregunta es trivial gracias a la dimensión de
+fechas: el atributo \codigo{es\_fin\_semana} ya está calculado y cualquier
+analista puede usarlo sin saber manipular fechas.
+
+\begin{negocio}{Qué entregarías en la junta}
+Con estas siete consultas tienes el material de un reporte ejecutivo
+completo, y la base \archivo{bi\_retail.sqlite} queda como la fuente única
+de la verdad: el Módulo~\ref{cap:shiny} construirá un tablero que lee de
+ella y el Módulo~\ref{cap:reportes} un reporte automático. Lo más valioso
+no son las cifras de hoy, sino que el próximo mes basta ejecutar
+\codigo{ejecutar\_etl()} con el archivo nuevo y volver a correr las
+consultas.
+\end{negocio}
+
+\begin{hazlotu}
+Agrega una octava pregunta: ¿qué método de pago predomina en cada zona?
+Usa \codigo{vw\_ventas\_detalle} y \codigo{ROW\_NUMBER()} particionado por
+zona.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Errores comunes}
+\label{sec:m5-errores}
+
+Para ver los mensajes reales sin detener el script, usamos esta pequeña
+función que ejecuta una expresión y, si falla, imprime el mensaje de error
+(o de advertencia) en lugar de detenerse:
+
+\begin{rcode}
+mostrar_error <- function(expr) {
+  tryCatch(expr,
+           error   = function(e) cat("Error:", conditionMessage(e), "\n"),
+           warning = function(w) cat("Aviso:", conditionMessage(w), "\n"))
+}
+\end{rcode}
+
+\subsubsection{``no such table'' y ``no such column''}
+
+\begin{rcode}
+mostrar_error(dbGetQuery(con, "SELECT * FROM ventas_2024"))
+mostrar_error(dbGetQuery(con, "SELECT totl FROM fact_ventas"))
+\end{rcode}
+
+\begin{rsalida}
+Error: no such table: ventas_2024 
+Error: no such column: totl 
+\end{rsalida}
+
+La tabla o la columna no existe, casi siempre por un error de dedo o
+porque estás conectado a otra base. Revisa con \codigo{dbListTables(con)} y
+\codigo{dbListFields(con, "tabla")}. Recuerda también que, tras reconstruir
+la base, las tablas crudas (\codigo{transacciones}, \codigo{clientes}\ldots)
+ya no existen: solo el esquema en estrella.
+
+\subsubsection{La tabla ya existe}
+
+\begin{rcode}
+mostrar_error(dbWriteTable(con, "dim_tienda", dimensiones$dim_tienda))
+\end{rcode}
+
+\begin{rsalida}
+Error: Table dim_tienda exists in database, and both overwrite and append are FALSE 
+\end{rsalida}
+
+\codigo{dbWriteTable()} se niega a pisar una tabla existente. Decide qué
+quieres: \codigo{overwrite = TRUE} la reemplaza (¡perdiendo llaves y
+reglas si la habías creado con \codigo{CREATE TABLE}!) y
+\codigo{append = TRUE} agrega filas. Para tablas diseñadas por ti, usa
+\codigo{dbAppendTable()}.
+
+\subsubsection{Llaves duplicadas al volver a cargar}
+
+\begin{rcode}
+mostrar_error(dbAppendTable(con, "dim_tienda", dimensiones$dim_tienda))
+\end{rcode}
+
+\begin{rsalida}
+Error: UNIQUE constraint failed: dim_tienda.tienda_id 
+\end{rsalida}
+
+Intentaste cargar filas cuya llave primaria ya existe (típico al correr dos
+veces un script). Usa carga incremental (\codigo{anti\_join()} o
+\codigo{INSERT OR IGNORE}) o borra primero lo que vas a recargar.
+
+\subsubsection{Fechas convertidas en números}
+
+Si ves fechas como \codigo{19370} o años como \codigo{-4672}, escribiste un
+\codigo{Date} de R directamente en SQLite (sección~\ref{sec:m5-fechas}).
+Convierte las fechas a texto con \codigo{format(fecha, "\%Y-\%m-\%d")}
+antes de escribirlas y con \codigo{as.Date()} al leerlas.
+
+\subsubsection{Comillas simples contra comillas dobles}
+
+En SQL estándar, el texto va entre comillas \emph{simples}
+(\codigo{'CDMX'}) y las comillas \emph{dobles} son para nombres de
+columnas o tablas. SQLite, por compatibilidad, acepta comillas dobles para
+texto si no encuentra una columna con ese nombre, lo que produce errores
+silenciosos:
+
+\begin{rcode}
+dbGetQuery(con, "SELECT COUNT(*) AS n FROM dim_cliente
+                 WHERE ciudad = 'CDMX'")     # correcto: 27
+dbGetQuery(con, "SELECT COUNT(*) AS n FROM dim_cliente
+                 WHERE ciudad = \"ciudad\"")  # ¡columna consigo misma!
+\end{rcode}
+
+\begin{rsalida}
+   n
+1 27
+    n
+1 200
+\end{rsalida}
+
+La segunda consulta pretendía buscar clientes de una ciudad llamada
+``ciudad'', pero \codigo{"ciudad"} se interpretó como la \emph{columna}
+ciudad, que siempre es igual a sí misma: devolvió los 200 clientes. En
+PostgreSQL o SQL Server, \codigo{"CDMX"} directamente marcaría error de
+columna inexistente. Usa siempre comillas simples para texto (y
+\codigo{params} para valores variables).
+
+\subsubsection{Olvidar cerrar conexiones y resultados}
+
+\begin{rcode}
+con_temporal <- dbConnect(RSQLite::SQLite(), ":memory:")
+dbDisconnect(con_temporal)
+mostrar_error(dbGetQuery(con_temporal, "SELECT 1"))
+\end{rcode}
+
+\begin{rsalida}
+Error: Invalid or closed connection 
+\end{rsalida}
+
+Usar una conexión ya cerrada da \codigo{Invalid or closed connection}: vuelve
+a conectarte. El error contrario (nunca cerrar) no da error inmediato, pero
+R te avisa más tarde con un mensaje como \emph{call dbDisconnect() when
+finished working with a connection}, y en un servidor acumula conexiones
+abiertas. Usa \codigo{dbDisconnect()} al final de cada script y
+\codigo{on.exit()} dentro de las funciones. Del mismo modo, cada
+\codigo{dbSendQuery()} necesita su \codigo{dbClearResult()}.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Resumen de errores frecuentes con bases de datos.}
+\label{tab:m5-errores}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{5.2cm}X@{}}
+\toprule
+\textbf{Mensaje o síntoma} & \textbf{Causa y solución} \\
+\midrule
+\codigo{no such table: X} & La tabla no existe o estás en otra base.
+Revisa \codigo{dbListTables()}. \\
+\codigo{no such column: X} & Error de dedo o columna de otra tabla; revisa
+\codigo{dbListFields()} y los alias. \\
+\codigo{ambiguous column name: X} & La columna existe en dos tablas del
+JOIN: antepón el alias (\codigo{t.producto\_id}). \\
+\codigo{Table X exists in database\ldots} & Usa \codigo{overwrite},
+\codigo{append} o \codigo{dbAppendTable()}. \\
+\codigo{UNIQUE constraint failed} & Llave repetida: carga incremental o
+\codigo{INSERT OR IGNORE}. \\
+\codigo{FOREIGN KEY constraint failed} & Un valor no existe en la
+dimensión: carga primero las dimensiones o corrige el dato. \\
+Fechas como números & Convierte \codigo{Date} a texto ISO antes de
+escribir. \\
+\codigo{Invalid or closed connection} & La conexión se cerró: vuelve a
+conectarte. \\
+Resultados ``demasiado buenos'' & Comillas dobles en lugar de simples, o
+un JOIN que multiplica filas. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Terminamos cerrando la conexión principal del módulo:
+
+\begin{rcode}
+dbDisconnect(con)
+\end{rcode}
+
+% ----------------------------------------------------------------------------
+\begin{resumen}
+\begin{itemize}
+  \item Las empresas guardan sus datos en bases de datos por volumen,
+        integridad, concurrencia y seguridad. Las OLTP operan el negocio;
+        los \emph{data warehouses} (OLAP) sirven para analizarlo.
+  \item \paquete{DBI} ofrece las mismas funciones para cualquier motor:
+        \codigo{dbConnect()}, \codigo{dbWriteTable()},
+        \codigo{dbGetQuery()}, \codigo{dbExecute()},
+        \codigo{dbDisconnect()}. Solo cambia el driver.
+  \item En SQLite guarda las fechas como texto \codigo{'AAAA-MM-DD'}; si no,
+        se vuelven números.
+  \item SQL: \codigo{SELECT}, \codigo{WHERE}, \codigo{GROUP BY},
+        \codigo{HAVING}, \codigo{ORDER BY}, \codigo{JOIN}, subconsultas,
+        CTE y funciones de ventana responden casi cualquier pregunta.
+  \item Nunca pegues valores del usuario con \codigo{paste()}: usa
+        \codigo{params}, \codigo{glue\_sql()} o \codigo{sqlInterpolate()}.
+  \item \paquete{dbplyr} traduce dplyr a SQL; \codigo{show\_query()} te
+        enseña el SQL y \codigo{collect()} trae el resultado.
+  \item Un data warehouse en estrella tiene una tabla de hechos y
+        dimensiones con llaves declaradas, vistas para los KPIs e índices
+        en las llaves.
+  \item Un ETL confiable es idempotente (sin duplicados), atómico
+        (transacciones) y trazable (bitácora).
+  \item Con datos grandes: agrega en la base, trae solo lo necesario y usa
+        \codigo{dbFetch()} por bloques.
+  \item Credenciales en \archivo{.Renviron}, nunca en el script; usuarios de
+        solo lectura para analizar.
+\end{itemize}
+
+\medskip
+\centering
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{SQL} & \textbf{dplyr} \\
+\midrule
+\codigo{SELECT col1, col2} & \codigo{select(col1, col2)} \\
+\codigo{SELECT expr AS nueva} & \codigo{mutate(nueva = expr)} \\
+\codigo{WHERE cond} & \codigo{filter(cond)} \\
+\codigo{ORDER BY col DESC} & \codigo{arrange(desc(col))} \\
+\codigo{LIMIT 5} & \codigo{head(5)} / \codigo{slice\_head(n = 5)} \\
+\codigo{GROUP BY g} + \codigo{SUM(x)} & \codigo{group\_by(g)} +
+  \codigo{summarise(sum(x))} \\
+\codigo{HAVING cond} & \codigo{filter()} después de \codigo{summarise()} \\
+\codigo{COUNT(DISTINCT x)} & \codigo{n\_distinct(x)} \\
+\codigo{CASE WHEN \ldots{} END} & \codigo{case\_when()} \\
+\codigo{INNER JOIN} / \codigo{LEFT JOIN} & \codigo{inner\_join()} /
+  \codigo{left\_join()} \\
+\codigo{LEFT JOIN \ldots{} WHERE b.id IS NULL} & \codigo{anti\_join()} \\
+\codigo{WITH paso AS (\ldots)} & guardar un resultado intermedio \\
+\codigo{ROW\_NUMBER() OVER (PARTITION BY g \ldots)} & \codigo{group\_by(g)}
+  + \codigo{row\_number()} \\
+\codigo{SUM(x) OVER (ORDER BY t)} & \codigo{cumsum(x)} \\
+\codigo{LAG(x) OVER (ORDER BY t)} & \codigo{lag(x)} \\
+\bottomrule
+\end{tabular}
+\end{resumen}
+
+% ----------------------------------------------------------------------------
+\section{Ejercicios}
+\label{sec:m5-ejercicios}
+
+Resuelve cada ejercicio en un script nuevo. Para no depender de la base del
+capítulo, trabaja con una base en memoria
+(\codigo{dbConnect(RSQLite::SQLite(), ":memory:")}) y carga solo las tablas
+que necesites. Salvo que se indique otra cosa, responde con SQL escrito a
+mano mediante \codigo{dbGetQuery()}.
+
+\begin{ejercicio}{m5-1}{Tu primera base de datos}
+\nivel{Básico}
+Crea una base en memoria, carga \archivo{productos.csv} en una tabla
+llamada \codigo{productos} y muestra sus tablas y columnas con
+\codigo{dbListTables()} y \codigo{dbListFields()}. Después, con SQL,
+calcula cuántos productos hay por categoría y el precio de catálogo
+promedio, ordenado de más a menos productos. Cierra la conexión al final.
+\end{ejercicio}
+
+\begin{ejercicio}{m5-2}{Alerta de inventario}
+\nivel{Básico}
+El área de compras necesita la lista de productos \emph{activos} cuyo
+\codigo{stock\_actual} está por debajo del \codigo{stock\_minimo}. Muestra
+nombre, categoría, proveedor, stock actual, stock mínimo y las piezas
+faltantes (\codigo{stock\_minimo - stock\_actual}), ordenado de mayor a
+menor faltante. ¿Cuántos productos están en alerta y qué proveedor
+aparece más?
+\end{ejercicio}
+
+\begin{ejercicio}{m5-3}{Nómina por departamento}
+\nivel{Básico}
+Con \archivo{empleados.csv}, calcula por departamento: número de
+empleados, salario mensual promedio y salario máximo. Muestra solo los
+departamentos con al menos 15 empleados (\codigo{HAVING}), ordenados por
+salario promedio descendente.
+\end{ejercicio}
+
+\begin{ejercicio}{m5-4}{Ventas por ciudad y productos sin ventas en diciembre}
+\nivel{Intermedio}
+Carga \archivo{transacciones.csv}, \archivo{tiendas.csv} y
+\archivo{productos.csv} (con fechas como texto ISO). (a) Con un
+\codigo{INNER JOIN}, calcula por ciudad de la tienda el número de tickets,
+las ventas y el ticket promedio. (b) Con un \codigo{LEFT JOIN}, encuentra
+los productos que no tuvieron ninguna venta en diciembre de 2023.
+\end{ejercicio}
+
+\begin{ejercicio}{m5-5}{Fechas bien guardadas}
+\nivel{Intermedio}
+Carga \archivo{ventas\_retail.csv} dos veces en una base en memoria: una
+tabla \codigo{ventas\_mal} con la fecha tal como la lee
+\codigo{read\_csv()} y otra \codigo{ventas} con la fecha como texto ISO.
+Demuestra con \codigo{typeof()} y \codigo{strftime()} la diferencia. Luego,
+con la tabla correcta, calcula por trimestre (a partir de la fecha) las
+ventas totales, el descuento promedio y el número de días con descuento.
+\end{ejercicio}
+
+\begin{ejercicio}{m5-6}{Consulta segura de un cliente}
+\nivel{Intermedio}
+Escribe una función \codigo{ventas\_cliente(con, cliente, desde, hasta)}
+que devuelva el número de compras y el gasto de un cliente en un periodo,
+usando una consulta parametrizada con marcadores con nombre. Pruébala con
+el cliente 5 en el primer semestre de 2023 y en el segundo. Después
+demuestra que el texto \codigo{"5 OR 1=1"} no logra traer las compras de
+todos los clientes.
+\end{ejercicio}
+
+\begin{ejercicio}{m5-7}{Lo mismo con dbplyr}
+\nivel{Intermedio}
+Con \paquete{dbplyr}, calcula para cada método de pago y trimestre el
+número de tickets y las ventas, a partir de la tabla \codigo{transacciones}.
+Muestra el SQL generado con \codigo{show\_query()}, trae el resultado con
+\codigo{collect()} y comprueba con \codigo{all.equal()} que coincide con
+la misma consulta escrita a mano en SQL.
+\end{ejercicio}
+
+\begin{ejercicio}{m5-8}{Rankings y Pareto con funciones de ventana}
+\nivel{Avanzado}
+(a) Encuentra los dos clientes con mayor gasto de cada ciudad (ciudad del
+cliente) usando \codigo{RANK()} con \codigo{PARTITION BY}; muestra solo
+Monterrey, Guadalajara y CDMX. (b) Construye la curva de Pareto de
+productos: ordena los productos por ventas y calcula con
+\codigo{SUM() OVER} el porcentaje acumulado. ¿Cuántos productos generan el
+80\% de las ventas?
+\end{ejercicio}
+
+\begin{ejercicio}{m5-9}{Una estrella en miniatura}
+\nivel{Avanzado}
+A partir de \archivo{ventas\_retail.csv}, \archivo{productos.csv} y
+\archivo{tiendas.csv}, crea en una base en memoria un esquema en estrella
+pequeño: \codigo{dim\_producto}, \codigo{dim\_tienda} y
+\codigo{fact\_ventas\_diarias} (llave primaria \codigo{fecha}, llaves
+foráneas a ambas dimensiones, \codigo{CHECK (cantidad > 0)}). Carga los
+datos con \codigo{dbAppendTable()}, crea una vista con las ventas por
+trimestre y tipo de tienda, y muestra con \codigo{EXPLAIN QUERY PLAN} el
+efecto de un índice sobre \codigo{tienda\_id}.
+\end{ejercicio}
+
+\begin{ejercicio}{m5-10}{ETL incremental con bitácora}
+\nivel{Reto}
+Construye un ETL para \archivo{ventas\_retail.csv} en una base en memoria:
+una tabla \codigo{fact\_ventas\_diarias} con llave primaria \codigo{fecha}
+(texto) y una tabla \codigo{log\_etl}. Escribe las funciones
+\codigo{extraer\_ventas()}, \codigo{transformar\_ventas()},
+\codigo{cargar\_ventas()} (que inserte desde una tabla temporal solo las
+fechas que aún no existen) y \codigo{ejecutar\_etl()} (con transacción y registro en la
+bitácora, también de los errores). Simula tres lotes: enero-junio,
+abril-septiembre (traslapado) y octubre-diciembre; ejecuta además un lote
+repetido y un lote con una cantidad negativa que debe ser rechazado por la
+regla \codigo{CHECK}. Muestra la bitácora y verifica que la tabla termina
+con exactamente 365 filas y el mismo total de ventas que el CSV.
+\end{ejercicio}

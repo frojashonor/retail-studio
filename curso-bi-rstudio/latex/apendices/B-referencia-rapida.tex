@@ -49,7 +49,7 @@ Los pocos bloques de código de este apéndice se ejecutan de corrido, como un
 solo script, desde la carpeta del curso. Este es el arranque que todos
 asumen:
 
-\begin{rcode}[title=Arranque de cualquier análisis del curso]
+\begin{rcode}[title={Arranque de cualquier análisis del curso}]
 # Paquetes y datos que usan los ejemplos de este apéndice
 library(tidyverse)   # dplyr, ggplot2, tidyr, readr, stringr, lubridate
 library(scales)      # formatos de negocio: dólar, coma, porcentaje
@@ -222,7 +222,7 @@ forma de comprobar que tu script funciona desde cero.
 \codigo{class()}, \codigo{typeof()} & Clase y tipo interno de un objeto. & \codigo{class(ventas\$fecha)} da \codigo{"Date"} \\
 \codigo{str()}, \codigo{glimpse()} & Estructura: columnas, tipos y primeros valores. & \codigo{glimpse(ventas)} \\
 \codigo{parse\_number()} & Extrae el número de un texto sucio (\paquete{readr}). & \codigo{parse\_number("\$1,250.50")} da 1250.5 \\
-\codigo{as.numeric(as.character(f))} & Convierte un factor numérico a número real. & Sin \codigo{as.character()} obtendrías los códigos internos 1, 2, 3\ldots \\
+\codigo{as.numeric(} \codigo{as.character(f))} & Convierte un factor numérico a número real. & Sin \codigo{as.character()} obtendrías los códigos internos 1, 2, 3\ldots \\
 \end{longtable}
 \endgroup
 
@@ -679,7 +679,7 @@ repetidas y estarías duplicando ventas. dplyr lo avisa con
 Esta es la ``plantilla'' de análisis que más vas a repetir: filtrar, unir,
 agrupar, resumir, ordenar y dar formato.
 
-\begin{rcode}[title=Plantilla: ventas con descuento por ciudad]
+\begin{rcode}[title={Plantilla: ventas con descuento por ciudad}]
 ventas %>%
   filter(descuento_pct > 0) %>%                 # 1. filas relevantes
   left_join(tiendas, by = "tienda_id") %>%      # 2. agregar la ciudad
@@ -865,7 +865,7 @@ Esta plantilla completa (datos, geom, escala con formato, títulos, tema y
 guardado) sirve de punto de partida para casi cualquier gráfica de
 tendencia:
 
-\begin{rcode}[title=Plantilla de gráfico de tendencia y exportación]
+\begin{rcode}[title={Plantilla de gráfico de tendencia y exportación}]
 color_principal <- "#2a78d6"                   # color corporativo
 p <- ventas %>%
   mutate(mes = floor_date(fecha, "month")) %>%
@@ -1233,7 +1233,7 @@ Cobertura de stock & $\dfrac{\text{stock actual}}{\text{venta diaria promedio}}$
 
 Así se ven algunos de estos KPIs calculados con los datos del curso:
 
-\begin{rcode}[title=KPIs mensuales: ventas, tickets, ticket promedio y crecimiento]
+\begin{rcode}[title={KPIs mensuales: ventas, tickets, ticket promedio y crecimiento}]
 kpi_mes <- ventas %>%
   mutate(mes = floor_date(fecha, "month")) %>%
   group_by(mes) %>%
@@ -1258,7 +1258,7 @@ Enero no tiene crecimiento (no hay mes anterior: por eso \codigo{NA}). En
 marzo las ventas cayeron 13.9\% con casi los mismos tickets (31), así que la
 caída se explica por un ticket promedio más bajo, no por menos clientes.
 
-\begin{rcode}[title=Margen bruto global]
+\begin{rcode}[title={Margen bruto global}]
 ventas %>%
   left_join(select(productos, producto_id, costo), by = "producto_id") %>%
   summarise(ingresos = sum(total),
@@ -1303,7 +1303,7 @@ siempre la calidad de los datos de costo.
 \bottomrule
 \endlastfoot
 Pronosticar las ventas de los próximos meses & Series de tiempo & ARIMA, suavizamiento exponencial (ETS) & \codigo{forecast::auto.arima()}, \codigo{ets()}, \codigo{forecast(m, h = 6)} & MAPE, RMSE \\
-Estimar el monto de compra o el precio de una casa & Regresión & Regresión lineal, bosque aleatorio & \codigo{lm()}, \codigo{randomForest::randomForest()} & RMSE, MAE, R\textsuperscript{2} \\
+Estimar el monto de compra o el precio de una casa & Regresión & Regresión lineal, bosque aleatorio & \codigo{lm()}, \codigo{randomForest()} & RMSE, MAE, R\textsuperscript{2} \\
 Explicar qué mueve las ventas (precio, promoción, temporada) & Regresión explicativa & Regresión lineal múltiple & \codigo{lm(ventas \textasciitilde{} precio + promo + mes)} & R\textsuperscript{2}, p-valores de coeficientes \\
 Predecir qué clientes se darán de baja (churn) & Clasificación binaria & Logística, árbol, bosque aleatorio & \codigo{glm(family = binomial)}, \codigo{rpart::rpart()}, \codigo{randomForest()} & AUC, recall, F1 \\
 Calificar prospectos (\emph{lead scoring}) & Clasificación binaria & Regresión logística & \codigo{glm()} + \codigo{predict(type = "response")} & AUC, lift \\
@@ -1352,7 +1352,7 @@ AUC (ROC) & Área bajo la curva ROC (0.5 = azar, 1 = perfecto) & Capacidad de or
 Todas estas métricas se calculan con pocas líneas de R base. El paquete
 \paquete{pROC} (se instala junto con \paquete{caret}) calcula el AUC:
 
-\begin{rcode}[title=Métricas de regresión y de clasificación a mano]
+\begin{rcode}[title={Métricas de regresión y de clasificación a mano}]
 # --- Regresión / pronóstico ---
 real       <- c(120, 95, 130, 150, 110)
 pronostico <- c(115, 100, 128, 140, 118)
@@ -1462,7 +1462,7 @@ clientes por riesgo.
 \codigo{textOutput("x")} & \codigo{renderText(\{...\})} & Texto (un KPI, un mensaje). \\
 \codigo{verbatimTextOutput("x")} & \codigo{renderPrint(\{...\})} & Salida de consola (p. ej., \codigo{summary(modelo)}). \\
 \codigo{uiOutput("x")} & \codigo{renderUI(\{...\})} & Controles creados dinámicamente. \\
-\codigo{valueBoxOutput("x")} & \codigo{renderValueBox(\{valueBox(...)\})} & Tarjeta de KPI (\paquete{shinydashboard}). \\
+\codigo{valueBoxOutput("x")} & \codigo{renderValueBox(\{...\})} & Tarjeta de KPI (\paquete{shinydashboard}). \\
 \codigo{downloadButton("d")} & \codigo{downloadHandler(filename, content)} & Botón para descargar CSV o Excel. \\
 \end{longtable}
 \endgroup
@@ -1506,7 +1506,7 @@ clientes por riesgo.
 El esqueleto mínimo de una app (se ejecuta en RStudio con el botón
 \menu{Run App}):
 
-\begin{rnoejecutar}[title=Esqueleto de app Shiny]
+\begin{rnoejecutar}[title={Esqueleto de app Shiny}]
 library(shiny)
 library(tidyverse)
 ventas <- read_csv("datasets/ventas_retail.csv", show_col_types = FALSE)
@@ -1567,14 +1567,18 @@ shinyApp(ui, server)
 \endgroup
 
 Formatos de salida más comunes en el encabezado YAML:
-\codigo{html\_document} (interactivo, admite \codigo{toc}, \codigo{toc\_float},
-\codigo{code\_folding}), \codigo{pdf\_document} (requiere LaTeX, p. ej.
-\paquete{tinytex}), \codigo{word\_document} (editable por otras áreas),
-\codigo{powerpoint\_presentation}, \codigo{ioslides\_presentation} y
-\codigo{flexdashboard::flex\_dashboard} (tablero estático). Un reporte
-parametrizado se ve así:
+\begin{itemize}
+\item \codigo{html\_document}: interactivo; admite \codigo{toc},
+  \codigo{toc\_float} y \codigo{code\_folding}.
+\item \codigo{pdf\_document}: requiere LaTeX (p. ej., \paquete{tinytex}).
+\item \codigo{word\_document}: editable por otras áreas.
+\item \codigo{powerpoint\_presentation} e \codigo{ioslides\_presentation}:
+  presentaciones.
+\item \codigo{flexdashboard::flex\_dashboard}: tablero estático.
+\end{itemize}
+Un reporte parametrizado se ve así:
 
-\begin{textocodigo}[title=Encabezado YAML de un reporte parametrizado]
+\begin{textocodigo}[title={Encabezado YAML de un reporte parametrizado}]
 ---
 title: "Reporte mensual de ventas"
 author: "Área de BI"
@@ -1590,9 +1594,16 @@ params:
 ---
 \end{textocodigo}
 
-Dentro del documento usas \codigo{params\$tienda}, y para generar un reporte
-por tienda: \codigo{rmarkdown::render("reporte.Rmd", params = list(tienda =
-5), output\_file = "reporte\_t5.html")} dentro de un bucle.
+Dentro del documento usas \codigo{params\$tienda}. Para generar un
+reporte por tienda, llama a \codigo{render()} (del paquete
+\paquete{rmarkdown}) dentro de un bucle:
+
+\begin{rnoejecutar}[title={Un reporte por tienda}]
+for (t in 1:10) {
+  rmarkdown::render("reporte.Rmd", params = list(tienda = t),
+                    output_file = paste0("reporte_tienda_", t, ".html"))
+}
+\end{rnoejecutar}
 
 % ============================================================================
 \section{Errores frecuentes de R}
@@ -1689,7 +1700,7 @@ del tidyverse, \codigo{rlang::last\_trace()} muestra dónde ocurrió.
 \multicolumn{3}{@{}l}{\textbf{\color{secundario}Archivos, fechas y modelos}} \\
 \texttt{'ventas.csv' does not exist in current working directory ('...').} & \codigo{read\_csv()} no encuentra el archivo: ruta o carpeta de trabajo incorrecta. & Abre el proyecto \archivo{.Rproj}; revisa \codigo{getwd()} y \codigo{list.files()}. \\
 \texttt{cannot open the connection} + \texttt{cannot open file 'ventas.csv': No such file or directory} \newline \emph{\texttt{no se puede abrir la conexión}} + \emph{\texttt{no fue posible abrir el archivo}} & Lo mismo con \codigo{read.csv()} o \codigo{readRDS()}. & Igual que el anterior. \\
-\texttt{Sheet 'Ventas2024' not found} & Nombre de hoja de Excel incorrecto. & \codigo{readxl::excel\_sheets("archivo.xlsx")}. \\
+\texttt{Sheet 'Ventas2024' not found} & Nombre de hoja de Excel incorrecto. & Lista las hojas con \codigo{excel\_sheets()}. \\
 \texttt{cannot change working directory} \newline \emph{\texttt{no es posible cambiar el directorio de trabajo}} & \codigo{setwd()} a una carpeta que no existe (o con \codigo{\textbackslash{}} en Windows). & Usa \codigo{/} en las rutas, o mejor, proyectos de RStudio. \\
 \texttt{All formats failed to parse. No formats found.} (advertencia) & \codigo{ymd()} recibió fechas en otro orden o inválidas. & Usa la función del orden correcto (\codigo{dmy()}, \codigo{mdy()}). \\
 \texttt{factor factor(cyl) has new level 5} & \codigo{predict()} con una categoría que el modelo no vio. & Agrupa categorías raras o reentrena con todas. \\

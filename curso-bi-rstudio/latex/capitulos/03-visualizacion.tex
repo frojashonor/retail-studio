@@ -1255,8 +1255,6 @@ figura~\ref{fig:m3-anatomia-boxplot} explica cómo leerlo.
 \centering
 \begin{tikzpicture}[x=1.15cm, y=1cm,
   etq/.style={font=\sffamily\scriptsize, text=gristexto, align=center}]
-  % eje
-  \draw[gristexto!60] (0,-0.9) -- (11,-0.9);
   % bigotes
   \draw[primario, thick] (0.6,0) -- (2.4,0);
   \draw[primario, thick] (6.2,0) -- (8.8,0);
@@ -1278,7 +1276,7 @@ figura~\ref{fig:m3-anatomia-boxplot} explica cómo leerlo.
   \draw[{Stealth}-{Stealth}, gristexto] (2.4,-0.65) -- (6.2,-0.65)
     node[midway, below=1pt, etq] {Rango intercuartílico (RIC):
     el 50\% central};
-  \node[etq] at (5.5,-1.35) {Los bigotes llegan hasta el dato más
+  \node[etq] at (5.5,-1.45) {Los bigotes llegan hasta el dato más
     extremo que esté a menos de 1.5 $\times$ RIC de la caja;
     lo que queda más lejos es atípico.};
 \end{tikzpicture}
@@ -1550,9 +1548,9 @@ el de Juguetes (más de \$20,000). La regla:
 
 \codigo{facet\_wrap()} acomoda los paneles en filas y columnas
 (\codigo{ncol}, \codigo{nrow}). Su pariente
-\codigo{facet\_grid(filas \textasciitilde{} columnas)} crea una cuadrícula
-con dos variables, por ejemplo
-\codigo{facet\_grid(trimestre \textasciitilde{} metodo\_pago)}.
+\codigo{facet\_grid()} crea una cuadrícula con dos variables, una en las
+filas y otra en las columnas; por ejemplo, \codigo{trimestre} en las filas
+y \codigo{metodo\_pago} en las columnas.
 
 \begin{hazlotu}
 Haz facetas por \codigo{tienda} (10 paneles) del ingreso mensual. ¿Qué
@@ -1700,8 +1698,9 @@ empiece en cero?
 \section{Temas y diseño corporativo}
 \label{sec:m3-temas}
 
-Hasta ahora cada gráfica repetía \codigo{theme\_minimal()} seguido de
-\codigo{theme(panel.grid.minor = element\_blank())}. En una empresa quieres que
+Hasta ahora cada gráfica repetía las mismas dos piezas de diseño:
+\codigo{theme\_minimal()} y un \codigo{theme()} que quita la cuadrícula
+secundaria. En una empresa quieres que
 \emph{todas} las gráficas del área se vean iguales: mismos colores, mismas
 fuentes, mismo lugar para la leyenda. La solución es crear tu propio
 \termino{tema corporativo}: una función que guarda todas esas decisiones.
@@ -2016,8 +2015,8 @@ porque no depende de ningún factor inventado.
 \subsection{Caso 4: el arcoíris}
 
 Imagina que en el mapa de calor de la figura~\ref{fig:m03-calor} hubieras
-usado una escala arcoíris,
-\codigo{scale\_fill\_gradientn(colors = rainbow(7))}: las celdas de
+usado una escala arcoíris (\codigo{rainbow(7)} dentro de
+\codigo{scale\_fill\_gradientn()}): las celdas de
 \$10,000 serían verdes y las de \$15,000 azules: el lector vería dos
 ``grupos'' que no existen y no sabría si el rojo es mucho o poco. La
 corrección es la que ya usaste: un gradiente secuencial de un solo tono

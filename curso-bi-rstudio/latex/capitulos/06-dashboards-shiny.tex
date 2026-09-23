@@ -1,0 +1,3050 @@
+% ============================================================================
+% MÓDULO 6. DASHBOARDS INTERACTIVOS CON SHINY
+% ============================================================================
+\chapter{Dashboards interactivos con Shiny}
+\label{cap:shiny}
+
+\begin{objetivos}
+\begin{itemize}
+  \item Explicar qué hace bueno a un dashboard de BI (audiencia, preguntas,
+        KPIs, filtros) y decidir cuándo conviene Shiny y cuándo Power BI o
+        Tableau.
+  \item Entender la anatomía de una app Shiny (\codigo{ui}, \codigo{server},
+        \codigo{shinyApp()}) y ejecutar las tres apps completas que acompañan
+        este módulo.
+  \item Usar las entradas y salidas más comunes y saber qué función
+        \codigo{render...()} corresponde a cada \codigo{...Output()}.
+  \item Dominar la \termino{reactividad}: \codigo{reactive()},
+        \codigo{observeEvent()}, \codigo{eventReactive()}, \codigo{req()},
+        \codigo{validate()} e \codigo{isolate()}, y reconocer sus errores
+        típicos.
+  \item Organizar la pantalla con \codigo{sidebarLayout()},
+        \codigo{fluidRow()}, pestañas y \paquete{shinydashboard}
+        (\codigo{valueBox()}, \codigo{box()}, menús).
+  \item Agregar tablas interactivas con \paquete{DT}, botones de descarga en
+        CSV y Excel, y gráficas interactivas con \paquete{plotly}.
+  \item Aplicar buenas prácticas profesionales: separar la lógica de la
+        interfaz, módulos, caché, pruebas con \codigo{testServer()} y
+        publicación segura.
+\end{itemize}
+\end{objetivos}
+
+Llevas cinco módulos respondiendo preguntas de negocio con R. Cada vez que la
+directora comercial te pide algo (``¿cuánto vendimos en Monterrey en el
+segundo trimestre?'', ``¿y solo en Electrónica?'', ``¿y si quitamos el
+Outlet?'') tú abres RStudio, cambias un \codigo{filter()}, vuelves a correr
+el script y le mandas una gráfica nueva por correo. Funciona, pero no escala:
+tú te conviertes en el cuello de botella y ella espera horas por una
+respuesta que le tomaría segundos si pudiera mover los filtros por sí misma.
+
+La solución es un \termino{dashboard interactivo}: una página web donde la
+directora elige el periodo, la tienda y la categoría, y las cifras y
+gráficas se actualizan al instante. Con el paquete \paquete{shiny} puedes
+construirlo \emph{con el mismo R que ya sabes}: tus \codigo{filter()},
+\codigo{summarise()} y \codigo{ggplot()} siguen siendo el corazón; Shiny solo
+añade la ``piel'' (botones, menús, cajas) y el ``sistema nervioso'' (la
+reactividad) que conecta lo que el usuario toca con lo que R calcula.
+
+En este módulo construirás tres apps de complejidad creciente, que vienen
+completas en la carpeta \archivo{latex/codigo/apps/} del curso: una
+calculadora de precios (tu primera app), un explorador de ventas con filtros
+y un dashboard ejecutivo con cinco pestañas, indicadores, tablas y botones de
+descarga. Al final tendrás la base del dashboard del proyecto integrador
+(Módulo~\ref{cap:proyecto}).
+
+% ----------------------------------------------------------------------------
+\section{¿Qué es un dashboard de BI y qué lo hace bueno?}
+\label{sec:m6-dashboard}
+
+\begin{concepto}{Dashboard de BI}
+Un \termino{dashboard} (tablero de control) es una pantalla que reúne los
+indicadores más importantes de un negocio para que una audiencia concreta
+pueda \emph{monitorear} cómo va y \emph{decidir} qué hacer, de un vistazo.
+Un \termino{KPI} (\emph{Key Performance Indicator}, indicador clave de
+desempeño) es una cifra que resume algo que importa: ventas, ticket
+promedio, clientes activos, margen. Un dashboard \emph{interactivo} además
+deja filtrar y profundizar sin pedirle nada al analista.
+\end{concepto}
+
+Un dashboard no es ``poner todas las gráficas que tengo en una pantalla''.
+Los buenos comparten cinco rasgos:
+
+\begin{enumerate}
+  \item \textbf{Tiene una audiencia definida.} El director general quiere
+        cinco cifras y una tendencia; el gerente de tienda quiere detalle de
+        su sucursal; el analista quiere descargar datos. Un dashboard para
+        ``todos'' no le sirve bien a nadie.
+  \item \textbf{Responde preguntas concretas.} Antes de programar, escribe
+        las 3--5 preguntas que debe contestar (``¿vamos arriba o abajo del
+        mes pasado?'', ``¿qué tienda jala hacia abajo?''). Cada elemento de
+        la pantalla debe responder a una de ellas.
+  \item \textbf{Pone los KPIs arriba.} La vista sigue un patrón en ``Z'': lo
+        primero que se lee es la esquina superior izquierda. Ahí van las
+        cifras principales en tarjetas grandes; debajo, las tendencias; al
+        final, el detalle (tablas).
+  \item \textbf{Agrupa los filtros en un solo lugar.} Todos los filtros
+        juntos (en una barra lateral o en una fila arriba), con valores por
+        defecto sensatos (``todo el año'', ``todas las tiendas'') y que
+        afecten a toda la página por igual.
+  \item \textbf{Menos es más.} Pocas gráficas, bien elegidas, con un solo
+        color salvo que el color signifique algo, ejes con formato de negocio
+        (\$, \%, miles) y títulos que digan qué mirar. Lo que aprendiste en el
+        Módulo~\ref{cap:visualizacion} aplica aquí multiplicado.
+\end{enumerate}
+
+La figura~\ref{fig:m6-anatomia-dashboard} resume esa jerarquía visual. La
+usaremos como plantilla para el dashboard ejecutivo de la
+sección~\ref{sec:m6-shinydashboard}.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    font=\sffamily\small,
+    zona/.style={draw=gristexto!60, rounded corners=2pt, align=center},
+    kpi/.style={zona, fill=primario!12, minimum width=2.55cm, minimum height=1.1cm},
+    graf/.style={zona, fill=secundario!10},
+    nota/.style={font=\sffamily\footnotesize, text=gristexto, align=left, anchor=west}]
+  % marco de la pantalla
+  \draw[gristexto, rounded corners=3pt, line width=0.8pt] (0,0) rectangle (11.2,7);
+  \fill[primario!85] (0,6.4) rectangle (11.2,7);
+  \node[white, anchor=west] at (0.2,6.7) {\textbf{Ventas 2023}};
+  % filtros
+  \node[zona, fill=acento!12, minimum width=10.8cm, minimum height=0.6cm,
+        anchor=north west] at (0.2,6.2)
+        {Filtros: \ periodo \quad tienda \quad categoría \quad [Quitar filtros]};
+  % kpis
+  \foreach \i/\t/\v in {0/Ventas/\$959,993, 1/Transacciones/1{,}000,
+                        2/Ticket promedio/\$960, 3/Clientes/198} {
+    \node[kpi, anchor=north west] at ({0.2+\i*2.72},5.35)
+      {\textbf{\v}\\[-1pt]{\footnotesize \t}};
+  }
+  % graficas
+  \node[graf, minimum width=6.9cm, minimum height=2.2cm, anchor=north west]
+       at (0.2,4.0) {Tendencia mensual\\(línea)};
+  \node[graf, minimum width=3.7cm, minimum height=2.2cm, anchor=north west]
+       at (7.3,4.0) {Composición\\(barras)};
+  % tabla
+  \node[zona, fill=gray!8, minimum width=10.8cm, minimum height=1.35cm,
+        anchor=north west] at (0.2,1.6) {Detalle: tabla con búsqueda y descarga};
+  % numeración de lectura
+  \foreach \y/\n in {5.9/1, 4.8/2, 2.9/3, 0.9/4} {
+    \node[circle, fill=acento, text=white, inner sep=1.5pt, font=\sffamily\scriptsize\bfseries]
+      at (11.55,\y) {\n};
+  }
+  \node[nota] at (11.8,5.9) {Filtros en un\\solo lugar};
+  \node[nota] at (11.8,4.8) {KPIs arriba};
+  \node[nota] at (11.8,2.9) {Tendencias y\\comparaciones};
+  \node[nota] at (11.8,0.9) {Detalle al final};
+\end{tikzpicture}
+\caption{Jerarquía de un buen dashboard: filtros juntos, KPIs arriba,
+tendencias en medio y detalle al final.}
+\label{fig:m6-anatomia-dashboard}
+\end{figure}
+
+\begin{negocio}{Tres dashboards, tres audiencias}
+En una cadena de retail es común tener al menos tres vistas de los mismos
+datos: (1) un \emph{dashboard ejecutivo} para la dirección, con 4--6 KPIs,
+la tendencia contra el año anterior y el ranking de tiendas; (2) un
+\emph{dashboard operativo} para gerentes de tienda, filtrado a su sucursal,
+con ventas del día, inventario bajo y desempeño por vendedor; y (3) un
+\emph{explorador analítico} para el equipo de BI, con muchos filtros, tablas
+detalladas y descarga de datos. Mismo origen, distinto diseño.
+\end{negocio}
+
+\subsection{Shiny frente a Power BI y Tableau}
+
+Seguramente conoces herramientas como Power BI o Tableau, que permiten armar
+dashboards arrastrando campos con el ratón. ¿Por qué aprender Shiny? No se
+trata de que una herramienta sea mejor que otra, sino de elegir la adecuada
+para cada caso (tabla~\ref{tab:m6-shiny-vs-bi}).
+
+\begin{table}[H]
+\centering
+\caption{Cuándo conviene cada herramienta.}
+\label{tab:m6-shiny-vs-bi}
+\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.1cm}
+                             >{\raggedright\arraybackslash}X
+                             >{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Aspecto} & \textbf{Power BI / Tableau} & \textbf{Shiny (R)} \\
+\midrule
+Curva de aprendizaje & Baja: arrastrar y soltar & Media: hay que programar \\
+Tiempo al primer tablero & Minutos & Una o dos horas \\
+Lógica compleja (modelos, simulaciones, pronósticos) & Limitada o con
+extensiones & Todo lo que R sabe hacer: \paquete{forecast}, modelos de
+Machine Learning, optimización \\
+Reproducibilidad y control de versiones & Archivos binarios difíciles de
+comparar & Código de texto: Git, revisiones, pruebas automáticas \\
+Diseño a la medida & Dentro de lo que ofrece la herramienta & Total (HTML,
+CSS, JavaScript si hace falta) \\
+Costo & Licencia por usuario & Paquete gratuito; el servidor puede ser
+gratuito o de pago \\
+Ideal para & Reportes corporativos estándar, autoservicio de usuarios de
+negocio & Apps analíticas a la medida, prototipos rápidos para quien ya
+trabaja en R, herramientas con modelos \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{consejo}
+Muchas empresas usan ambos: Power BI o Tableau para los reportes estándar que
+consume toda la organización, y Shiny para las herramientas analíticas que
+necesitan un modelo o una lógica que esas plataformas no cubren (un
+simulador de precios, un pronóstico de demanda, un segmentador de clientes).
+Saber Shiny te permite construir justo lo que las otras herramientas no
+pueden.
+\end{consejo}
+
+% ----------------------------------------------------------------------------
+\section{Anatomía de una app Shiny}
+\label{sec:m6-anatomia}
+
+\subsection{Instalación}
+
+Los paquetes de este módulo se instalan una sola vez:
+
+\begin{rnoejecutar}
+install.packages(c("shiny", "shinydashboard", "DT", "plotly", "writexl"))
+\end{rnoejecutar}
+
+A lo largo del módulo usaremos estos paquetes. Cárgalos al inicio de tu
+script (al cargar \paquete{shinydashboard} y \paquete{DT} verás avisos de que
+``enmascaran'' funciones como \codigo{box()} o \codigo{renderDataTable()}; son
+normales):
+
+\begin{rcode}
+library(shiny)            # apps web con R
+library(shinydashboard)   # plantillas de dashboard
+library(DT)               # tablas interactivas
+library(tidyverse)        # dplyr, ggplot2, readr...
+library(lubridate)        # fechas
+library(scales)           # formatos de moneda y porcentaje
+options(width = 70)
+\end{rcode}
+
+\subsection{Las tres piezas: \texorpdfstring{\codigo{ui}, \codigo{server} y \codigo{shinyApp()}}{ui, server y shinyApp()}}
+
+\begin{concepto}{Estructura de toda app Shiny}
+Toda app Shiny tiene tres piezas:
+\begin{itemize}
+  \item \codigo{ui} (\emph{user interface}): describe lo que el usuario
+        \textbf{ve}. Es un objeto de R que en realidad es HTML: títulos,
+        cajas de entrada, huecos donde irán las gráficas.
+  \item \codigo{server}: una función con los argumentos \codigo{input},
+        \codigo{output} y \codigo{session} que contiene la \textbf{lógica}:
+        lee lo que el usuario eligió (\codigo{input\$...}) y produce
+        resultados (\codigo{output\$...}).
+  \item \codigo{shinyApp(ui, server)}: une ambas piezas y crea la app.
+\end{itemize}
+\end{concepto}
+
+Cuando lanzas una app, R arranca un pequeño \termino{servidor web} en tu
+computadora. El navegador pide la página, recibe el HTML de la \codigo{ui} y
+abre una conexión permanente (un \termino{WebSocket}) con R. Cada vez que
+mueves un control, el navegador envía el nuevo valor; R recalcula
+\emph{solo} lo que depende de ese valor y devuelve el resultado
+(figura~\ref{fig:m6-flujo}).
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    font=\sffamily\small, >={Stealth[length=2.5mm]},
+    caja/.style={draw, rounded corners=3pt, line width=0.8pt, align=center,
+                 minimum width=4.6cm, minimum height=3.7cm},
+    mini/.style={draw=gristexto!70, rounded corners=1.5pt, fill=white,
+                 font=\sffamily\footnotesize, minimum width=3.6cm, align=center}]
+  \node[caja, draw=secundario, fill=secundario!6] (nav) at (0,0) {};
+  \node[font=\sffamily\bfseries, text=secundario, anchor=north]
+       at (nav.north) {Navegador (lo que ve el usuario)};
+  \node[mini] (in1) at (0,0.55) {Precio: [ 1200 ]};
+  \node[mini] (in2) at (0,-0.15) {Descuento: \textbf{-----o-----} 25\%};
+  \node[mini, fill=exito!8] (out1) at (0,-1.05) {Precio final: \$900};
+  \node[caja, draw=primario, fill=primario!5] (r) at (8.2,0) {};
+  \node[font=\sffamily\bfseries, text=primario, anchor=north]
+       at (r.north) {Sesión de R (server)};
+  \node[mini, font=\ttfamily\footnotesize] (inr) at (8.2,0.4)
+       {input\$precio\\input\$descuento};
+  \node[mini, font=\ttfamily\footnotesize, fill=primario!8] (calc) at (8.2,-1.05)
+       {output\$precio\_final <-\\renderText(\{...\})};
+  \draw[->, thick, acento] (in1.east) to[out=10, in=170]
+       node[above, font=\sffamily\scriptsize, text=acento] {1. el usuario cambia un valor} (inr.west);
+  \draw[->, thick, primario] (inr.south) -- node[right, font=\sffamily\scriptsize] {2. R recalcula} (calc.north);
+  \draw[->, thick, exito] (calc.west) --
+       node[below, font=\sffamily\scriptsize, text=exito, align=center] {3. envía el resultado\\(texto, imagen, HTML)} (out1.east);
+  \node[font=\sffamily\scriptsize, text=gristexto] at (4.1,-2.35)
+       {Conexión permanente (WebSocket) mientras la pestaña esté abierta};
+\end{tikzpicture}
+\caption{Flujo de una app Shiny: el navegador envía entradas, R recalcula y
+devuelve salidas.}
+\label{fig:m6-flujo}
+\end{figure}
+
+\subsection{Tu primera app paso a paso}
+\label{sec:m6-primera-app}
+
+\begin{ejemplo}{Calculadora de precio con descuento}
+El área comercial quiere que los vendedores calculen el precio final de un
+producto con descuento sin abrir Excel. La app debe tener dos entradas
+(precio de lista y porcentaje de descuento) y mostrar el precio final. Está
+en \archivo{latex/codigo/apps/01-primera-app/app.R}.
+\end{ejemplo}
+
+Este es el archivo completo. Léelo con calma: son apenas 30 líneas de código
+útil y contienen todo lo esencial de Shiny.
+
+\begin{rnoejecutar}[title=latex/codigo/apps/01-primera-app/app.R]
+# 1. Paquete -------------------------------------------------------------
+library(shiny)          # el motor de las apps web con R
+
+# 2. Interfaz (ui): lo que el usuario VE en el navegador -----------------
+ui <- fluidPage(                       # página que se adapta al ancho
+  titlePanel("Calculadora de precio con descuento"),   # título
+
+  # Entrada 1: una caja para escribir un número (el precio de lista)
+  numericInput(inputId = "precio", label = "Precio de lista ($):",
+               value = 500, min = 0, step = 10),
+
+  # Entrada 2: un deslizador para elegir el descuento
+  sliderInput(inputId = "descuento", label = "Descuento (%):",
+              min = 0, max = 50, value = 10, step = 5),
+
+  # Salida: un hueco donde el servidor escribirá el resultado
+  h3(textOutput(outputId = "precio_final"))
+)
+
+# 3. Servidor (server): la lógica que CORRE en R -------------------------
+server <- function(input, output, session) {
+  # renderText() se vuelve a ejecutar SOLO cuando cambian las entradas
+  # que usa (input$precio o input$descuento): eso es la reactividad
+  output$precio_final <- renderText({
+    final <- input$precio * (1 - input$descuento / 100)
+    paste0("Precio final: ", scales::dollar(final))
+  })
+}
+
+# 4. Unir interfaz y servidor: esto crea (y lanza) la app ----------------
+shinyApp(ui = ui, server = server)
+\end{rnoejecutar}
+
+Vamos por partes:
+
+\begin{itemize}
+  \item \textbf{Línea 2:} \codigo{library(shiny)} carga el paquete. Toda app
+        empieza así.
+  \item \textbf{Líneas 5--18, la \codigo{ui}:} \codigo{fluidPage()} crea una
+        página que se adapta al ancho de la pantalla (de computadora o de
+        celular). Dentro van, separados \emph{por comas}, sus elementos: un
+        título, dos \termino{entradas} (\emph{inputs}) y una
+        \termino{salida} (\emph{output}).
+  \item \textbf{El \codigo{inputId}:} cada entrada tiene un identificador
+        único (\codigo{"precio"}, \codigo{"descuento"}). Es el nombre con el
+        que el servidor lee su valor: \codigo{input\$precio}.
+  \item \textbf{\codigo{textOutput("precio\_final")}:} reserva un hueco en
+        la página. No calcula nada; solo dice ``aquí irá un texto llamado
+        \codigo{precio\_final}''. Lo envolvemos en \codigo{h3()} para que se
+        vea grande (\codigo{h3} es un encabezado de HTML).
+  \item \textbf{Líneas 21--28, el \codigo{server}:} es una función. Dentro
+        asignamos \codigo{output\$precio\_final} con \codigo{renderText()}.
+        El código entre llaves lee \codigo{input\$precio} e
+        \codigo{input\$descuento}, calcula y devuelve un texto.
+  \item \textbf{La magia:} no escribimos ningún ``cuando el usuario mueva el
+        deslizador, recalcula''. Shiny detecta solo que
+        \codigo{renderText()} usó esas dos entradas y lo vuelve a ejecutar
+        cada vez que alguna cambia. Eso es la \termino{reactividad}.
+  \item \textbf{Línea 31:} \codigo{shinyApp()} une las piezas. Si ejecutas
+        el archivo, la app se abre.
+\end{itemize}
+
+La \codigo{ui} es solo un objeto de R que genera HTML. Puedes construir una
+entrada en la consola e imprimirla para ver lo que el navegador recibirá.
+Es un gran recurso para entender (y depurar) Shiny:
+
+\begin{rcode}
+# Una entrada numérica, igual a la de la app, impresa en la consola
+numericInput(inputId = "precio", label = "Precio de lista ($):",
+             value = 500, min = 0, step = 10)
+\end{rcode}
+\begin{rsalida}
+<div class="form-group shiny-input-container">
+  <label class="control-label" id="precio-label" for="precio">Precio de lista ($):</label>
+  <input id="precio" type="number" class="shiny-input-number form-control" value="500" min="0" step="10"/>
+</div>
+\end{rsalida}
+
+Observa el \codigo{id="precio"}: el \codigo{inputId} se convierte en el
+identificador del elemento HTML, y por eso \textbf{debe ser único} en toda la
+app. Las salidas son todavía más simples, un contenedor vacío con una clase
+especial que Shiny sabe llenar:
+
+\begin{rcode}
+textOutput(outputId = "precio_final")
+plotOutput(outputId = "grafica", height = "300px")
+\end{rcode}
+\begin{rsalida}
+<div id="precio_final" class="shiny-text-output"></div>
+<div class="shiny-plot-output html-fill-item" id="grafica" style="width:100%;height:300px;"></div>
+\end{rsalida}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\sffamily\small]
+  \draw[gristexto, rounded corners=3pt, line width=0.8pt] (0,0) rectangle (9,4.6);
+  \fill[gray!12] (0,4.1) rectangle (9,4.6);
+  \foreach \x in {0.25,0.5,0.75} \fill[gray!45] (\x,4.35) circle (0.07);
+  \node[anchor=west, font=\sffamily\footnotesize, text=gristexto] at (1,4.35) {http://127.0.0.1:XXXX};
+  \node[anchor=west, font=\sffamily\Large] at (0.3,3.55) {Calculadora de precio con descuento};
+  \node[anchor=west] at (0.3,2.85) {Precio de lista (\$):};
+  \draw[gristexto!80, fill=white] (0.3,2.1) rectangle (4.3,2.6);
+  \node[anchor=west] at (0.4,2.35) {500};
+  \node[anchor=west] at (0.3,1.7) {Descuento (\%):};
+  \draw[line width=2pt, secundario!50] (0.4,1.2) -- (4.2,1.2);
+  \draw[line width=2pt, secundario] (0.4,1.2) -- (1.16,1.2);
+  \fill[white, draw=secundario] (1.16,1.2) circle (0.12);
+  \node[font=\sffamily\scriptsize, text=gristexto] at (0.4,0.9) {0};
+  \node[font=\sffamily\scriptsize, text=gristexto] at (4.2,0.9) {50};
+  \node[font=\sffamily\scriptsize, text=secundario] at (1.16,1.5) {10};
+  \node[anchor=west, font=\sffamily\large\bfseries] at (0.3,0.4) {Precio final: \$450};
+  \draw[<-, acento, thick] (4.4,2.35) -- (5.6,2.35) node[right, font=\sffamily\footnotesize] {\codigo{numericInput("precio")}};
+  \draw[<-, acento, thick] (4.4,1.2) -- (5.6,1.2) node[right, font=\sffamily\footnotesize] {\codigo{sliderInput("descuento")}};
+  \draw[<-, exito, thick] (3.6,0.4) -- (5.6,0.4) node[right, font=\sffamily\footnotesize] {\codigo{textOutput("precio\_final")}};
+\end{tikzpicture}
+\caption{Maqueta de la app 01 tal como se ve en el navegador.}
+\label{fig:m6-maqueta-app01}
+\end{figure}
+
+\subsection{Cómo ejecutar (y detener) una app}
+\label{sec:m6-ejecutar}
+
+Tienes tres formas de lanzar una app guardada en un archivo \archivo{app.R}:
+
+\begin{enumerate}
+  \item Abrir \archivo{app.R} en RStudio y pulsar el botón
+        \menu{Run App} (arriba a la derecha del editor). Con la flechita del
+        botón eliges si se abre en el visor de RStudio o en tu navegador.
+  \item Desde la consola, con el directorio de trabajo en la carpeta del
+        curso, pasar a \codigo{runApp()} la \emph{carpeta} que contiene el
+        \archivo{app.R}:
+\end{enumerate}
+
+\begin{rnoejecutar}
+# Directorio de trabajo: la carpeta del curso (la que contiene datasets/)
+getwd()
+shiny::runApp("latex/codigo/apps/01-primera-app")
+shiny::runApp("latex/codigo/apps/02-explorador-ventas")
+shiny::runApp("latex/codigo/apps/03-dashboard-ejecutivo")
+\end{rnoejecutar}
+
+\begin{enumerate}[start=3]
+  \item Si defines \codigo{ui} y \codigo{server} en tu script, ejecutar
+        \codigo{shinyApp(ui, server)} en la consola también la abre.
+\end{enumerate}
+
+Mientras la app está abierta, la consola de R queda \emph{ocupada} (verás
+\codigo{Listening on http://127.0.0.1:XXXX}) y no acepta otros comandos. Para
+detenerla pulsa \tecla{Esc} en la consola, el botón rojo \menu{Stop} del
+panel de consola, o cierra la ventana de la app.
+
+\begin{advertencia}
+Todo lo que escribe \codigo{print()} o \codigo{message()} dentro del
+\codigo{server} aparece en la \emph{consola de R}, no en la página. Úsalo
+para depurar: si no sabes qué valor tiene una entrada, escribe
+\codigo{print(input\$descuento)} dentro del \codigo{renderText()} y mira la
+consola mientras mueves el control.
+\end{advertencia}
+
+\subsection{El truco para que las apps encuentren \texorpdfstring{\archivo{datasets/}}{datasets/}}
+\label{sec:m6-rutas}
+
+Aquí hay una trampa en la que cae casi todo el mundo. Cuando ejecutas
+\codigo{runApp("latex/codigo/apps/02-explorador-ventas")}, Shiny
+\textbf{cambia el directorio de trabajo a la carpeta de la app} mientras
+esta corre. Por eso, dentro de la app, la ruta relativa
+\archivo{datasets/transacciones.csv} ya no existe y \codigo{read\_csv()}
+falla con un mensaje como este (recortado):
+
+\begin{textocodigo}
+Error: 'datasets/transacciones.csv' does not exist in current working
+directory ('C:/Users/tu_usuario/curso-bi-rstudio/latex/codigo/apps/02-explorador-ventas').
+\end{textocodigo}
+
+Hay varias soluciones: copiar los datos dentro de la carpeta de la app (lo
+normal al publicarla), usar una ruta absoluta (frágil: solo funciona en tu
+computadora) o, la que usan las apps de este libro, \textbf{buscar la carpeta
+\archivo{datasets/} subiendo directorios}: primero en la carpeta actual,
+luego en la de arriba (\archivo{..}), luego en la de más arriba, hasta
+encontrarla. Así la app funciona tanto si la lanzas desde la carpeta del
+curso como si pulsas \menu{Run App} con el archivo abierto.
+
+\begin{rcode}
+# Busca datasets/transacciones.csv subiendo carpetas desde 'desde'
+buscar_datasets <- function(desde = ".", max_niveles = 6) {
+  carpeta <- desde
+  for (i in 0:max_niveles) {
+    candidato <- file.path(carpeta, "datasets", "transacciones.csv")
+    if (file.exists(candidato)) {
+      return(file.path(carpeta, "datasets"))   # ¡encontrada!
+    }
+    carpeta <- file.path(carpeta, "..")        # sube un nivel
+  }
+  stop("No encontré datasets/transacciones.csv. Ejecuta primero ",
+       "source('datasets/generar_datasets.R') en la carpeta del curso.",
+       call. = FALSE)
+}
+\end{rcode}
+
+Pruébala. Desde la carpeta del curso la encuentra a la primera; desde la
+carpeta de la app 02 tiene que subir cuatro niveles:
+
+\begin{rcode}
+buscar_datasets()                    # desde la carpeta del curso
+carpeta_app <- "latex/codigo/apps/02-explorador-ventas"
+buscar_datasets(desde = carpeta_app) # como la vería la app
+file.exists(file.path(buscar_datasets(carpeta_app), "tiendas.csv"))
+\end{rcode}
+\begin{rsalida}
+[1] "./datasets"
+[1] "latex/codigo/apps/02-explorador-ventas/../../../../datasets"
+[1] TRUE
+\end{rsalida}
+
+La segunda ruta se lee ``desde la carpeta de la app, sube cuatro veces y
+entra a \archivo{datasets}''. Si la función no encuentra los datos, se
+detiene con un mensaje en español que dice exactamente qué hacer, mucho más
+útil que el error genérico de \codigo{read\_csv()}.
+
+\begin{hazlotu}
+Ejecuta \codigo{shiny::runApp("latex/codigo/apps/01-primera-app")}, cambia
+el precio a 1,200 y el descuento a 25\%. ¿Qué precio final ves? (Debe ser
+\$900). Después detén la app con \tecla{Esc}.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Entradas y salidas}
+\label{sec:m6-entradas-salidas}
+
+\subsection{Las entradas más útiles en BI}
+
+Una \termino{entrada} (\emph{input}) es cualquier control con el que el
+usuario le dice algo a la app. Todas las funciones de entrada tienen la misma
+forma: \codigo{xxxInput(inputId, label, ...)}. El primer argumento es el
+identificador (lo que usarás como \codigo{input\$inputId}), el segundo la
+etiqueta visible y el resto depende del control. La
+tabla~\ref{tab:m6-entradas} resume las que más usarás y, muy importante,
+\emph{qué tipo de valor llega} al servidor.
+
+\begin{table}[H]
+\centering
+\caption{Entradas frecuentes en dashboards y el valor que recibe el servidor.}
+\label{tab:m6-entradas}
+\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.6cm}
+                             >{\raggedright\arraybackslash}X
+                             >{\raggedright\arraybackslash}p{4.3cm}}
+\toprule
+\textbf{Función} & \textbf{Uso típico} & \textbf{Valor en \codigo{input\$id}} \\
+\midrule
+\codigo{selectInput()} & Elegir una tienda, un año, una métrica & Texto
+(\codigo{"Sucursal Centro"}) \\
+\codigo{selectizeInput(..., multiple = TRUE)} & Elegir varias categorías,
+con buscador & Vector de texto, o \codigo{NULL} si no hay nada elegido \\
+\codigo{dateRangeInput()} & Periodo de análisis & Vector de 2 fechas
+(\codigo{Date}) \\
+\codigo{dateInput()} & Una fecha (corte, día) & Una fecha \\
+\codigo{sliderInput()} & Top N, rango de precios, un porcentaje & Número (o
+2 números si \codigo{value} tiene 2) \\
+\codigo{numericInput()} & Metas, presupuestos, precios & Número (\codigo{NA}
+si el usuario lo borra) \\
+\codigo{checkboxGroupInput()} & Varias opciones visibles a la vez (métodos
+de pago) & Vector de texto, o \codigo{NULL} \\
+\codigo{radioButtons()} & Una opción entre pocas (ventas / unidades) &
+Texto \\
+\codigo{checkboxInput()} & Sí/no (``incluir outlet'') & \codigo{TRUE} o
+\codigo{FALSE} \\
+\codigo{textInput()} & Buscar un cliente por nombre & Texto \\
+\codigo{actionButton()} & ``Calcular'', ``Actualizar'', ``Quitar filtros'' &
+Contador: 0, 1, 2\ldots{} (veces que se pulsó) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{advertencia}
+Presta atención a las entradas \textbf{múltiples}: cuando el usuario no ha
+elegido nada, el valor es \codigo{NULL}, no un vector vacío de texto ni
+\codigo{"Todas"}. Si filtras con \codigo{categoria \%in\% input\$categorias}
+sin revisar eso, te quedarás sin filas. La convención de este libro es:
+\emph{vacío significa ``todas''}, y lo comprobamos con
+\codigo{length(input\$categorias) > 0}.
+\end{advertencia}
+
+Veamos cómo se construyen, con datos reales del curso. Las opciones de los
+menús casi nunca se escriben a mano: se sacan de los datos, así la app no se
+desactualiza cuando abre una tienda nueva.
+
+\begin{rcode}
+# Datos para los ejemplos de esta sección
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+tiendas <- read_csv("datasets/tiendas.csv", show_col_types = FALSE)
+
+# Las opciones salen de los datos, ordenadas
+opciones_tienda <- sort(tiendas$nombre_tienda)
+opciones_pago   <- sort(unique(transacciones$metodo_pago))
+opciones_pago
+\end{rcode}
+\begin{rsalida}
+[1] "Efectivo"        "Tarjeta Crédito" "Tarjeta Débito" 
+[4] "Transferencia"  
+\end{rsalida}
+
+Con esos vectores armamos un ``catálogo'' con las entradas de la
+tabla~\ref{tab:m6-entradas}. Fíjate en las comas entre elementos y en los
+argumentos que controlan el valor inicial:
+
+\begin{rcode}
+ui_catalogo <- fluidPage(
+  selectInput("tienda", "Tienda:", choices = opciones_tienda,
+              selected = "Sucursal Centro"),
+  selectizeInput("pagos", "Métodos de pago:", choices = opciones_pago,
+                 multiple = TRUE, options = list(placeholder = "Todos")),
+  dateRangeInput("fechas", "Periodo:", start = "2023-01-01",
+                 end = "2023-12-31", language = "es", separator = " a ",
+                 format = "dd/mm/yyyy"),
+  sliderInput("top", "Top N:", min = 5, max = 20, value = 10, step = 5),
+  numericInput("meta", "Meta mensual ($):", value = 80000, step = 5000),
+  checkboxGroupInput("trimestres", "Trimestres:",
+                     choices = c("Q1", "Q2", "Q3", "Q4"),
+                     selected = c("Q1", "Q2", "Q3", "Q4"), inline = TRUE),
+  radioButtons("metrica", "Medir por:",
+               choices = c("Ventas ($)" = "ventas",
+                           "Unidades" = "unidades")),
+  actionButton("calcular", "Calcular", icon = icon("play"))
+)
+\end{rcode}
+
+En \codigo{radioButtons()} usamos un vector \emph{con nombres}:
+\codigo{"Ventas (\$)" = "ventas"}. El nombre es lo que ve el usuario y el
+valor (\codigo{"ventas"}) es lo que llega a \codigo{input\$metrica}. Así
+puedes cambiar la etiqueta sin tocar la lógica. Imprime una de las entradas
+para ver cómo quedan las opciones en HTML:
+
+\begin{rcode}
+radioButtons("metrica", "Medir por:",
+             choices = c("Ventas ($)" = "ventas", "Unidades" = "unidades"))
+\end{rcode}
+\begin{rsalida}
+<div id="metrica" class="form-group shiny-input-radiogroup shiny-input-container" role="radiogroup" aria-labelledby="metrica-label">
+  <label class="control-label" id="metrica-label" for="metrica">Medir por:</label>
+  <div class="shiny-options-group">
+    <div class="radio">
+      <label>
+        <input type="radio" name="metrica" value="ventas" checked="checked"/>
+        <span>Ventas ($)</span>
+      </label>
+    </div>
+    <div class="radio">
+      <label>
+        <input type="radio" name="metrica" value="unidades"/>
+        <span>Unidades</span>
+      </label>
+    </div>
+  </div>
+</div>
+\end{rsalida}
+
+El atributo \codigo{value="ventas"} es lo que viaja al servidor; el texto
+entre \codigo{<span>} es solo la etiqueta.
+
+\begin{hazlotu}
+En la consola, imprime \codigo{selectInput("tienda", "Tienda:",
+choices = opciones\_tienda)} y localiza cuál opción aparece con la palabra
+\codigo{selected}. ¿Qué pasa si agregas \codigo{selected = "Sucursal Sur"}?
+\end{hazlotu}
+
+\subsection{Salidas y sus funciones \texorpdfstring{\codigo{render}}{render}}
+
+Una \termino{salida} siempre tiene dos mitades que deben coincidir: en la
+\codigo{ui}, una función \codigo{xxxOutput("id")} que reserva el lugar; en el
+\codigo{server}, una asignación \codigo{output\$id <- renderXxx(\{...\})} que
+produce el contenido. Si usas un \codigo{plotOutput()} con un
+\codigo{renderTable()}, o escribes el id distinto en cada lado, la salida
+simplemente no aparece (sin ningún error). La
+tabla~\ref{tab:m6-salidas} es la que querrás tener a mano.
+
+\begin{table}[H]
+\centering
+\caption{Parejas de funciones de salida (\codigo{ui}) y de render (\codigo{server}).}
+\label{tab:m6-salidas}
+\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.9cm}
+                             >{\raggedright\arraybackslash}p{3.7cm}
+                             >{\raggedright\arraybackslash}X}
+\toprule
+\textbf{En la \codigo{ui}} & \textbf{En el \codigo{server}} &
+\textbf{Qué debe devolver el código} \\
+\midrule
+\codigo{textOutput()} & \codigo{renderText()} & Un texto (un KPI, un
+mensaje) \\
+\codigo{verbatimTextOutput()} & \codigo{renderPrint()} & Lo que imprimiría
+la consola (\codigo{summary()}, \codigo{str()}) \\
+\codigo{plotOutput()} & \codigo{renderPlot()} & Una gráfica (un objeto
+\codigo{ggplot}) \\
+\codigo{tableOutput()} & \codigo{renderTable()} & Un data frame pequeño
+(tabla estática) \\
+\codigo{DT::DTOutput()} & \codigo{DT::renderDT()} & Un data frame o un
+\codigo{datatable()} (tabla con búsqueda, orden y páginas) \\
+\codigo{valueBoxOutput()} & \codigo{renderValueBox()} & Un
+\codigo{valueBox()} de \paquete{shinydashboard} \\
+\codigo{infoBoxOutput()} & \codigo{renderInfoBox()} & Un \codigo{infoBox()} \\
+\codigo{plotly::plotlyOutput()} & \codigo{plotly::renderPlotly()} & Una
+gráfica \paquete{plotly} (por ejemplo, \codigo{ggplotly(p)}) \\
+\codigo{uiOutput()} & \codigo{renderUI()} & Elementos de interfaz creados
+al vuelo \\
+\codigo{downloadButton()} & \codigo{downloadHandler()} & Un archivo para
+descargar (sección~\ref{sec:m6-descargas}) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Probar el servidor sin navegador: \texorpdfstring{\codigo{testServer()}}{testServer()}}
+
+Como no podemos ``hacer clic'' desde un script, usaremos a lo largo del
+módulo una herramienta profesional: \codigo{testServer()}. Recibe la función
+\codigo{server} (o la carpeta de una app) y un bloque de código donde puedes
+simular al usuario con \codigo{session\$setInputs()} y leer las salidas con
+\codigo{output\$id}, todo desde la consola. Es la forma de comprobar que la
+lógica de tu app funciona sin abrir nada.
+
+\begin{ejemplo}{Resumen de ventas por tienda y método de pago}
+Queremos una mini app donde el usuario elija una tienda y, opcionalmente,
+uno o varios métodos de pago, y vea cuántas transacciones y cuánto se
+vendió. Aprovecharemos las entradas del catálogo anterior.
+\end{ejemplo}
+
+\begin{rcode}
+server_catalogo <- function(input, output, session) {
+  output$resumen <- renderText({
+    datos <- transacciones %>%
+      left_join(tiendas, by = "tienda_id") %>%
+      filter(nombre_tienda == input$tienda)
+    if (length(input$pagos) > 0) {          # vacío = todos los métodos
+      datos <- filter(datos, metodo_pago %in% input$pagos)
+    }
+    paste0(input$tienda, ": ", nrow(datos), " transacciones, ",
+           dollar(sum(datos$total_transaccion), accuracy = 1))
+  })
+}
+
+testServer(server_catalogo, {
+  session$setInputs(tienda = "Sucursal Centro", pagos = NULL)
+  print(output$resumen)                      # todos los métodos
+  session$setInputs(pagos = c("Efectivo", "Transferencia"))
+  print(output$resumen)                      # solo dos métodos
+})
+\end{rcode}
+\begin{rsalida}
+[1] "Sucursal Centro: 87 transacciones, $88,414"
+[1] "Sucursal Centro: 36 transacciones, $30,727"
+\end{rsalida}
+
+La Sucursal Centro tuvo 87 transacciones en el año, por \$88,414; si nos
+quedamos solo con efectivo y transferencia, bajan a 36. Fíjate en que la segunda llamada a
+\codigo{setInputs()} solo cambia \codigo{pagos}: la tienda conserva su valor,
+igual que en el navegador. Para ver la app en acción bastaría con:
+
+\begin{rnoejecutar}
+shinyApp(ui = fluidPage(ui_catalogo, h3(textOutput("resumen"))),
+         server = server_catalogo)
+\end{rnoejecutar}
+
+% ----------------------------------------------------------------------------
+\section{Reactividad: el concepto más importante}
+\label{sec:m6-reactividad}
+
+\begin{concepto}{Reactividad}
+La \termino{reactividad} es el mecanismo por el que Shiny sabe \emph{qué}
+recalcular y \emph{cuándo}. Funciona como una hoja de cálculo: si la celda
+C1 contiene \codigo{=A1*B1}, al cambiar A1 se recalcula C1 sola. En Shiny
+hay tres tipos de piezas:
+\begin{itemize}
+  \item \textbf{Fuentes reactivas}: las entradas (\codigo{input\$...}). Cambian
+        cuando el usuario actúa.
+  \item \textbf{Conductores}: expresiones intermedias creadas con
+        \codigo{reactive()}. Calculan algo a partir de las fuentes y guardan
+        el resultado (\emph{caché}) hasta que una fuente cambie.
+  \item \textbf{Consumidores (puntos finales)}: las salidas
+        (\codigo{output\$...}) y los observadores (\codigo{observe()},
+        \codigo{observeEvent()}). Son los que realmente ``hacen'' algo.
+\end{itemize}
+\end{concepto}
+
+Shiny construye automáticamente un \termino{grafo reactivo}: un mapa de qué
+depende de qué. La figura~\ref{fig:m6-grafo} muestra el de la app 02 que
+construiremos en la sección~\ref{sec:m6-app02}. Cuando el usuario cambia la
+tienda, Shiny marca como ``desactualizado'' todo lo que está río abajo de
+\codigo{input\$tienda} (el filtrado y las tres salidas) y lo recalcula. Si
+en cambio mueve el deslizador \codigo{n\_top}, solo se recalcula la tabla:
+ni el filtrado ni la gráfica se tocan.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    font=\sffamily\small, >={Stealth[length=2.2mm]},
+    fuente/.style={draw=acento, fill=acento!10, rounded corners=6pt,
+                   minimum width=2.9cm, minimum height=0.65cm, font=\ttfamily\footnotesize},
+    conductor/.style={draw=secundario, fill=secundario!12, rounded corners=2pt,
+                      minimum width=3.2cm, minimum height=0.9cm, font=\ttfamily\footnotesize},
+    salida/.style={draw=primario, fill=primario!10, minimum width=3.1cm,
+                   minimum height=0.65cm, font=\ttfamily\footnotesize},
+    flecha/.style={->, gristexto, thick}]
+  \node[fuente] (tienda) at (0,3) {input\$tienda};
+  \node[fuente] (cat) at (0,2) {input\$categorias};
+  \node[fuente] (fechas) at (0,1) {input\$fechas};
+  \node[fuente] (metrica) at (0,-0.1) {input\$metrica};
+  \node[fuente] (top) at (0,-1.1) {input\$n\_top};
+  \node[conductor] (datos) at (5,2) {datos\_filtrados()};
+  \node[salida] (resumen) at (10,3) {output\$resumen};
+  \node[salida] (grafica) at (10,1.3) {output\$grafica};
+  \node[salida] (tabla) at (10,-0.4) {output\$tabla\_top};
+  \foreach \n in {tienda, cat, fechas} \draw[flecha] (\n.east) -- (datos.west);
+  \draw[flecha] (datos.east) -- (resumen.west);
+  \draw[flecha] (datos.east) -- (grafica.west);
+  \draw[flecha] (datos.east) -- (tabla.west);
+  \draw[flecha] (metrica.east) to[out=0, in=200] (grafica.west);
+  \draw[flecha] (top.east) -- (tabla.west);
+  \node[font=\sffamily\bfseries\footnotesize, text=acento] at (0,3.8) {Fuentes (entradas)};
+  \node[font=\sffamily\bfseries\footnotesize, text=secundario] at (5,3.8) {Conductor (reactive)};
+  \node[font=\sffamily\bfseries\footnotesize, text=primario] at (10,3.8) {Consumidores (salidas)};
+\end{tikzpicture}
+\caption{Grafo reactivo de la app 02: las entradas alimentan una expresión
+reactiva que comparten las tres salidas.}
+\label{fig:m6-grafo}
+\end{figure}
+
+\subsection{\texorpdfstring{\codigo{reactive()}}{reactive()}: calcula una vez, úsalo muchas}
+
+En un dashboard, casi todas las salidas parten de los \emph{mismos datos
+filtrados}. Si cada \codigo{render...()} filtrara por su cuenta, repetirías
+código y harías trabajar a R varias veces. La solución es una
+\termino{expresión reactiva}: \codigo{reactive(\{...\})} guarda el
+resultado y solo lo recalcula si cambia alguna entrada que usó.
+
+\begin{ejemplo}{Dos KPIs a partir de un solo filtrado}
+Queremos mostrar el número de transacciones y el total vendido de la tienda
+elegida. Para \emph{demostrar} que el filtrado ocurre una sola vez por
+tienda, el reactivo deja un mensaje en la consola cada vez que se ejecuta.
+\end{ejemplo}
+
+\begin{rcode}
+server_kpis <- function(input, output, session) {
+  ventas_tienda <- reactive({             # el conductor
+    message("  (filtrando la tienda ", input$tienda, ")")  # rastro
+    filter(transacciones, tienda_id == input$tienda)
+  })
+
+  output$n_ventas <- renderText(nrow(ventas_tienda()))
+  output$total    <- renderText(
+    dollar(sum(ventas_tienda()$total_transaccion), accuracy = 1))
+}
+
+testServer(server_kpis, {
+  session$setInputs(tienda = 3)
+  cat("Tienda 3:", output$n_ventas, "ventas,", output$total, "\n")
+  session$setInputs(tienda = 8)
+  cat("Tienda 8:", output$n_ventas, "ventas,", output$total, "\n")
+})
+\end{rcode}
+\begin{rsalida}
+  (filtrando la tienda 3)
+Tienda 3: 109 ventas, $105,305 
+  (filtrando la tienda 8)
+Tienda 8: 106 ventas, $114,377 
+\end{rsalida}
+
+Leímos dos salidas por cada tienda, pero el mensaje ``filtrando'' aparece
+una sola vez por tienda: la segunda salida reutilizó el resultado guardado.
+La tienda 3 (Sucursal Sur) tuvo 109 ventas por \$105,305 y la 8 (Outlet),
+106 ventas por \$114,377. Con 1,000 filas no
+se nota; con millones de registros o una consulta a una base de datos
+(Módulo~\ref{cap:bases-datos}) es la diferencia entre una app ágil y una
+desesperante.
+
+\begin{advertencia}
+Un reactivo \textbf{se llama como función, con paréntesis}:
+\codigo{ventas\_tienda()}. Si escribes \codigo{ventas\_tienda\$total} (sin
+paréntesis) obtienes uno de los errores más famosos de Shiny:
+\codigo{object of type 'closure' is not subsettable} (en español,
+\codigo{objeto de tipo 'closure' no es subconjunto}). ``Closure'' es como R
+llama a las funciones: le estás pidiendo una columna a una función. Lo
+verás en acción en la sección~\ref{sec:m6-errores}.
+\end{advertencia}
+
+\subsection{\texorpdfstring{\codigo{observe()} y \codigo{observeEvent()}}{observe() y observeEvent()}: efectos secundarios}
+
+Las salidas \emph{producen algo que se muestra}. A veces necesitas
+\emph{hacer} algo sin mostrar nada: escribir en un registro, mostrar una
+notificación, guardar un archivo o actualizar otra entrada. Para eso están
+los \termino{observadores}:
+
+\begin{itemize}
+  \item \codigo{observe(\{...\})} se ejecuta cada vez que cambia
+        \emph{cualquier} entrada que use dentro.
+  \item \codigo{observeEvent(evento, \{...\})} se ejecuta solo cuando cambia
+        \codigo{evento} (típicamente un botón). Es el más usado porque deja
+        claro qué lo dispara.
+\end{itemize}
+
+\begin{ejemplo}{Botón ``Quitar filtros'' y registro de uso}
+El dashboard ejecutivo tendrá un botón que regresa los filtros a sus
+valores iniciales, y al equipo de BI le interesa saber cuántas veces se
+usa. Contaremos los clics con un \codigo{reactiveVal()}, un valor reactivo
+que tú mismo puedes leer (\codigo{clics()}) y modificar
+(\codigo{clics(nuevo\_valor)}).
+\end{ejemplo}
+
+\begin{rcode}
+server_limpiar <- function(input, output, session) {
+  clics <- reactiveVal(0)                     # valor reactivo propio
+
+  observeEvent(input$limpiar, {               # solo al pulsar el botón
+    clics(clics() + 1)                        # suma uno
+    updateSelectInput(session, "tienda", selected = "Todas")
+    message("Filtros reiniciados (clic número ", clics(), ")")
+  })
+
+  output$uso <- renderText(paste("Clics en 'Quitar filtros':", clics()))
+}
+
+testServer(server_limpiar, {
+  session$setInputs(limpiar = 1)              # primer clic
+  session$setInputs(limpiar = 2)              # segundo clic
+  print(output$uso)
+})
+\end{rcode}
+\begin{rsalida}
+Filtros reiniciados (clic número 1)
+Filtros reiniciados (clic número 2)
+[1] "Clics en 'Quitar filtros': 2"
+\end{rsalida}
+
+\codigo{updateSelectInput()} (y sus hermanas \codigo{updateDateRangeInput()},
+\codigo{updateSelectizeInput()}\ldots) cambia desde el servidor el valor de
+una entrada que ya está en la página. El mensaje aparece en la consola de R,
+no en la app: es el lugar ideal para dejar un rastro de lo que ocurre.
+
+\subsection{\texorpdfstring{\codigo{eventReactive()}}{eventReactive()}: calcular solo al pulsar un botón}
+
+Por defecto, Shiny recalcula en cuanto cambias cualquier filtro. Si un
+cálculo es pesado (un modelo, un pronóstico, una consulta grande) es mejor
+que el usuario ajuste todos los filtros con calma y luego pulse
+``Calcular''. \codigo{eventReactive(evento, \{...\})} es un
+\codigo{reactive()} que \emph{solo} se actualiza cuando ocurre el evento.
+
+\begin{rcode}
+server_meta <- function(input, output, session) {
+  # Se recalcula SOLO cuando se pulsa input$calcular
+  proyeccion <- eventReactive(input$calcular, {
+    ventas_mes <- sum(transacciones$total_transaccion) / 12
+    ventas_mes * (1 + input$crecimiento / 100)
+  })
+  output$proyeccion <- renderText(
+    paste("Venta mensual proyectada:", dollar(proyeccion(), accuracy = 1)))
+}
+
+testServer(server_meta, {
+  session$setInputs(crecimiento = 10)     # el usuario mueve el control
+  resultado <- tryCatch(output$proyeccion,
+                        error = function(e) "(vacío: aún no se pulsa)")
+  print(resultado)
+  session$setInputs(calcular = 1)         # ahora sí pulsa el botón
+  print(output$proyeccion)
+  session$setInputs(crecimiento = 20)     # cambia, pero no pulsa
+  print(output$proyeccion)                # sigue el valor anterior
+})
+\end{rcode}
+\begin{rsalida}
+[1] "(vacío: aún no se pulsa)"
+[1] "Venta mensual proyectada: $87,999"
+[1] "Venta mensual proyectada: $87,999"
+\end{rsalida}
+
+Antes del primer clic la salida queda vacía; al pulsar se calcula con 10\%
+(la venta mensual promedio de \$79,999 más 10\% da \$87,999); y cambiar a
+20\% \emph{sin} pulsar no altera nada. Es exactamente lo que hace el botón
+``Aplicar'' de muchos reportes.
+
+\subsection{\texorpdfstring{\codigo{req()}}{req()} y \texorpdfstring{\codigo{validate(need())}}{validate(need())}: condiciones antes de calcular}
+
+Al abrir una app, algunas entradas tardan un instante en tener valor; otras
+veces el usuario deja un campo vacío o elige filtros que no dejan ningún
+dato. Dos herramientas evitan errores rojos en la pantalla:
+
+\begin{itemize}
+  \item \codigo{req(x)} detiene el cálculo \emph{en silencio} si \codigo{x}
+        está vacío (\codigo{NULL}, \codigo{NA}, \codigo{""},
+        \codigo{FALSE}). La salida simplemente se queda en blanco.
+  \item \codigo{validate(need(condicion, "mensaje"))} detiene el cálculo y
+        \emph{muestra el mensaje} en gris en lugar de la salida. Úsalo cuando
+        el usuario necesite saber qué pasó.
+\end{itemize}
+
+\begin{rcode}
+server_ticket <- function(input, output, session) {
+  output$ticket <- renderText({
+    req(input$metodo)                           # sin método: en blanco
+    datos <- filter(transacciones, metodo_pago == input$metodo,
+                    total_transaccion >= input$minimo)
+    validate(need(nrow(datos) > 0,
+                  "No hay transacciones con ese monto mínimo."))
+    paste("Ticket promedio:", dollar(mean(datos$total_transaccion)))
+  })
+}
+
+testServer(server_ticket, {
+  session$setInputs(metodo = "Transferencia", minimo = 0)
+  print(output$ticket)
+  session$setInputs(minimo = 5000)              # nadie gasta tanto
+  tryCatch(output$ticket, error = function(e) print(conditionMessage(e)))
+})
+\end{rcode}
+\begin{rsalida}
+[1] "Ticket promedio: $825.80"
+[1] "No hay transacciones con ese monto mínimo."
+\end{rsalida}
+
+El ticket promedio con transferencia es de \$825.80. Con un mínimo de
+\$5,000 no queda ninguna transacción y, en vez de un error críptico, el
+usuario verá el mensaje que escribimos.
+
+\subsection{\texorpdfstring{\codigo{isolate()}}{isolate()}: leer sin depender}
+
+A veces quieres \emph{leer} una entrada sin que su cambio dispare un
+recálculo. Por ejemplo, el título de una gráfica puede mencionar la meta
+capturada, pero no quieres redibujar la gráfica cada vez que el usuario
+teclea un dígito de la meta. \codigo{isolate(input\$meta)} lee el valor
+actual sin crear la dependencia.
+
+En la consola, fuera de una app, \codigo{isolate()} también sirve para
+``asomarte'' a un valor reactivo:
+
+\begin{rcode}
+precio <- reactiveVal(500)                   # un valor reactivo
+precio_con_iva <- reactive(precio() * 1.16)  # depende de precio
+isolate(precio_con_iva())
+precio(1000)                                 # cambiamos la fuente
+isolate(precio_con_iva())                    # se recalcula solo
+\end{rcode}
+\begin{rsalida}
+[1] 580
+[1] 1160
+\end{rsalida}
+
+\subsection{Dos errores típicos de reactividad}
+\label{sec:m6-errores-reactivos}
+
+El primero: \textbf{llamar a un reactivo fuera de un contexto reactivo}.
+Los reactivos solo pueden leerse dentro de un \codigo{render...()}, un
+\codigo{reactive()}, un \codigo{observe...()} o con \codigo{isolate()}. Si lo
+intentas en la consola o en el cuerpo del \codigo{server}, falla:
+
+\begin{rcode}
+tryCatch(precio_con_iva(),
+         error = function(e) cat(conditionMessage(e), "\n"))
+\end{rcode}
+\begin{rsalida}
+Operation not allowed without an active reactive context.
+* You tried to do something that can only be done from inside a reactive consumer. 
+\end{rsalida}
+
+El segundo es su pariente: \textbf{usar \codigo{input\$...} directamente en
+el cuerpo del \codigo{server}}, fuera de cualquier \codigo{render} o
+\codigo{reactive}. \codigo{input} es un objeto \codigo{reactiveValues}, y
+sus valores tampoco se pueden leer fuera de un consumidor:
+
+\begin{rcode}
+valores <- reactiveValues(n = 5)     # input funciona igual que esto
+tryCatch(valores$n * 2,
+         error = function(e) cat(conditionMessage(e), "\n"))
+\end{rcode}
+\begin{rsalida}
+Can't access reactive value 'n' outside of reactive consumer.
+i Do you need to wrap inside reactive() or observe()? 
+\end{rsalida}
+
+En una app real ese error aparece al abrirla, con la línea culpable, por
+ejemplo \codigo{server <- function(input, output, session) \{ doble <-
+input\$n * 2 ... \}}. La consola muestra
+\codigo{Error in input\$n: Can't access reactive value 'n' outside of reactive
+consumer} y la app se cierra. La solución es la que sugiere el propio
+mensaje: envolver el cálculo en \codigo{reactive()} (\codigo{doble <-
+reactive(input\$n * 2)}) y usarlo como \codigo{doble()}.
+
+\begin{table}[H]
+\centering
+\caption{Herramientas de reactividad: cuál usar.}
+\label{tab:m6-reactividad}
+\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.6cm}
+                             >{\raggedright\arraybackslash}X
+                             >{\raggedright\arraybackslash}p{3.4cm}}
+\toprule
+\textbf{Función} & \textbf{Úsala cuando\ldots} & \textbf{Devuelve} \\
+\midrule
+\codigo{reactive()} & Varias salidas comparten un cálculo (datos
+filtrados, KPIs) & Un valor que se lee con \codigo{()} \\
+\codigo{eventReactive()} & El cálculo debe esperar a un botón & Un valor
+que se lee con \codigo{()} \\
+\codigo{observeEvent()} & Hay que \emph{hacer} algo al pulsar un botón
+(limpiar filtros, guardar, avisar) & Nada (efecto secundario) \\
+\codigo{observe()} & Hay que hacer algo cada vez que cambie cualquier cosa
+que use & Nada \\
+\codigo{reactiveVal()}, \codigo{reactiveValues()} & Necesitas un valor que
+el propio servidor modifique (contadores, historial) & Un valor reactivo \\
+\codigo{req()} & Falta un valor y la salida debe quedar en blanco & --- \\
+\codigo{validate(need())} & Hay que explicar al usuario por qué no hay
+resultado & --- \\
+\codigo{isolate()} & Leer un valor sin crear dependencia & El valor \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{hazlotu}
+Modifica \codigo{server\_ticket} para que, además del ticket promedio,
+muestre cuántas transacciones cumplen la condición. Pruébalo con
+\codigo{testServer()} usando \codigo{metodo = "Efectivo"} y \codigo{minimo
+= 1000}.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Organizar la pantalla: layouts}
+\label{sec:m6-layouts}
+
+\subsection{La cuadrícula de 12 columnas}
+
+Shiny usa por debajo \termino{Bootstrap}, una biblioteca de diseño web que
+divide el ancho de la pantalla en \textbf{12 columnas}. Con
+\codigo{fluidRow()} creas una fila y con \codigo{column(ancho, ...)} repartes
+esas 12 columnas: dos columnas de 6, tres de 4, una de 3 y otra de 9, etc.
+(figura~\ref{fig:m6-cuadricula}). En pantallas angostas (un celular) las
+columnas se apilan una debajo de otra automáticamente.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\sffamily\footnotesize,
+    col/.style={draw=white, line width=1.5pt, minimum height=0.7cm, align=center}]
+  \foreach \i in {1,...,12} {
+    \node[col, fill=gray!15, minimum width=1.2cm] at ({(\i-0.5)*1.2},3) {\i};
+  }
+  \node[col, fill=primario!25, minimum width=4.8cm] at (2.4,2) {\codigo{column(4, ...)}};
+  \node[col, fill=secundario!25, minimum width=9.6cm] at (9.6,2) {\codigo{column(8, ...)}};
+  \foreach \i in {0,...,3} {
+    \node[col, fill=acento!25, minimum width=3.6cm] at ({1.8+\i*3.6},1) {\codigo{column(3, ...)}};
+  }
+  \node[col, fill=exito!20, minimum width=14.4cm] at (7.2,0) {\codigo{column(12, ...)}: todo el ancho};
+  \node[anchor=east, text=gristexto] at (-0.1,3) {Bootstrap};
+  \node[anchor=east, text=gristexto] at (-0.1,2) {Fila 1};
+  \node[anchor=east, text=gristexto] at (-0.1,1) {Fila 2};
+  \node[anchor=east, text=gristexto] at (-0.1,0) {Fila 3};
+\end{tikzpicture}
+\caption{Cada \codigo{fluidRow()} reparte 12 columnas entre sus
+\codigo{column()}. Los anchos de una fila deben sumar 12 o menos.}
+\label{fig:m6-cuadricula}
+\end{figure}
+
+\begin{rcode}
+fluidRow(
+  column(4, "Aquí van los filtros"),
+  column(8, "Aquí va la gráfica")
+)
+\end{rcode}
+\begin{rsalida}
+<div class="row">
+  <div class="col-sm-4">Aquí van los filtros</div>
+  <div class="col-sm-8">Aquí va la gráfica</div>
+</div>
+\end{rsalida}
+
+Cada \codigo{column(4, ...)} se convierte en un \codigo{<div
+class="col-sm-4">}: la clase le dice a Bootstrap que ocupe 4 de las 12
+columnas en pantallas pequeñas o mayores (\codigo{sm}, de \emph{small}).
+
+\subsection{Los layouts que más usarás}
+
+\begin{itemize}
+  \item \codigo{fluidPage()}: la página base; ocupa todo el ancho.
+  \item \codigo{sidebarLayout(sidebarPanel(...), mainPanel(...))}: la
+        estructura clásica ``filtros a la izquierda, resultados a la
+        derecha''. Por defecto la barra ocupa 4 columnas y el panel 8; con
+        \codigo{width = 3} y \codigo{width = 9} das más espacio a las
+        gráficas.
+  \item \codigo{tabsetPanel(tabPanel("Título", ...), ...)}: pestañas
+        dentro de una zona de la página.
+  \item \codigo{navbarPage("Título", tabPanel(...), ...)}: una barra de
+        navegación superior en la que cada \codigo{tabPanel()} es una
+        ``página'' completa.
+\end{itemize}
+
+Este esqueleto combina todos (construir la \codigo{ui} es seguro en un
+script; solo \codigo{shinyApp()} lanza la app):
+
+\begin{rcode}
+ui_esqueleto <- navbarPage(
+  "Ventas 2023",
+  tabPanel("Explorar",
+    sidebarLayout(
+      sidebarPanel(width = 3,
+                   selectInput("tienda", "Tienda:", c("Todas", "Centro"))),
+      mainPanel(width = 9,
+        tabsetPanel(
+          tabPanel("Gráfica", plotOutput("grafica")),
+          tabPanel("Tabla", tableOutput("tabla"))
+        )
+      )
+    )
+  ),
+  tabPanel("Acerca de", p("Datos simulados del curso."))
+)
+class(ui_esqueleto)
+\end{rcode}
+\begin{rsalida}
+[1] "shiny.tag.list" "list"          
+\end{rsalida}
+
+La \codigo{ui} completa es una ``lista de etiquetas'' HTML
+(\codigo{shiny.tag.list}). Nada se dibuja hasta que el navegador la recibe.
+
+\begin{advertencia}
+El error más frecuente al armar layouts es \textbf{olvidar una coma} entre
+dos elementos, o dejar una coma \emph{de más} después del último. Una coma
+faltante produce \codigo{Error: unexpected symbol} al ejecutar el archivo;
+RStudio además marca la línea con una cruz roja. Revisa siempre la línea
+anterior a la que señala el error. Sangrar el código (\tecla{Ctrl} +
+\tecla{I} en RStudio) ayuda a ver qué está dentro de qué.
+\end{advertencia}
+
+% ----------------------------------------------------------------------------
+\section{Caso práctico 1: el explorador de ventas}
+\label{sec:m6-app02}
+
+\begin{ejemplo}{Explorador de ventas 2023}
+El equipo comercial quiere explorar las 1,000 transacciones de 2023 por
+tienda, categoría y periodo; ver la evolución mensual medida en ventas,
+unidades o número de transacciones; y consultar el top de productos. La app
+completa está en \archivo{latex/codigo/apps/02-explorador-ventas/app.R}
+(unas 160 líneas) y su distribución se muestra en la
+figura~\ref{fig:m6-maqueta-app02}.
+\end{ejemplo}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\sffamily\footnotesize,
+    zona/.style={draw=gristexto!60, rounded corners=2pt, align=center}]
+  \draw[gristexto, rounded corners=3pt, line width=0.8pt] (0,0) rectangle (13,7.2);
+  \node[anchor=west, font=\sffamily\large] at (0.2,6.8) {Explorador de ventas 2023};
+  % sidebar
+  \node[zona, fill=gray!10, minimum width=3.2cm, minimum height=6.1cm,
+        anchor=north west] at (0.2,6.4) {};
+  \foreach \y/\t in {6.0/Tienda: [Todas \ding{116}], 5.0/Categorías: [ Todas ],
+                     4.0/Periodo: [01/01 a 31/12], 2.9/Medir por:\\ (o) Ventas\\ ( ) Unidades\\ ( ) Transacciones,
+                     1.2/Productos en el top:\\ \textbf{---o---} 10} {
+    \node[anchor=north west, align=left] at (0.35,\y) {\t};
+  }
+  % main
+  \node[anchor=west, font=\sffamily\bfseries] at (3.7,6.1)
+       {1,000 transacciones | Ventas: \$959,993};
+  \draw[gristexto!60] (3.7,5.55) -- (12.8,5.55);
+  \node[zona, fill=secundario!15, anchor=south west, minimum width=2.6cm,
+        minimum height=0.45cm] at (3.7,5.55) {Evolución mensual};
+  \node[zona, fill=white, anchor=south west, minimum width=2.3cm,
+        minimum height=0.45cm] at (6.35,5.55) {Top productos};
+  \node[zona, fill=secundario!8, minimum width=9.1cm, minimum height=5.0cm,
+        anchor=north west] at (3.7,5.4) {};
+  \foreach \x/\h in {0/2.6,1/2.1,2/2.9,3/1.8,4/3.0,5/2.8,6/2.7,7/2.5,8/2.2,9/2.2,10/2.6,11/3.1} {
+    \fill[color=primario!60] ({4.1+\x*0.72},0.8) rectangle ++(0.5,\h);
+  }
+  \draw[gristexto] (3.9,0.8) -- (12.6,0.8);
+  % callouts
+  \node[text=acento, anchor=west] at (9.2,4.8) {\codigo{plotOutput("grafica")}};
+  \node[text=acento, anchor=west, font=\sffamily\scriptsize] at (3.75,6.45) {\codigo{textOutput("resumen")}};
+\end{tikzpicture}
+\caption{Maqueta de la app 02: filtros en la barra lateral, resumen arriba y
+resultados en dos pestañas.}
+\label{fig:m6-maqueta-app02}
+\end{figure}
+
+Recorreremos el archivo en el mismo orden en que está escrito. Esa
+organización (paquetes $\rightarrow$ datos $\rightarrow$ funciones
+$\rightarrow$ interfaz $\rightarrow$ servidor) es la que te recomiendo para
+cualquier app.
+
+\subsection{Datos: se leen una sola vez, al arrancar}
+
+Todo lo que está \emph{fuera} del \codigo{server} se ejecuta una sola vez,
+cuando arranca la app, y lo comparten todos los usuarios. Por eso ahí leemos
+y unimos los datos: si lo hiciéramos dentro del \codigo{server}, cada
+persona que abra la app volvería a leer los CSV. Usamos
+\codigo{buscar\_datasets()} (sección~\ref{sec:m6-rutas}) y
+\codigo{floor\_date()} de \paquete{lubridate} para tener el primer día de
+cada mes (ideal para graficar por mes con un eje de fechas).
+
+\begin{rcode}
+carpeta_datos <- buscar_datasets()
+tiendas   <- read_csv(file.path(carpeta_datos, "tiendas.csv"),
+                      show_col_types = FALSE)
+productos <- read_csv(file.path(carpeta_datos, "productos.csv"),
+                      show_col_types = FALSE)
+ventas <- read_csv(file.path(carpeta_datos, "transacciones.csv"),
+                   show_col_types = FALSE) %>%
+  left_join(select(tiendas, tienda_id, nombre_tienda), by = "tienda_id") %>%
+  left_join(select(productos, producto_id, nombre_producto, categoria),
+            by = "producto_id") %>%
+  mutate(mes = floor_date(fecha, "month"))   # primer día de cada mes
+
+# Opciones para los filtros (se calculan una vez a partir de los datos)
+opciones_tienda    <- c("Todas", sort(unique(ventas$nombre_tienda)))
+opciones_categoria <- sort(unique(ventas$categoria))
+
+opciones_tienda[1:4]
+ventas %>%
+  select(fecha, mes, nombre_tienda, categoria, total_transaccion) %>%
+  head(3)
+\end{rcode}
+\begin{rsalida}
+[1] "Todas"            "Sucursal Centro"  "Sucursal Este"   
+[4] "Sucursal Express"
+# A tibble: 3 x 5
+  fecha      mes        nombre_tienda    categoria  total_transaccion
+  <date>     <date>     <chr>            <chr>                  <dbl>
+1 2023-01-13 2023-01-01 Sucursal Express Automotriz             1216.
+2 2023-01-09 2023-01-01 Sucursal Norte   Automotriz              232.
+3 2023-02-20 2023-02-01 Sucursal Plaza B Juguetes                826.
+\end{rsalida}
+
+Agregamos la opción \codigo{"Todas"} al principio del menú de tiendas: será
+el valor por defecto y significará ``no filtrar''.
+
+\subsection{Funciones de apoyo: la lógica, separada de la interfaz}
+
+Esta es la decisión de diseño más importante del módulo: \textbf{todo el
+trabajo con datos va en funciones normales de R}, que reciben datos y
+parámetros y devuelven un data frame o una gráfica. No saben nada de
+\codigo{input} ni de \codigo{output}. Ventajas: las pruebas en la consola
+(sin abrir la app), las reutilizas en un reporte o en otra app, y el
+\codigo{server} queda cortito y legible.
+
+\begin{rcode}
+filtrar_ventas <- function(datos, tienda = "Todas", categorias = NULL,
+                           fechas = range(datos$fecha)) {
+  resultado <- filter(datos, fecha >= fechas[1], fecha <= fechas[2])
+  if (tienda != "Todas") {                 # "Todas" = no filtrar tienda
+    resultado <- filter(resultado, nombre_tienda == tienda)
+  }
+  if (length(categorias) > 0) {            # vacío = todas las categorías
+    resultado <- filter(resultado, categoria %in% categorias)
+  }
+  resultado
+}
+
+resumir_por_mes <- function(datos, metrica = "ventas") {
+  datos %>%
+    group_by(mes) %>%
+    summarise(ventas        = sum(total_transaccion),
+              unidades      = sum(cantidad),
+              transacciones = n(),
+              .groups = "drop") %>%
+    mutate(valor = .data[[metrica]])   # la columna elegida por el usuario
+}
+\end{rcode}
+
+\codigo{resumir\_por\_mes()} calcula las tres métricas y copia en la columna
+\codigo{valor} la que eligió el usuario. \codigo{.data[[metrica]]} es la
+forma de \paquete{dplyr} de usar una columna cuyo \emph{nombre} está
+guardado en una variable de texto: justo lo que llega de un
+\codigo{radioButtons()}. Probemos ambas funciones como lo haría la app con
+``Sucursal Norte'' y dos categorías:
+
+\begin{rcode}
+norte <- filtrar_ventas(ventas, tienda = "Sucursal Norte",
+                        categorias = c("Electrónica", "Hogar"))
+nrow(norte)
+resumir_por_mes(norte, metrica = "unidades") %>% head(4)
+\end{rcode}
+\begin{rsalida}
+[1] 21
+# A tibble: 4 x 5
+  mes        ventas unidades transacciones valor
+  <date>      <dbl>    <dbl>         <int> <dbl>
+1 2023-01-01  2741.        5             1     5
+2 2023-02-01   871.        2             2     2
+3 2023-03-01  1728.        4             2     4
+4 2023-04-01   153.        1             1     1
+\end{rsalida}
+
+\begin{rcode}
+grafica_mensual <- function(resumen, metrica = "ventas") {
+  etiquetas <- c(ventas = "Ventas", unidades = "Unidades vendidas",
+                 transacciones = "Transacciones")
+  formato <- if (metrica == "ventas") label_dollar() else label_comma()
+  ggplot(resumen, aes(x = mes, y = valor)) +
+    geom_col(fill = "#2a78d6", width = 22) +    # ancho en días
+    scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+    scale_y_continuous(labels = formato,
+                       expand = expansion(mult = c(0, 0.05))) +
+    labs(x = NULL, y = etiquetas[[metrica]]) +
+    theme_minimal(base_size = 13) +
+    theme(panel.grid.minor = element_blank(),
+          panel.grid.major.x = element_blank())
+}
+
+top_productos <- function(datos, n = 10) {
+  datos %>%
+    group_by(Producto = nombre_producto, `Categoría` = categoria) %>%
+    summarise(Unidades = sum(cantidad),
+              Ventas   = sum(total_transaccion), .groups = "drop") %>%
+    slice_max(Ventas, n = n, with_ties = FALSE) %>%
+    mutate(Ventas = dollar(Ventas))       # texto con formato de moneda
+}
+\end{rcode}
+
+Ahora la gráfica que verá el usuario al abrir la app, con todos los datos y
+la métrica por defecto (figura~\ref{fig:m06-explorador-mensual}):
+
+\begin{rcode}
+p_mensual <- resumir_por_mes(ventas, "ventas") %>%
+  grafica_mensual("ventas")
+p_mensual
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m06-explorador-mensual}
+\caption{Pestaña ``Evolución mensual'' de la app 02 con los filtros por
+defecto (salida de \codigo{grafica\_mensual()}).}
+\label{fig:m06-explorador-mensual}
+\end{figure}
+
+Una sola serie, un solo color, barras que empiezan en cero y eje con
+formato de moneda. Se ve que abril fue el mes más flojo y diciembre el más
+fuerte. La tabla del top de productos, con el valor por defecto del
+deslizador (aquí pedimos 5 para ahorrar espacio):
+
+\begin{rcode}
+top_productos(ventas, n = 5)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 5 x 4
+  Producto    Categoría  Unidades Ventas    
+  <chr>       <chr>         <dbl> <chr>     
+1 Producto 06 Juguetes         82 $34,028.04
+2 Producto 19 Deportes         85 $28,367.95
+3 Producto 31 Alimentos        74 $25,429.70
+4 Producto 47 Automotriz       82 $24,527.21
+5 Producto 46 Automotriz       74 $24,470.29
+\end{rsalida}
+
+El Producto~06 (Juguetes) lidera con \$34,028. Convertimos \codigo{Ventas}
+a texto con \codigo{dollar()} al final porque \codigo{renderTable()} muestra
+los números tal cual; así el usuario ve ``\$34,028.04'' en vez de
+``34028.04''.
+
+\subsection{La interfaz}
+
+Con la lógica lista, la \codigo{ui} solo acomoda piezas. Observa que todas
+las opciones salen de los datos (\codigo{opciones\_tienda},
+\codigo{min(ventas\$fecha)}\ldots) y que el \codigo{selectizeInput()} usa
+\codigo{placeholder = "Todas"} para que el cuadro vacío se lea como ``todas
+las categorías''.
+
+\begin{rnoejecutar}[title=app.R (parte 5): interfaz]
+ui <- fluidPage(
+  titlePanel("Explorador de ventas 2023"),
+  sidebarLayout(
+    # Barra lateral: todos los filtros juntos
+    sidebarPanel(
+      width = 3,
+      selectInput("tienda", "Tienda:", choices = opciones_tienda),
+      selectizeInput("categorias", "Categorías:",
+                     choices = opciones_categoria, multiple = TRUE,
+                     options = list(placeholder = "Todas")),
+      dateRangeInput("fechas", "Periodo:",
+                     start = min(ventas$fecha), end = max(ventas$fecha),
+                     min = min(ventas$fecha), max = max(ventas$fecha),
+                     format = "dd/mm/yyyy", language = "es",
+                     separator = " a "),
+      radioButtons("metrica", "Medir por:",
+                   choices = c("Ventas ($)" = "ventas",
+                               "Unidades" = "unidades",
+                               "Transacciones" = "transacciones")),
+      sliderInput("n_top", "Productos en el top:",
+                  min = 5, max = 20, value = 10, step = 5)
+    ),
+    # Panel principal: resumen arriba y resultados en pestañas
+    mainPanel(
+      width = 9,
+      h4(textOutput("resumen")),
+      tabsetPanel(
+        tabPanel("Evolución mensual",
+                 plotOutput("grafica", height = "380px")),
+        tabPanel("Top productos", tableOutput("tabla_top"))
+      )
+    )
+  )
+)
+\end{rnoejecutar}
+
+\subsection{El servidor}
+
+Gracias a las funciones, el \codigo{server} cabe en una pantalla. Tiene un
+único reactivo, \codigo{datos\_filtrados()}, que alimenta las tres salidas
+(el grafo de la figura~\ref{fig:m6-grafo}):
+
+\begin{rnoejecutar}[title=app.R (partes 6 y 7): servidor y lanzamiento]
+server <- function(input, output, session) {
+
+  # Expresión reactiva: filtra UNA vez y la reutilizan las tres salidas
+  datos_filtrados <- reactive({
+    req(input$fechas)                      # espera a que haya fechas
+    filtrar_ventas(ventas, input$tienda, input$categorias, input$fechas)
+  })
+
+  output$resumen <- renderText({
+    d <- datos_filtrados()                 # ¡con paréntesis!
+    paste0(comma(nrow(d)), " transacciones  |  Ventas: ",
+           dollar(sum(d$total_transaccion), accuracy = 1))
+  })
+
+  output$grafica <- renderPlot({
+    validate(need(nrow(datos_filtrados()) > 0,
+                  "No hay ventas con estos filtros. Amplía el periodo."))
+    resumir_por_mes(datos_filtrados(), input$metrica) %>%
+      grafica_mensual(input$metrica)
+  }, res = 96)
+
+  output$tabla_top <- renderTable({
+    top_productos(datos_filtrados(), n = input$n_top)
+  }, align = "llrr", digits = 0)
+}
+
+# 7. Lanzar la app -------------------------------------------------------
+shinyApp(ui, server)
+\end{rnoejecutar}
+
+Detalles que vale la pena notar:
+
+\begin{itemize}
+  \item \codigo{req(input\$fechas)} evita calcular en el instante en que la
+        app arranca y el calendario aún no envía su valor.
+  \item \codigo{validate(need(...))} muestra un mensaje amable si el
+        periodo y los filtros no dejan ninguna venta.
+  \item \codigo{renderPlot(\{...\}, res = 96)} dibuja la gráfica con una
+        resolución adecuada para pantalla (textos de tamaño normal).
+  \item \codigo{renderTable(..., align = "llrr", digits = 0)} alinea a la
+        izquierda las dos columnas de texto y a la derecha las numéricas, y
+        muestra las unidades sin decimales.
+\end{itemize}
+
+\subsection{Probar la app completa con \texorpdfstring{\codigo{testServer()}}{testServer()}}
+
+\codigo{testServer()} también acepta una app completa: le pasas
+\codigo{shinyAppDir("carpeta")} y ejecuta su \codigo{app.R} (incluida la
+lectura de datos) sin abrir el navegador. Dentro del bloque puedes leer
+incluso los reactivos internos, como \codigo{datos\_filtrados()}:
+
+\begin{rcode}
+app02 <- shinyAppDir("latex/codigo/apps/02-explorador-ventas")
+testServer(app02, {
+  session$setInputs(tienda = "Todas", categorias = NULL,
+                    fechas = as.Date(c("2023-01-01", "2023-12-31")),
+                    metrica = "ventas", n_top = 10)
+  print(output$resumen)
+  session$setInputs(tienda = "Sucursal Centro",
+                    fechas = as.Date(c("2023-07-01", "2023-12-31")))
+  print(output$resumen)
+  print(range(datos_filtrados()$fecha))       # un reactivo interno
+})
+\end{rcode}
+\begin{rsalida}
+[1] "1,000 transacciones  |  Ventas: $959,993"
+[1] "46 transacciones  |  Ventas: $49,559"
+[1] "2023-07-05" "2023-12-31"
+\end{rsalida}
+
+Con todos los filtros por defecto la app resume las 1,000 transacciones
+(\$959,993); al pasar a la Sucursal Centro en el segundo semestre quedan
+46 transacciones por \$49,559, y el rango de fechas (del 5 de julio al 31
+de diciembre) confirma que el filtro funciona. Si algo fallara (una columna mal escrita, un paquete faltante),
+lo verías aquí como error, antes de que lo vea tu directora.
+
+\begin{hazlotu}
+Abre la app con \codigo{shiny::runApp("latex/codigo/apps/02-explorador-ventas")},
+elige ``Sucursal Outlet'', la categoría ``Belleza'' y la métrica
+``Unidades''. ¿En qué mes vendió más unidades de belleza el Outlet? Luego
+reduce el periodo a una semana de enero y observa el mensaje de
+\codigo{validate()}.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Dashboards profesionales con shinydashboard}
+\label{sec:m6-shinydashboard}
+
+\subsection{Las piezas de \texorpdfstring{\paquete{shinydashboard}}{shinydashboard}}
+
+\paquete{shinydashboard} es un paquete que da a tu app el aspecto clásico
+de un tablero de BI: encabezado de color, menú lateral y cajas. Su
+estructura siempre es la misma:
+
+\begin{itemize}
+  \item \codigo{dashboardPage(header, sidebar, body)}: la página completa,
+        con tres argumentos obligatorios en ese orden.
+  \item \codigo{dashboardHeader(title = ...)}: la barra superior.
+  \item \codigo{dashboardSidebar(...)}: la barra lateral. Suele contener un
+        \codigo{sidebarMenu()} con varios \codigo{menuItem()} (las
+        ``pestañas'') y, debajo, los filtros globales.
+  \item \codigo{dashboardBody(...)}: el cuerpo. Con
+        \codigo{tabItems(tabItem(tabName = ...), ...)} defines el contenido
+        de cada pestaña; el \codigo{tabName} debe coincidir con el del
+        \codigo{menuItem()}.
+  \item \codigo{box(title, width, status, ...)}: una caja con título que
+        agrupa una gráfica o tabla. \codigo{width} usa la misma cuadrícula de
+        12 columnas; \codigo{status = "primary"} le da el color del tema.
+  \item \codigo{valueBox(valor, subtitulo, icon, color)}: la tarjeta grande
+        de KPI. \codigo{infoBox()} es una variante más compacta con el ícono
+        a la izquierda.
+\end{itemize}
+
+Un \codigo{valueBox()} también es solo HTML. Imprímelo para ver su
+estructura: el valor va en un encabezado grande (\codigo{h3}) y el
+subtítulo en un párrafo.
+
+\begin{rcode}
+valueBox(value = "$959,993", subtitle = "Ventas totales",
+         icon = icon("dollar-sign"), color = "blue", width = 3)
+\end{rcode}
+\begin{rsalida}
+<div class="col-sm-3">
+  <div class="small-box bg-blue">
+    <div class="inner">
+      <h3>$959,993</h3>
+      <p>Ventas totales</p>
+    </div>
+    <div class="icon-large">
+      <i class="fas fa-dollar-sign" role="presentation" aria-label="dollar-sign icon"></i>
+    </div>
+  </div>
+</div>
+\end{rsalida}
+
+Los íconos vienen de la colección gratuita Font Awesome: busca nombres en
+\url{https://fontawesome.com/icons} (por ejemplo \codigo{"store"},
+\codigo{"users"}, \codigo{"chart-line"}) y úsalos con \codigo{icon()}.
+
+\begin{consejo}
+Resiste la tentación de pintar cada \codigo{valueBox()} de un color
+distinto (verde, rojo, amarillo, morado\ldots). En un dashboard el color
+debe \emph{significar} algo: usa un mismo color para todas las tarjetas y
+reserva el rojo o el verde para cuando un KPI esté por debajo o por encima
+de su meta (lo harás en el ejercicio~\ref{ej:m6-3}).
+\end{consejo}
+
+% ----------------------------------------------------------------------------
+\section{Caso práctico 2: el dashboard ejecutivo}
+\label{sec:m6-app03}
+
+\begin{ejemplo}{Dashboard ejecutivo de ventas}
+La dirección quiere un tablero con cinco pestañas: \textbf{Resumen} (4 KPIs
+y evolución mensual), \textbf{Productos}, \textbf{Tiendas},
+\textbf{Clientes} y \textbf{Datos} (tabla con búsqueda y descarga). Los
+filtros de periodo, tiendas y categorías deben afectar a todas las pestañas,
+y un botón debe regresar todo a su estado inicial. La app está en
+\archivo{latex/codigo/apps/03-dashboard-ejecutivo/} y su distribución
+aparece en la figura~\ref{fig:m6-maqueta-app03}.
+\end{ejemplo}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\sffamily\footnotesize,
+    zona/.style={draw=gristexto!50, rounded corners=1.5pt, align=center},
+    kpi/.style={zona, fill=primario!70, text=white, minimum width=2.25cm,
+                minimum height=1.05cm}]
+  \draw[gristexto, line width=0.8pt] (0,0) rectangle (13.4,7.6);
+  \fill[primario] (0,7) rectangle (3.2,7.6);
+  \fill[primario!80] (3.2,7) rectangle (13.4,7.6);
+  \node[white, font=\sffamily\bfseries] at (1.6,7.3) {Ventas 2023};
+  \node[white] at (3.6,7.3) {$\equiv$};
+  % sidebar
+  \fill[gray!75!black] (0,0) rectangle (3.2,7);
+  \foreach \y/\t in {6.6/Resumen, 6.15/Productos, 5.7/Tiendas, 5.25/Clientes, 4.8/Datos} {
+    \node[anchor=west, text=white] at (0.25,\y) {\t};
+  }
+  \fill[primario!60, opacity=0.6] (0,6.4) rectangle (3.2,6.8);
+  \node[anchor=west, text=white, align=left] at (0.2,3.95) {Periodo:\\[1pt]
+    \colorbox{white}{\textcolor{black}{01/01/2023 a 31/12/2023}}};
+  \node[anchor=west, text=white, align=left] at (0.2,2.95) {Tiendas:\\[1pt]
+    \colorbox{white}{\textcolor{black}{\makebox[2.3cm][l]{Todas}}}};
+  \node[anchor=west, text=white, align=left] at (0.2,1.95) {Categorías:\\[1pt]
+    \colorbox{white}{\textcolor{black}{\makebox[2.3cm][l]{Todas}}}};
+  \node[anchor=west, zona, fill=white] at (0.25,1.0) {Quitar filtros};
+  % body
+  \fill[gray!8] (3.2,0) rectangle (13.4,7);
+  \foreach \i/\v/\t in {0/\$959,993/Ventas totales, 1/1{,}000/Transacciones,
+                        2/\$960/Ticket promedio, 3/198/Clientes activos} {
+    \node[kpi, anchor=north west, align=left] at ({3.4+\i*2.5},6.8)
+      {\textbf{\normalsize\v}\\ \t};
+  }
+  \node[zona, fill=white, minimum width=6.4cm, minimum height=4.2cm,
+        anchor=north west] (evo) at (3.4,5.45) {};
+  \fill[primario] (3.4,5.45) rectangle (9.8,5.0);
+  \node[white, anchor=west] at (3.5,5.22) {Ventas por mes};
+  \draw[primario!70, thick] (3.8,3.0) -- (4.3,2.5) -- (4.8,3.2) -- (5.3,2.0)
+       -- (5.8,3.3) -- (6.3,3.1) -- (6.8,3.0) -- (7.3,2.8) -- (7.8,2.4)
+       -- (8.3,2.45) -- (8.8,2.9) -- (9.3,3.45);
+  \fill[acento] (9.3,3.45) circle (0.08);
+  \node[zona, fill=white, minimum width=3.4cm, minimum height=4.2cm,
+        anchor=north west] at (9.85,5.45) {};
+  \fill[primario] (9.85,5.45) rectangle (13.25,5.0);
+  \node[white, anchor=west, font=\sffamily\scriptsize] at (9.9,5.22) {Ventas por método de pago};
+  \foreach \y/\w in {4.4/2.6, 3.8/2.2, 3.2/2.0, 2.6/0.9} {
+    \fill[primario!70] (10.2,\y) rectangle ++(\w,0.35);
+  }
+  \node[text=gristexto] at (8.3,0.6) {\codigo{box(width = 8)} \hspace{1.6cm} \codigo{box(width = 4)}};
+  \node[text=acento, anchor=south] at (8.3,6.85) {};
+\end{tikzpicture}
+\caption{Maqueta de la pestaña ``Resumen'' de la app 03: menú y filtros en
+la barra lateral, cuatro \codigo{valueBox()} arriba y dos \codigo{box()} con
+gráficas.}
+\label{fig:m6-maqueta-app03}
+\end{figure}
+
+La app tiene dos archivos:
+
+\begin{textocodigo}
+03-dashboard-ejecutivo/
+|-- app.R                      <- interfaz y servidor
++-- R/
+    +-- funciones_dashboard.R  <- datos, KPIs, gráficas y tablas
+\end{textocodigo}
+
+Shiny tiene una regla muy útil: \textbf{antes de ejecutar \archivo{app.R},
+carga automáticamente todos los archivos \archivo{.R} de la subcarpeta
+\archivo{R/}}. Así la lógica vive en su propio archivo y \archivo{app.R} se
+queda con lo visual. Vamos a recorrer primero las funciones (que sí podemos
+ejecutar y probar aquí) y después la app.
+
+\subsection{Cargar y unir los datos}
+
+\codigo{cargar\_datos\_dashboard()} lee cuatro CSV, se queda con las
+columnas necesarias y los une a las transacciones con los \emph{joins} del
+Módulo~\ref{cap:manipulacion}. El resultado es una sola tabla ``ancha'' con
+todo lo que el dashboard necesita:
+
+\begin{rcode}
+# ---- Colores y tema corporativos ---------------------------------------
+color_principal <- "#2a78d6"   # una sola serie
+color_resalte   <- "#eb6834"   # para destacar un elemento
+color_gris      <- "#b5b3ad"   # el resto, cuando se resalta uno
+paleta_libro <- c("#2a78d6", "#eb6834", "#1baf7a", "#eda100",
+                  "#e87ba4", "#008300", "#4a3aa7", "#e34948")
+
+tema_dashboard <- function(base_size = 12) {
+  theme_minimal(base_size = base_size) +
+    theme(panel.grid.minor = element_blank(),
+          legend.position  = "top",
+          plot.margin      = margin(5, 15, 5, 5))  # aire a la derecha
+}
+
+cargar_datos_dashboard <- function(carpeta = buscar_datasets()) {
+  leer <- function(archivo) {
+    read_csv(file.path(carpeta, archivo), show_col_types = FALSE)
+  }
+  productos <- leer("productos.csv") %>%
+    select(producto_id, nombre_producto, categoria, costo)
+  tiendas <- leer("tiendas.csv") %>%
+    transmute(tienda_id, ciudad,
+              tienda = sub("Sucursal ", "", nombre_tienda))  # nombre corto
+  clientes <- leer("clientes.csv") %>%
+    select(cliente_id, nombre_cliente = nombre, segmento, es_premium)
+
+  leer("transacciones.csv") %>%
+    left_join(productos, by = "producto_id") %>%
+    left_join(tiendas,   by = "tienda_id") %>%
+    left_join(clientes,  by = "cliente_id") %>%
+    mutate(mes = floor_date(fecha, "month"),
+           segmento = factor(segmento, levels = c("Joven", "Adulto",
+                                                  "Maduro", "Senior"))) %>%
+    select(transaccion_id, fecha, mes, tienda, ciudad, categoria,
+           producto_id, nombre_producto, cliente_id, nombre_cliente,
+           segmento, es_premium, metodo_pago, cantidad, precio_venta,
+           costo, total_transaccion)
+}
+
+datos <- cargar_datos_dashboard()
+glimpse(datos)
+\end{rcode}
+\begin{rsalida}
+Rows: 1,000
+Columns: 17
+$ transaccion_id    <dbl> 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,~
+$ fecha             <date> 2023-01-13, 2023-01-09, 2023-02-20, 2023-~
+$ mes               <date> 2023-01-01, 2023-01-01, 2023-02-01, 2023-~
+$ tienda            <chr> "Express", "Norte", "Plaza B", "Plaza A", ~
+$ ciudad            <chr> "Querétaro", "Guadalajara", "Guadalajara",~
+$ categoria         <chr> "Automotriz", "Automotriz", "Juguetes", "D~
+$ producto_id       <dbl> 3, 47, 6, 17, 28, 46, 30, 48, 21, 12, 49, ~
+$ nombre_producto   <chr> "Producto 03", "Producto 47", "Producto 06~
+$ cliente_id        <dbl> 155, 155, 75, 51, 173, 135, 90, 168, 13, 9~
+$ nombre_cliente    <chr> "Marta González", "Marta González", "Diego~
+$ segmento          <fct> Adulto, Adulto, Maduro, Senior, Maduro, Ma~
+$ es_premium        <lgl> TRUE, TRUE, FALSE, FALSE, FALSE, TRUE, FAL~
+$ metodo_pago       <chr> "Tarjeta Crédito", "Tarjeta Débito", "Tarj~
+$ cantidad          <dbl> 4, 4, 3, 4, 1, 2, 4, 2, 2, 5, 2, 3, 4, 2, ~
+$ precio_venta      <dbl> 303.97, 58.07, 275.46, 105.28, 205.47, 534~
+$ costo             <dbl> 294.30, 55.00, 84.55, 156.61, 17.23, 177.5~
+$ total_transaccion <dbl> 1215.88, 232.28, 826.38, 421.12, 205.47, 1~
+\end{rsalida}
+
+1,000 filas y 17 columnas: cada transacción ya trae el nombre corto de su
+tienda, la categoría y el costo del producto, y el segmento del cliente.
+(Usamos \codigo{sub("Sucursal ", "", nombre\_tienda)} para mostrar
+``Centro'' en lugar de ``Sucursal Centro'' y ahorrar espacio en las
+gráficas.) La función \codigo{buscar\_datasets()} de este archivo es la
+misma de la sección~\ref{sec:m6-rutas}.
+
+\subsection{Filtros globales y KPIs}
+
+\begin{rcode}
+# ---- Filtros globales --------------------------------------------------
+# Vacío (NULL o character(0)) significa "todas".
+filtrar_datos <- function(datos, fechas, tiendas = NULL,
+                          categorias = NULL) {
+  datos <- filter(datos, fecha >= fechas[1], fecha <= fechas[2])
+  if (length(tiendas) > 0) {
+    datos <- filter(datos, tienda %in% tiendas)
+  }
+  if (length(categorias) > 0) {
+    datos <- filter(datos, categoria %in% categorias)
+  }
+  datos
+}
+
+calcular_kpis <- function(datos) {
+  datos %>%
+    summarise(
+      ventas          = sum(total_transaccion),
+      transacciones   = n(),
+      ticket_promedio = ventas / transacciones,
+      unidades        = sum(cantidad),
+      clientes        = n_distinct(cliente_id),
+      pct_premium     = mean(es_premium[!duplicated(cliente_id)]),
+      compras_cliente = transacciones / clientes
+    )
+}
+
+# Formatos para mostrar los KPIs como texto ("--" si no hay dato)
+formato_pesos <- function(x) {
+  if_else(is.na(x), "--", dollar(x, accuracy = 1))
+}
+formato_numero <- function(x, decimales = 0) {
+  if_else(is.na(x), "--", comma(x, accuracy = 10^-decimales))
+}
+formato_pct <- function(x) {
+  if_else(is.na(x), "--", percent(x, accuracy = 0.1))
+}
+\end{rcode}
+
+Dos detalles de negocio en \codigo{calcular\_kpis()}: los \emph{clientes
+activos} se cuentan con \codigo{n\_distinct()} (un cliente que compró cinco
+veces cuenta una vez), y el \% de clientes premium se calcula sobre
+clientes únicos (\codigo{!duplicated(cliente\_id)}), no sobre
+transacciones. Las funciones de formato devuelven \codigo{"-{}-"} cuando no
+hay dato (por ejemplo, el ticket promedio de un filtro sin ventas), en lugar
+de un feo \codigo{NA}.
+
+\begin{rcode}
+anio <- as.Date(c("2023-01-01", "2023-12-31"))
+kpis_total <- calcular_kpis(filtrar_datos(datos, anio))
+kpis_total %>% select(ventas, transacciones, ticket_promedio, clientes)
+formato_pesos(kpis_total$ventas)
+formato_pct(kpis_total$pct_premium)
+
+# Los mismos KPIs para dos tiendas y una categoría, primer semestre
+filtrar_datos(datos, as.Date(c("2023-01-01", "2023-06-30")),
+              tiendas = c("Centro", "Norte"),
+              categorias = "Electrónica") %>%
+  calcular_kpis() %>%
+  select(ventas, transacciones, ticket_promedio, clientes)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 1 x 4
+   ventas transacciones ticket_promedio clientes
+    <dbl>         <int>           <dbl>    <int>
+1 959993.          1000            960.      198
+[1] "$959,993"
+[1] "36.4%"
+# A tibble: 1 x 4
+  ventas transacciones ticket_promedio clientes
+   <dbl>         <int>           <dbl>    <int>
+1  6937.            10            694.       10
+\end{rsalida}
+
+En todo 2023 hubo 1,000 transacciones por \$959,993, con un ticket
+promedio de \$960 y 198 de los 200 clientes activos; el 36.4\% de esos
+clientes es premium. Con los filtros del segundo ejemplo la historia cambia
+por completo: solo 10 transacciones de Electrónica entre Centro y Norte en el
+primer semestre. Estas cifras son exactamente las que mostrarán los
+\codigo{valueBox()}.
+
+\subsection{Las gráficas de cada pestaña}
+
+Cada gráfica es una función que recibe los datos \emph{ya filtrados} y
+devuelve un objeto \codigo{ggplot}. Todas usan el tema del dashboard y los
+colores corporativos del Módulo~\ref{cap:visualizacion}.
+
+\begin{rcode}
+grafica_evolucion <- function(datos) {
+  por_mes <- datos %>%
+    group_by(mes) %>%
+    summarise(ventas = sum(total_transaccion), .groups = "drop")
+  mejor_mes <- slice_max(por_mes, ventas, n = 1, with_ties = FALSE)
+  ggplot(por_mes, aes(x = mes, y = ventas)) +
+    geom_line(color = color_principal, linewidth = 0.8) +
+    geom_point(color = color_principal, size = 2) +
+    geom_point(data = mejor_mes, color = color_resalte, size = 3.5) +
+    geom_text(data = mejor_mes, aes(label = dollar(ventas, accuracy = 1)),
+              vjust = -1.2, size = 3.5, color = "gray25") +
+    scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+    scale_y_continuous(labels = label_dollar(), limits = c(0, NA),
+                       expand = expansion(mult = c(0, 0.15))) +
+    labs(x = NULL, y = "Ventas") +
+    tema_dashboard()
+}
+
+p_evolucion <- grafica_evolucion(datos)
+p_evolucion
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m06-evolucion}
+\caption{Pestaña Resumen: ventas por mes con el mejor mes resaltado
+(\codigo{grafica\_evolucion()}).}
+\label{fig:m06-evolucion}
+\end{figure}
+
+La línea usa un solo color y solo el mejor mes lleva color de resalte y
+etiqueta (diciembre, con \$96,394): el ojo va directo a lo importante. Como
+el eje Y empieza en cero, la caída de abril se ve en su verdadera magnitud.
+
+\begin{rcode}
+grafica_metodo_pago <- function(datos) {
+  datos %>%
+    group_by(metodo_pago) %>%
+    summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
+    mutate(participacion = ventas / sum(ventas)) %>%
+    ggplot(aes(x = participacion,
+               y = reorder(metodo_pago, participacion))) +
+    geom_col(fill = color_principal, width = 0.7) +
+    scale_x_continuous(labels = label_percent(),
+                       expand = expansion(mult = c(0, 0.05))) +
+    labs(x = "% de las ventas", y = NULL) +
+    tema_dashboard()
+}
+
+grafica_barras <- function(resumen, etiqueta_y = NULL) {
+  # resumen: columnas 'nombre' y 'ventas'; barras horizontales ordenadas
+  ggplot(resumen, aes(x = ventas, y = reorder(nombre, ventas))) +
+    geom_col(fill = color_principal, width = 0.7) +
+    scale_x_continuous(labels = label_dollar(),
+                       expand = expansion(mult = c(0, 0.05))) +
+    labs(x = "Ventas", y = etiqueta_y) +
+    tema_dashboard()
+}
+
+grafica_top_productos <- function(datos, n = 10) {
+  datos %>%
+    group_by(nombre = nombre_producto) %>%
+    summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
+    slice_max(ventas, n = n, with_ties = FALSE) %>%
+    grafica_barras()
+}
+
+grafica_categorias <- function(datos) {
+  datos %>%
+    group_by(nombre = categoria) %>%
+    summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
+    grafica_barras()
+}
+
+p_top <- grafica_top_productos(datos)
+p_top
+\end{rcode}
+
+\codigo{grafica\_barras()} es una función ``genérica'' que reutilizan la
+gráfica de productos y la de categorías: ambas resumen a dos columnas,
+\codigo{nombre} y \codigo{ventas}, y le pasan el resultado. Escribir la
+gráfica una sola vez garantiza que las dos pestañas se vean iguales
+(figura~\ref{fig:m06-top-productos}).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m06-top-productos}
+\caption{Pestaña Productos: los 10 productos con más ventas
+(\codigo{grafica\_top\_productos()}).}
+\label{fig:m06-top-productos}
+\end{figure}
+
+\begin{rcode}
+grafica_tiendas <- function(datos) {
+  por_tienda <- datos %>%
+    group_by(tienda) %>%
+    summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
+    mutate(es_mejor = ventas == max(ventas))    # la tienda líder
+  ggplot(por_tienda, aes(x = ventas, y = reorder(tienda, ventas),
+                         fill = es_mejor)) +
+    geom_col(width = 0.7) +
+    geom_text(data = filter(por_tienda, es_mejor),
+              aes(label = dollar(ventas, accuracy = 1)),
+              hjust = 1.1, color = "white", size = 3.5) +
+    scale_fill_manual(values = c(`TRUE` = color_resalte,
+                                 `FALSE` = color_gris), guide = "none") +
+    scale_x_continuous(labels = label_dollar(),
+                       expand = expansion(mult = c(0, 0.05))) +
+    labs(x = "Ventas", y = NULL) +
+    tema_dashboard()
+}
+
+p_tiendas <- grafica_tiendas(datos)
+p_tiendas
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m06-tiendas}
+\caption{Pestaña Tiendas: la tienda líder en color de resalte y el resto en
+gris (\codigo{grafica\_tiendas()}).}
+\label{fig:m06-tiendas}
+\end{figure}
+
+La figura~\ref{fig:m06-tiendas} aplica la técnica de ``resaltar uno y
+agrisar el resto'': la pregunta es ``¿quién lidera?'' y la respuesta salta a
+la vista. Un hallazgo interesante: el \emph{Outlet}, una de las tiendas más
+pequeñas (350 m$^2$), es la que más vende en estos datos simulados, con
+\$114,377.
+
+\begin{rcode}
+grafica_segmentos <- function(datos) {
+  datos %>%
+    mutate(tipo = if_else(es_premium, "Premium", "Regular")) %>%
+    group_by(segmento, tipo) %>%
+    summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
+    ggplot(aes(x = segmento, y = ventas, fill = tipo)) +
+    geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+    scale_fill_manual(values = c(Premium = paleta_libro[2],
+                                 Regular = paleta_libro[1])) +
+    scale_y_continuous(labels = label_dollar(),
+                       expand = expansion(mult = c(0, 0.05))) +
+    labs(x = "Segmento de edad", y = "Ventas", fill = "Tipo de cliente") +
+    tema_dashboard()
+}
+
+p_segmentos <- grafica_segmentos(datos)
+p_segmentos
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m06-segmentos}
+\caption{Pestaña Clientes: ventas por segmento de edad y tipo de cliente
+(\codigo{grafica\_segmentos()}).}
+\label{fig:m06-segmentos}
+\end{figure}
+
+Aquí sí hay dos series (Premium y Regular), así que usamos dos colores de la
+paleta y leyenda. En todos los segmentos los clientes regulares aportan más
+ventas que los premium, lo cual es lógico porque son cerca del 64\% de los
+clientes.
+
+\subsection{Tablas y detalle}
+
+\begin{rcode}
+# ---- Tablas ------------------------------------------------------------
+tabla_tiendas <- function(datos) {
+  datos %>%
+    group_by(Tienda = tienda) %>%
+    summarise(Ventas = sum(total_transaccion),
+              Transacciones = n(),
+              Ticket = Ventas / Transacciones, .groups = "drop") %>%
+    arrange(desc(Ventas)) %>%
+    mutate(Ventas = formato_pesos(Ventas), Ticket = formato_pesos(Ticket))
+}
+
+tabla_top_clientes <- function(datos, n = 10) {
+  datos %>%
+    group_by(Cliente = nombre_cliente, Segmento = segmento) %>%
+    summarise(Compras = n(), Ventas = sum(total_transaccion),
+              .groups = "drop") %>%
+    slice_max(Ventas, n = n, with_ties = FALSE) %>%
+    mutate(Ventas = formato_pesos(Ventas))
+}
+
+# Datos listos para la tabla interactiva y para las descargas
+datos_detalle <- function(datos) {
+  datos %>%
+    arrange(fecha, transaccion_id) %>%
+    select(Fecha = fecha, Tienda = tienda, `Categoría` = categoria,
+           Producto = nombre_producto, Cliente = nombre_cliente,
+           Cantidad = cantidad, Precio = precio_venta,
+           Total = total_transaccion, `Método de pago` = metodo_pago)
+}
+
+tabla_tiendas(datos) %>% head(4)
+tabla_top_clientes(datos, n = 3)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 4
+  Tienda  Ventas   Transacciones Ticket
+  <chr>   <chr>            <int> <chr> 
+1 Outlet  $114,377           106 $1,079
+2 Sur     $105,305           109 $966  
+3 Plaza A $105,216           109 $965  
+4 Express $102,791           108 $952  
+# A tibble: 3 x 4
+  Cliente        Segmento Compras Ventas 
+  <chr>          <fct>      <int> <chr>  
+1 Luis Hernández Maduro        18 $15,744
+2 Pedro Cruz     Adulto        13 $14,680
+3 Miguel Flores  Adulto        11 $13,742
+\end{rsalida}
+
+El Outlet no solo vende más: también tiene el ticket promedio más alto
+(\$1,079). Las funciones que preparan la tabla interactiva
+(\codigo{tabla\_detalle\_dt()}) las veremos en la
+sección~\ref{sec:m6-dt}.
+
+\subsection{La interfaz del dashboard}
+
+Con la lógica probada, pasamos a \archivo{app.R}. Primero paquetes y datos
+(fuera del \codigo{server}, una sola vez) y luego encabezado y barra
+lateral:
+
+\begin{rnoejecutar}[title=app.R (partes 1 a 3)]
+# 1. Paquetes ------------------------------------------------------------
+library(shiny)
+library(shinydashboard)   # dashboardPage(), box(), valueBox()...
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(lubridate)
+library(scales)
+library(DT)               # tablas interactivas
+library(writexl)          # descarga en Excel
+
+# 2. Datos: se leen UNA vez, fuera del server ----------------------------
+datos <- cargar_datos_dashboard()
+fecha_min <- min(datos$fecha)
+fecha_max <- max(datos$fecha)
+opciones_tiendas    <- sort(unique(datos$tienda))
+opciones_categorias <- sort(unique(datos$categoria))
+
+# 3. Interfaz: encabezado y barra lateral --------------------------------
+encabezado <- dashboardHeader(title = "Ventas 2023")
+
+barra_lateral <- dashboardSidebar(
+  sidebarMenu(
+    id = "menu",
+    menuItem("Resumen",   tabName = "resumen",   icon = icon("gauge")),
+    menuItem("Productos", tabName = "productos", icon = icon("box")),
+    menuItem("Tiendas",   tabName = "tiendas",   icon = icon("store")),
+    menuItem("Clientes",  tabName = "clientes",  icon = icon("users")),
+    menuItem("Datos",     tabName = "datos",     icon = icon("table"))
+  ),
+  # Filtros globales: afectan a TODAS las pestañas
+  dateRangeInput("fechas", "Periodo:", start = fecha_min, end = fecha_max,
+                 min = fecha_min, max = fecha_max, format = "dd/mm/yyyy",
+                 language = "es", separator = " a "),
+  selectizeInput("tiendas", "Tiendas:", choices = opciones_tiendas,
+                 multiple = TRUE, options = list(placeholder = "Todas")),
+  selectizeInput("categorias", "Categorías:",
+                 choices = opciones_categorias, multiple = TRUE,
+                 options = list(placeholder = "Todas")),
+  actionButton("limpiar", "Quitar filtros", icon = icon("rotate-left"))
+)
+\end{rnoejecutar}
+
+Los filtros van \emph{después} del \codigo{sidebarMenu()}, dentro de
+\codigo{dashboardSidebar()}: así quedan visibles en todas las pestañas, lo
+que deja claro que son globales. Los \codigo{selectizeInput()} múltiples
+usan el marcador ``Todas'' para indicar que vacío significa sin filtro.
+
+El cuerpo tiene un \codigo{tabItem()} por cada \codigo{menuItem()}. Cada
+fila es un \codigo{fluidRow()} y cada gráfica vive en una \codigo{box()}:
+
+\begin{rnoejecutar}[title=app.R (parte 4): cuerpo]
+# 4. Interfaz: cuerpo con una tabItem por pestaña del menú ---------------
+cuerpo <- dashboardBody(
+  tabItems(
+    tabItem(tabName = "resumen",
+      fluidRow(                                   # fila de KPIs arriba
+        valueBoxOutput("kpi_ventas", width = 3),
+        valueBoxOutput("kpi_transacciones", width = 3),
+        valueBoxOutput("kpi_ticket", width = 3),
+        valueBoxOutput("kpi_clientes", width = 3)
+      ),
+      fluidRow(
+        box(title = "Ventas por mes", width = 8, status = "primary",
+            solidHeader = TRUE, plotOutput("graf_evolucion", height = 300)),
+        box(title = "Ventas por método de pago", width = 4,
+            status = "primary", solidHeader = TRUE,
+            plotOutput("graf_pago", height = 300))
+      )
+    ),
+    tabItem(tabName = "productos",
+      fluidRow(
+        box(title = "Top 10 productos", width = 6, status = "primary",
+            plotOutput("graf_top_productos", height = 380)),
+        box(title = "Ventas por categoría", width = 6, status = "primary",
+            plotOutput("graf_categorias", height = 380))
+      )
+    ),
+    tabItem(tabName = "tiendas",
+      fluidRow(
+        box(title = "Ventas por tienda", width = 7, status = "primary",
+            plotOutput("graf_tiendas", height = 380)),
+        box(title = "Indicadores por tienda", width = 5,
+            status = "primary", tableOutput("tabla_tiendas"))
+      )
+    ),
+    tabItem(tabName = "clientes",
+      fluidRow(
+        infoBoxOutput("info_clientes"),
+        infoBoxOutput("info_premium"),
+        infoBoxOutput("info_frecuencia")
+      ),
+      fluidRow(
+        box(title = "Ventas por segmento", width = 6, status = "primary",
+            plotOutput("graf_segmentos", height = 320)),
+        box(title = "Top 10 clientes", width = 6, status = "primary",
+            tableOutput("tabla_clientes"))
+      )
+    ),
+    tabItem(tabName = "datos",
+      fluidRow(
+        box(title = "Detalle de transacciones", width = 12,
+            status = "primary",
+            downloadButton("descargar_csv", "Descargar CSV"),
+            downloadButton("descargar_excel", "Descargar Excel"),
+            br(), br(),
+            DTOutput("tabla_detalle"))
+      )
+    )
+  )
+)
+
+ui <- dashboardPage(encabezado, barra_lateral, cuerpo, skin = "blue")
+\end{rnoejecutar}
+
+Observa la fila de KPIs: cuatro \codigo{valueBoxOutput()} de ancho 3 suman
+exactamente 12 columnas. En la pestaña Clientes, los \codigo{infoBoxOutput()}
+tienen el ancho por defecto (4), así que caben tres por fila.
+
+\subsection{El servidor del dashboard}
+
+\begin{rnoejecutar}[title=app.R (parte 5): reactivos, botón y KPIs]
+# 5. Servidor: datos filtrados, KPIs y botón para limpiar filtros --------
+server <- function(input, output, session) {
+
+  # La pieza central: TODO lo demás depende de datos_filtrados()
+  datos_filtrados <- reactive({
+    req(input$fechas)
+    filtrar_datos(datos, input$fechas, input$tiendas, input$categorias)
+  }) %>%
+    bindCache(input$fechas, input$tiendas, input$categorias)
+
+  kpis <- reactive(calcular_kpis(datos_filtrados()))
+
+  # Igual que datos_filtrados(), pero si los filtros no dejan ninguna
+  # venta, las salidas que lo usan muestran un mensaje amable
+  datos_validos <- reactive({
+    validate(need(nrow(datos_filtrados()) > 0,
+                  "No hay ventas con estos filtros."))
+    datos_filtrados()
+  })
+
+  observeEvent(input$limpiar, {
+    updateDateRangeInput(session, "fechas", start = fecha_min,
+                         end = fecha_max)
+    updateSelectizeInput(session, "tiendas", selected = character(0))
+    updateSelectizeInput(session, "categorias", selected = character(0))
+  })
+
+  output$kpi_ventas <- renderValueBox({
+    valueBox(formato_pesos(kpis()$ventas), "Ventas totales",
+             icon = icon("dollar-sign"), color = "blue")
+  })
+  output$kpi_transacciones <- renderValueBox({
+    valueBox(formato_numero(kpis()$transacciones), "Transacciones",
+             icon = icon("receipt"), color = "blue")
+  })
+  output$kpi_ticket <- renderValueBox({
+    valueBox(formato_pesos(kpis()$ticket_promedio), "Ticket promedio",
+             icon = icon("cart-shopping"), color = "blue")
+  })
+  output$kpi_clientes <- renderValueBox({
+             icon = icon("users"), color = "blue")
+  })
+\end{rnoejecutar}
+
+La arquitectura reactiva es la de la figura~\ref{fig:m6-grafo}, un poco más
+grande: \codigo{datos\_filtrados()} depende de los tres filtros; de él
+cuelgan \codigo{kpis()} (que alimenta los \codigo{valueBox()} y los
+\codigo{infoBox()}) y \codigo{datos\_validos()} (que alimenta las gráficas y
+muestra un mensaje si no hay ventas). El botón ``Quitar filtros'' es un
+\codigo{observeEvent()} que devuelve cada entrada a su valor inicial con las
+funciones \codigo{update...()}. Sobre \codigo{bindCache()} hablaremos en la
+sección~\ref{sec:m6-buenas-practicas}.
+
+\begin{rnoejecutar}[title=app.R (partes 6 a 8): salidas, descargas y lanzamiento]
+  # 6. Servidor: gráficas y tablas de cada pestaña -----------------------
+  output$graf_evolucion <- renderPlot({
+    grafica_evolucion(datos_validos())
+  }, res = 96)
+  output$graf_pago <- renderPlot({
+    grafica_metodo_pago(datos_validos())
+  }, res = 96)
+  output$graf_top_productos <- renderPlot({
+    grafica_top_productos(datos_validos())
+  }, res = 96)
+  output$graf_categorias <- renderPlot({
+    grafica_categorias(datos_validos())
+  }, res = 96)
+  output$graf_tiendas <- renderPlot({
+    grafica_tiendas(datos_validos())
+  }, res = 96)
+  output$tabla_tiendas <- renderTable(tabla_tiendas(datos_filtrados()))
+
+  output$info_clientes <- renderInfoBox({
+    infoBox("Clientes activos", formato_numero(kpis()$clientes),
+            icon = icon("users"), color = "blue")
+  })
+  output$info_premium <- renderInfoBox({
+    infoBox("Clientes premium", formato_pct(kpis()$pct_premium),
+            icon = icon("star"), color = "blue")
+  })
+  output$info_frecuencia <- renderInfoBox({
+    infoBox("Compras por cliente",
+            formato_numero(kpis()$compras_cliente, decimales = 1),
+            icon = icon("repeat"), color = "blue")
+  })
+  output$graf_segmentos <- renderPlot({
+    grafica_segmentos(datos_validos())
+  }, res = 96)
+  output$tabla_clientes <- renderTable(
+    tabla_top_clientes(datos_filtrados()))
+
+  output$tabla_detalle <- renderDT(tabla_detalle_dt(datos_filtrados()))
+
+  # 7. Servidor: descargas (respetan los filtros activos) ----------------
+  output$descargar_csv <- downloadHandler(
+    filename = function() paste0("ventas_filtradas_", Sys.Date(), ".csv"),
+    content  = function(file) {
+      write_excel_csv(datos_detalle(datos_filtrados()), file)
+    }
+  )
+  output$descargar_excel <- downloadHandler(
+    filename = function() paste0("ventas_filtradas_", Sys.Date(), ".xlsx"),
+    content  = function(file) {
+      write_xlsx(datos_detalle(datos_filtrados()), file)
+    }
+  )
+}
+
+# 8. Lanzar la app -------------------------------------------------------
+shinyApp(ui, server)
+\end{rnoejecutar}
+
+Cada \codigo{renderPlot()} tiene una sola línea: llama a su función con los
+datos válidos. Si mañana cambias el diseño de una gráfica, lo haces en
+\archivo{R/funciones\_dashboard.R} sin tocar \archivo{app.R}.
+
+\subsection{Probar el dashboard completo}
+
+\begin{rcode}
+app03 <- shinyAppDir("latex/codigo/apps/03-dashboard-ejecutivo")
+testServer(app03, {
+  session$setInputs(fechas = as.Date(c("2023-01-01", "2023-12-31")),
+                    tiendas = NULL, categorias = NULL)
+  cat("Ventas:", kpis()$ventas, "| Clientes:", kpis()$clientes, "\n")
+
+  # El usuario elige dos tiendas y una categoría
+  session$setInputs(tiendas = c("Centro", "Norte"),
+                    categorias = "Electrónica")
+  cat("Ventas:", round(kpis()$ventas, 2),
+      "| Transacciones:", kpis()$transacciones, "\n")
+
+  # Filtros sin ventas: las gráficas muestran el mensaje de validate()
+  session$setInputs(tiendas = "Express", categorias = "Ropa",
+                    fechas = as.Date(c("2023-01-01", "2023-01-31")))
+  tryCatch(output$graf_evolucion,
+           error = function(e) cat("Gráfica:", conditionMessage(e), "\n"))
+  cat("Ticket en el valueBox:", formato_pesos(kpis()$ticket_promedio), "\n")
+})
+\end{rcode}
+\begin{rsalida}
+Ventas: 959992.7 | Clientes: 198 
+Ventas: 32911.76 | Transacciones: 31 
+Gráfica: No hay ventas con estos filtros. 
+Ticket en el valueBox: -- 
+\end{rsalida}
+
+La prueba confirma los tres escenarios: todo el año (\$959,992.70 y 198
+clientes), un filtro combinado (31 transacciones) y un filtro sin ventas,
+donde la gráfica muestra el mensaje amable y la tarjeta del ticket muestra
+``-{}-'' en lugar de \codigo{NA}.
+
+\begin{hazlotu}
+Ejecuta \codigo{shiny::runApp("latex/codigo/apps/03-dashboard-ejecutivo")}.
+Recorre las cinco pestañas; luego elige solo la tienda ``Outlet'' y
+comprueba que \emph{todas} las pestañas cambian. Pulsa ``Quitar filtros''.
+¿Qué método de pago concentra más ventas en el Outlet?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Descargas, tablas interactivas y gráficas interactivas}
+\label{sec:m6-descargas}
+
+\subsection{Botones de descarga con \texorpdfstring{\codigo{downloadHandler()}}{downloadHandler()}}
+
+Lo primero que pide cualquier usuario de un dashboard es ``¿me lo puedes
+pasar en Excel?''. Un botón de descarga tiene, como toda salida, dos mitades:
+\codigo{downloadButton("id", "Texto")} en la \codigo{ui} y
+\codigo{output\$id <- downloadHandler(filename, content)} en el
+\codigo{server}:
+
+\begin{itemize}
+  \item \codigo{filename}: una \emph{función} que devuelve el nombre del
+        archivo. Incluir la fecha (\codigo{Sys.Date()}) evita que el usuario
+        sobrescriba descargas anteriores.
+  \item \codigo{content}: una \emph{función} que recibe una ruta temporal
+        (\codigo{file}) y escribe ahí el archivo. Shiny se encarga de
+        enviarlo al navegador.
+\end{itemize}
+
+En la app 03 (parte 7 del servidor) hay dos botones, uno para CSV y otro
+para Excel, y ambos descargan \codigo{datos\_detalle(datos\_filtrados())}:
+\textbf{respetan los filtros activos}, que es lo que el usuario espera.
+Para el CSV usamos \codigo{write\_excel\_csv()} de \paquete{readr} en lugar
+de \codigo{write\_csv()}: agrega una marca invisible al inicio del archivo
+para que Excel muestre bien los acentos (``Categoría'', ``Tarjeta
+Crédito''). Para Excel usamos \codigo{write\_xlsx()} de \paquete{writexl}.
+
+Como \codigo{content} es una función normal, puedes probar lo que hará
+escribiendo tú mismo los archivos:
+
+\begin{rcode}
+library(writexl)
+dir.create("resultados", showWarnings = FALSE)
+detalle <- datos_detalle(filtrar_datos(datos, anio, tiendas = "Outlet"))
+write_excel_csv(detalle, "resultados/ventas_outlet.csv")
+write_xlsx(detalle, "resultados/ventas_outlet.xlsx")
+dim(detalle)
+names(detalle)
+\end{rcode}
+\begin{rsalida}
+[1] 106   9
+[1] "Fecha"          "Tienda"         "Categoría"     
+[4] "Producto"       "Cliente"        "Cantidad"      
+[7] "Precio"         "Total"          "Método de pago"
+\end{rsalida}
+
+Las 106 transacciones del Outlet, con 9 columnas de nombres legibles, listas
+para quien las pida. En la prueba con \codigo{testServer()} también puedes
+leer \codigo{output\$descargar\_csv}: devuelve la ruta del archivo generado,
+que puedes abrir con \codigo{read\_csv()} para comprobar su contenido.
+
+\subsection{Tablas interactivas con \texorpdfstring{\paquete{DT}}{DT}}
+\label{sec:m6-dt}
+
+\codigo{renderTable()} está bien para tablas pequeñas (un top 10). Para
+mostrar cientos o miles de filas necesitas búsqueda, orden por columna y
+paginación: eso hace \paquete{DT}, un puente a la biblioteca DataTables de
+JavaScript. La pareja es \codigo{DTOutput()} / \codigo{renderDT()}, y
+dentro se usa \codigo{datatable()}:
+
+\begin{rcode}
+# Textos de la tabla DT en español (sin depender de internet)
+idioma_dt <- list(
+  search = "Buscar:", lengthMenu = "Mostrar _MENU_ filas",
+  info = "Filas _START_ a _END_ de _TOTAL_",
+  infoEmpty = "Sin resultados", zeroRecords = "No hay coincidencias",
+  paginate = list(previous = "Anterior", `next` = "Siguiente")
+)
+
+tabla_detalle_dt <- function(datos) {
+  datatable(datos_detalle(datos), rownames = FALSE,
+            options = list(pageLength = 10, language = idioma_dt)) %>%
+    formatCurrency(c("Precio", "Total"), currency = "$", digits = 2)
+}
+
+tabla_dt <- tabla_detalle_dt(datos)
+class(tabla_dt)
+\end{rcode}
+\begin{rsalida}
+[1] "datatables" "htmlwidget"
+\end{rsalida}
+
+El resultado es un \termino{htmlwidget}: un objeto de R que se dibuja con
+JavaScript en el navegador (en RStudio, escribe \codigo{tabla\_dt} en la
+consola y lo verás en el visor). Las opciones más útiles:
+
+\begin{itemize}
+  \item \codigo{formatCurrency(columnas, currency = "\$")}: formato de moneda
+        sin convertir los números a texto, así que ordenar por esa columna
+        sigue funcionando bien. También existen \codigo{formatPercentage()},
+        \codigo{formatRound()} y \codigo{formatDate()}.
+  \item \codigo{options = list(pageLength = 10)}: filas por página.
+  \item \codigo{language = idioma\_dt}: traduce ``Search'', ``Next'', etc. Lo
+        definimos a mano para no depender de internet.
+  \item \codigo{filter = "top"}: agrega una caja de búsqueda encima de cada
+        columna.
+  \item \codigo{rownames = FALSE}: oculta la columna de números de fila.
+\end{itemize}
+
+\begin{advertencia}
+\paquete{shiny} también tiene funciones llamadas \codigo{dataTableOutput()}
+y \codigo{renderDataTable()}, antiguas y distintas a las de \paquete{DT}. Por
+eso al cargar \paquete{DT} aparece el aviso de que las ``enmascara''. Usa
+siempre \codigo{DT::DTOutput()} y \codigo{DT::renderDT()} y evitarás
+confusiones.
+\end{advertencia}
+
+\subsection{Gráficas interactivas con \texorpdfstring{\paquete{plotly}}{plotly}}
+
+Con \paquete{plotly} una gráfica de \paquete{ggplot2} gana tooltips (al
+pasar el ratón ves el valor exacto), zoom y la opción de ocultar series. La
+forma más rápida es \codigo{ggplotly()}, que convierte un ggplot ya hecho:
+
+\begin{rcode}
+library(plotly)
+graf_interactiva <- ggplotly(p_tiendas)
+class(graf_interactiva)
+\end{rcode}
+\begin{rsalida}
+
+Attaching package: ‘plotly’
+
+The following object is masked from ‘package:ggplot2’:
+
+    last_plot
+
+The following object is masked from ‘package:stats’:
+
+    filter
+
+The following object is masked from ‘package:graphics’:
+
+    layout
+
+[1] "plotly"     "htmlwidget"
+\end{rsalida}
+
+En la app basta con cambiar la pareja de funciones:
+
+\begin{rnoejecutar}
+# En la ui, en lugar de plotOutput("graf_tiendas"):
+plotly::plotlyOutput("graf_tiendas", height = 380)
+
+# En el server, en lugar de renderPlot():
+output$graf_tiendas <- plotly::renderPlotly({
+  ggplotly(grafica_tiendas(datos_validos()))
+})
+\end{rnoejecutar}
+
+\begin{consejo}
+No conviertas todo a plotly ``porque se ve moderno''. La interactividad
+ayuda en gráficas con muchos puntos o cuando el usuario necesita el valor
+exacto; en un KPI o un ranking de 10 barras solo añade ruido y tiempo de
+carga. Las etiquetas de \codigo{geom\_text()} y algunos detalles de estilo
+no siempre se traducen igual; revisa el resultado.
+\end{consejo}
+
+% ----------------------------------------------------------------------------
+\section{Buenas prácticas profesionales}
+\label{sec:m6-buenas-practicas}
+
+\subsection{Separa la lógica de la interfaz}
+
+Ya lo aplicaste en las dos apps: las funciones de datos, KPIs y gráficas no
+tocan \codigo{input} ni \codigo{output}. Regla práctica: \emph{si un bloque
+dentro de un \codigo{render...()} tiene más de 3 o 4 líneas, conviértelo en
+una función} y guárdala en \archivo{R/}. Ganas pruebas sencillas,
+reutilización (las mismas funciones sirven para el reporte automático del
+Módulo~\ref{cap:reportes}) y un servidor que se lee como un índice.
+
+\subsection{Lee los datos una sola vez y precalcula}
+
+Todo lo que está fuera del \codigo{server} se ejecuta al arrancar y lo
+comparten todos los usuarios; lo que está dentro se ejecuta \emph{por cada
+usuario}. Por eso:
+
+\begin{itemize}
+  \item Lee y une los datos fuera del \codigo{server} (como en ambas apps).
+  \item Si los datos son grandes, prepáralos antes con un script aparte y
+        guárdalos ya resumidos (por ejemplo en \archivo{.rds} con
+        \codigo{saveRDS()}, que se lee mucho más rápido que un CSV), o
+        consúltalos en una base de datos agregando en SQL
+        (Módulo~\ref{cap:bases-datos}).
+  \item Usa \codigo{reactive()} para no repetir cálculos entre salidas.
+\end{itemize}
+
+\subsection{Caché con \texorpdfstring{\codigo{bindCache()}}{bindCache()}}
+
+\codigo{reactive()} recuerda \emph{el último} resultado. \codigo{bindCache()}
+va más allá: recuerda los resultados para \emph{cada combinación} de valores
+que le indiques, y además los comparte entre usuarios. En la app 03:
+
+\begin{rnoejecutar}
+datos_filtrados <- reactive({
+  req(input$fechas)
+  filtrar_datos(datos, input$fechas, input$tiendas, input$categorias)
+}) %>%
+  bindCache(input$fechas, input$tiendas, input$categorias)
+\end{rnoejecutar}
+
+Si la directora mira ``Outlet'', luego ``Centro'' y vuelve a ``Outlet'', la
+tercera vez el resultado sale de la caché sin recalcular; y si un gerente
+abre la app con los mismos filtros, también lo aprovecha. También funciona
+con \codigo{renderPlot()}: \codigo{renderPlot(...) \%>\%
+bindCache(input\$tiendas)} guarda las imágenes ya dibujadas. La regla de oro:
+en \codigo{bindCache()} pon \emph{todas} las entradas de las que depende el
+cálculo; si olvidas una, mostrarás resultados viejos.
+
+\subsection{Módulos de Shiny: componentes reutilizables}
+
+Cuando un mismo bloque (una tarjeta de KPI, un selector de periodo, una
+gráfica con su tabla) se repite varias veces, copiar y pegar lleva a
+errores: hay que inventar ids distintos (\codigo{kpi1}, \codigo{kpi2}\ldots)
+y cambiar cada copia a mano. Un \termino{módulo de Shiny} es un par de
+funciones (una de \codigo{ui} y otra de \codigo{server}) que encapsulan ese
+bloque. El truco está en el \termino{espacio de nombres}
+(\emph{namespace}): \codigo{NS(id)} antepone el id del módulo a cada id
+interno, de modo que dos copias nunca chocan.
+
+\begin{ejemplo}{Módulo ``tarjeta KPI''}
+Queremos una tarjeta reutilizable que reciba un valor reactivo, un título,
+un ícono y una función de formato, y muestre el \codigo{valueBox()}.
+\end{ejemplo}
+
+\begin{rcode}
+# Parte visual del módulo: todos los ids pasan por ns()
+tarjeta_kpi_ui <- function(id, ancho = 3) {
+  ns <- NS(id)
+  valueBoxOutput(ns("caja"), width = ancho)
+}
+
+# Parte lógica: recibe un reactivo 'valor' desde fuera
+tarjeta_kpi_server <- function(id, valor, titulo, icono,
+                               formato = formato_pesos) {
+  moduleServer(id, function(input, output, session) {
+    output$caja <- renderValueBox({
+      valueBox(formato(valor()), titulo, icon = icon(icono),
+               color = "blue")
+    })
+  })
+}
+
+tarjeta_kpi_ui("ventas")          # el id interno se vuelve "ventas-caja"
+\end{rcode}
+\begin{rsalida}
+<div class="shiny-html-output col-sm-3" id="ventas-caja"></div>
+\end{rsalida}
+
+El \codigo{id="ventas-caja"} muestra el namespace en acción. Con el módulo,
+la fila de KPIs del dashboard quedaría así:
+
+\begin{rnoejecutar}
+# ui
+fluidRow(
+  tarjeta_kpi_ui("ventas"),
+  tarjeta_kpi_ui("ticket"),
+  tarjeta_kpi_ui("clientes")
+)
+# server
+tarjeta_kpi_server("ventas", reactive(kpis()$ventas),
+                   "Ventas totales", "dollar-sign")
+tarjeta_kpi_server("ticket", reactive(kpis()$ticket_promedio),
+                   "Ticket promedio", "cart-shopping")
+tarjeta_kpi_server("clientes", reactive(kpis()$clientes),
+                   "Clientes activos", "users", formato = formato_numero)
+\end{rnoejecutar}
+
+Los módulos también se prueban con \codigo{testServer()}; los argumentos
+del módulo se pasan con \codigo{args}:
+
+\begin{rcode}
+testServer(tarjeta_kpi_server,
+           args = list(valor = reactive(kpis_total$clientes),
+                       titulo = "Clientes activos", icono = "users",
+                       formato = formato_numero), {
+  cat(as.character(output$caja$html))
+})
+\end{rcode}
+\begin{rsalida}
+<div class="small-box bg-blue">
+  <div class="inner">
+    <h3>198</h3>
+    <p>Clientes activos</p>
+  </div>
+  <div class="icon-large">
+    <i class="fas fa-users" role="presentation" aria-label="users icon"></i>
+  </div>
+</div>
+\end{rsalida}
+
+\subsection{Prueba tu app con \texorpdfstring{\codigo{testServer()}}{testServer()}}
+
+Ya lo usaste en todo el módulo. En un proyecto real, guarda esas pruebas en
+una carpeta \archivo{tests/} y ejecútalas antes de publicar cada cambio (el
+paquete \paquete{testthat} las organiza con \codigo{expect\_equal()}). Para
+probar además la parte visual (clics reales en un navegador) existe el
+paquete \paquete{shinytest2}.
+
+\subsection{Estructura de carpetas de un proyecto Shiny}
+
+Esta es una organización que escala bien de una app pequeña a una grande:
+
+\begin{textocodigo}
+dashboard-ventas/
+|-- app.R                    <- solo ui, server y shinyApp()
+|-- R/                       <- Shiny carga estos archivos solo
+|   |-- funciones_datos.R    <- cargar, limpiar, filtrar
+|   |-- funciones_graficas.R <- una función por gráfica
+|   +-- mod_tarjeta_kpi.R    <- módulos (ui + server)
+|-- datos/                   <- datos ya preparados (.rds, .csv)
+|-- www/                     <- logo, CSS, imágenes
+|-- tests/
+|   +-- testthat/
+|       +-- test-kpis.R      <- pruebas con testServer()
++-- preparar_datos.R         <- script que genera datos/ (no se publica)
+\end{textocodigo}
+
+La carpeta \archivo{www/} es especial: lo que pongas ahí (por ejemplo
+\archivo{logo.png}) queda disponible en la página como
+\codigo{img(src = "logo.png")}.
+
+% ----------------------------------------------------------------------------
+\section{Publicar tu dashboard}
+\label{sec:m6-publicar}
+
+Mientras la app corre en tu computadora, solo tú la ves. Para que la use tu
+equipo, debe correr en un \termino{servidor}. Opciones:
+
+\begin{itemize}
+  \item \textbf{shinyapps.io}: el servicio en la nube de Posit (la empresa
+        detrás de RStudio). Tiene un plan gratuito con horas limitadas al
+        mes, ideal para prototipos y portafolio.
+  \item \textbf{Posit Connect}: servidor empresarial de pago que se instala
+        en la infraestructura de la empresa; incluye autenticación con las
+        cuentas corporativas, control de acceso por app y publicación de
+        reportes R Markdown y Quarto.
+  \item \textbf{Shiny Server} (versión gratuita, de código abierto): lo
+        instala el área de TI en un servidor Linux propio. No incluye
+        autenticación; hay que ponerla con otras herramientas.
+\end{itemize}
+
+Para publicar en shinyapps.io, crea una cuenta en
+\url{https://www.shinyapps.io}, copia tu \emph{token} (menú
+\menu{Account > Tokens}) y ejecuta una sola vez:
+
+\begin{rnoejecutar}
+install.packages("rsconnect")
+rsconnect::setAccountInfo(name   = "tu_usuario",
+                          token  = "TOKEN_DE_EJEMPLO",
+                          secret = "SECRETO_DE_EJEMPLO")
+\end{rnoejecutar}
+
+Antes de publicar, \textbf{copia los datos dentro de la carpeta de la app}:
+en el servidor no existe la carpeta del curso, así que
+\codigo{buscar\_datasets()} no encontraría nada. Basta con crear
+\archivo{datasets/} dentro de la carpeta de la app (la función busca
+primero ahí, en el nivel 0). Luego:
+
+\begin{rnoejecutar}
+rsconnect::deployApp("latex/codigo/apps/03-dashboard-ejecutivo",
+                     appName = "dashboard-ventas")
+\end{rnoejecutar}
+
+En uno o dos minutos obtienes una dirección del tipo
+\url{https://tu_usuario.shinyapps.io/dashboard-ventas/}. Cada vez que
+cambies la app, vuelve a ejecutar \codigo{deployApp()}. Si falla al
+arrancar en el servidor, revisa el registro con
+\codigo{rsconnect::showLogs()}: casi siempre es un paquete no instalado o
+un archivo de datos que no se subió.
+
+\begin{advertencia}
+\textbf{Seguridad.} Una app en shinyapps.io con plan gratuito es
+\emph{pública}: cualquiera con la dirección la ve. Nunca publiques así datos
+de clientes (nombres, correos, teléfonos), salarios o cifras
+confidenciales. Para datos internos usa un servidor con autenticación
+(Posit Connect, planes de pago de shinyapps.io o un servidor de la empresa),
+publica solo datos agregados o anonimizados, y jamás escribas contraseñas
+de bases de datos en el código: guárdalas en variables de entorno
+(\archivo{.Renviron}), como viste en el Módulo~\ref{cap:bases-datos}.
+\end{advertencia}
+
+\subsection{Alternativas sin servidor: flexdashboard y Quarto dashboards}
+
+Si tu tablero no necesita recalcular nada al vuelo (por ejemplo, un reporte
+semanal fijo), no necesitas Shiny ni un servidor: \paquete{flexdashboard}
+(con R Markdown) y los \emph{dashboards de Quarto} generan un archivo HTML
+con aspecto de tablero, gráficas \paquete{plotly} y tablas \paquete{DT}
+interactivas, que puedes enviar por correo o subir a una intranet. El
+encabezado de un dashboard de Quarto se ve así:
+
+\begin{textocodigo}
+---
+title: "Ventas 2023"
+format: dashboard
+---
+\end{textocodigo}
+
+Verás cómo automatizar este tipo de reportes en el
+Módulo~\ref{cap:reportes}. Regla rápida: si el usuario necesita
+\emph{filtrar y recalcular}, Shiny; si solo necesita \emph{consultar} un
+resultado fijo con algo de interactividad, un HTML estático basta.
+
+% ----------------------------------------------------------------------------
+\section{Errores comunes}
+\label{sec:m6-errores}
+
+\textbf{1. Usar un reactivo sin paréntesis.} Es el error más famoso. En
+esta mini app, \codigo{datos} es un reactivo y lo usamos como si fuera un
+data frame:
+
+\begin{rcode}
+server_error <- function(input, output, session) {
+  datos <- reactive(filter(transacciones, tienda_id == input$tienda))
+  output$total <- renderText(sum(datos$total_transaccion))  # ¡error!
+}
+testServer(server_error, {
+  session$setInputs(tienda = 1)
+  tryCatch(output$total,
+           error = function(e) cat("Error:", conditionMessage(e), "\n"))
+})
+\end{rcode}
+\begin{rsalida}
+Error: objeto de tipo 'closure' no es subconjunto 
+\end{rsalida}
+
+Con R en inglés el mensaje es \codigo{object of type 'closure' is not
+subsettable}. La corrección: \codigo{sum(datos()\$total\_transaccion)}.
+Ojo: \codigo{nrow(datos)} sin paréntesis \emph{no} da error, devuelve
+\codigo{NULL} y la salida aparece vacía, lo que es aún más desconcertante.
+
+\textbf{2. Olvidar una coma entre elementos de la \codigo{ui}.} R no puede
+ni leer el archivo:
+
+\begin{rcode}
+codigo_ui <- 'fluidPage(
+  titlePanel("Ventas")
+  sliderInput("n", "Top N:", 5, 20, 10)
+)'
+tryCatch(parse(text = codigo_ui),
+         error = function(e) cat(conditionMessage(e), "\n"))
+\end{rcode}
+\begin{rsalida}
+<text>:3:3: unexpected symbol
+2:   titlePanel("Ventas")
+3:   sliderInput
+     ^ 
+\end{rsalida}
+
+El error señala la línea 3, pero la coma falta al final de la línea 2. Con
+una coma \emph{de más} después del último elemento el mensaje suele ser
+\codigo{argument is missing, with no default}.
+
+\begin{table}[H]
+\centering
+\caption{Otros errores frecuentes en Shiny y cómo resolverlos.}
+\label{tab:m6-errores}
+\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{4.8cm}
+                             >{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Síntoma o mensaje} & \textbf{Causa y solución} \\
+\midrule
+\codigo{Operation not allowed without an active reactive context} &
+Llamaste a un reactivo (\codigo{datos()}) en la consola o en el cuerpo del
+\codigo{server}. Muévelo dentro de un \codigo{render...()},
+\codigo{reactive()} u \codigo{observe()}. \\
+\codigo{Can't access reactive value 'x' outside of reactive consumer} &
+Usaste \codigo{input\$x} fuera de un contexto reactivo. Envuélvelo en
+\codigo{reactive()}. \\
+\codigo{'datasets/...csv' does not exist in current working directory} &
+La app corre con su carpeta como directorio de trabajo. Usa
+\codigo{buscar\_datasets()} o copia los datos a la carpeta de la app. \\
+Una salida no aparece, sin error & El id de \codigo{xxxOutput("id")} no
+coincide con \codigo{output\$id}, o la pareja no corresponde
+(\codigo{plotOutput} con \codigo{renderTable}). Revisa la
+tabla~\ref{tab:m6-salidas}. \\
+Dos controles o salidas dejan de funcionar (en la consola del navegador,
+\tecla{F12}, aparece \codigo{Duplicate binding for ID ...}) & Usaste el
+mismo id dos veces. Los ids deben ser únicos en toda la app; con módulos,
+usa \codigo{ns()}. \\
+La gráfica muestra un error rojo al abrir la app & Una entrada aún no tiene
+valor. Agrega \codigo{req(input\$...)} al inicio del \codigo{render}. \\
+Un filtro múltiple vacío deja la app sin datos & \codigo{input\$x} vale
+\codigo{NULL}; revisa \codigo{length(input\$x) > 0} antes de filtrar. \\
+\codigo{there is no package called 'DT'} al publicar & El servidor no
+tiene el paquete: cárgalo con \codigo{library()} en \archivo{app.R} (no con
+\codigo{require()} dentro de funciones) para que \codigo{rsconnect} lo
+detecte. \\
+La app funciona en tu computadora pero no en el servidor & Rutas absolutas
+(\codigo{C:/Users/...}), datos no subidos o paquetes faltantes. Revisa
+\codigo{rsconnect::showLogs()}. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{consejo}
+Para depurar, pon \codigo{browser()} dentro de un \codigo{render...()} o
+\codigo{reactive()}: al ejecutarse, la app se pausa y la consola de RStudio
+te deja inspeccionar \codigo{input\$...} y los objetos en ese momento. Escribe
+\codigo{c} para continuar. Quítalo antes de publicar.
+\end{consejo}
+
+% ----------------------------------------------------------------------------
+\begin{resumen}
+\begin{itemize}
+  \item Un buen dashboard tiene una audiencia y unas preguntas definidas,
+        KPIs arriba, filtros juntos y pocas gráficas bien diseñadas. Shiny
+        conviene cuando necesitas lógica a la medida en R; Power BI o
+        Tableau, para reportes estándar de autoservicio.
+  \item Toda app tiene \codigo{ui} (lo que se ve), \codigo{server} (la
+        lógica) y \codigo{shinyApp()}. Cada salida es una pareja
+        \codigo{xxxOutput()} + \codigo{renderXxx()} con el mismo id.
+  \item La reactividad recalcula solo lo que depende de lo que cambió.
+        \codigo{reactive()} comparte cálculos; \codigo{observeEvent()} hace
+        acciones; \codigo{eventReactive()} espera a un botón; \codigo{req()}
+        y \codigo{validate()} evitan errores; \codigo{isolate()} lee sin
+        depender. Los reactivos se llaman con paréntesis.
+  \item Organiza la pantalla con la cuadrícula de 12 columnas,
+        \codigo{sidebarLayout()}, pestañas o \paquete{shinydashboard}
+        (\codigo{box()}, \codigo{valueBox()}, \codigo{menuItem()}).
+  \item Separa la lógica en funciones (carpeta \archivo{R/}), lee los datos
+        una vez, usa \codigo{bindCache()} y módulos, y prueba con
+        \codigo{testServer()}.
+  \item Publica en shinyapps.io, Posit Connect o Shiny Server, sin exponer
+        datos sensibles.
+\end{itemize}
+
+\medskip
+\small
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{4.6cm}X}
+\toprule
+\textbf{Función} & \textbf{Para qué sirve} \\
+\midrule
+\codigo{fluidPage()}, \codigo{sidebarLayout()} & Página y layout con barra lateral \\
+\codigo{fluidRow()}, \codigo{column()} & Cuadrícula de 12 columnas \\
+\codigo{tabsetPanel()}, \codigo{navbarPage()} & Pestañas y barra de navegación \\
+\codigo{selectInput()}, \codigo{selectizeInput()} & Menús de una o varias opciones \\
+\codigo{dateRangeInput()}, \codigo{sliderInput()} & Periodos y rangos \\
+\codigo{actionButton()}, \codigo{downloadButton()} & Botones de acción y de descarga \\
+\codigo{renderPlot()}, \codigo{renderText()}, \codigo{renderTable()} & Salidas básicas \\
+\codigo{DT::renderDT()}, \codigo{plotly::renderPlotly()} & Tabla y gráfica interactivas \\
+\codigo{reactive()}, \codigo{eventReactive()} & Cálculos reactivos compartidos \\
+\codigo{observeEvent()}, \codigo{update...Input()} & Acciones y cambios de entradas \\
+\codigo{req()}, \codigo{validate(need())} & Condiciones antes de calcular \\
+\codigo{dashboardPage()}, \codigo{box()}, \codigo{valueBox()} & Estructura de shinydashboard \\
+\codigo{downloadHandler()} & Contenido de una descarga \\
+\codigo{bindCache()} & Caché de resultados \\
+\codigo{NS()}, \codigo{moduleServer()} & Módulos reutilizables \\
+\codigo{testServer()} & Probar el servidor sin navegador \\
+\codigo{runApp()}, \codigo{rsconnect::deployApp()} & Ejecutar y publicar \\
+\bottomrule
+\end{tabularx}
+\end{resumen}
+
+% ----------------------------------------------------------------------------
+\section{Ejercicios}
+\label{sec:m6-ejercicios}
+
+Para los ejercicios que modifican una app, copia primero su carpeta (por
+ejemplo, \archivo{latex/codigo/apps/02-explorador-ventas} a
+\archivo{mis-apps/02-mi-explorador}) y trabaja sobre la copia. Además de
+abrirla en el navegador, comprueba la lógica con \codigo{testServer()}.
+
+\begin{ejercicio}{m6-1}{Calculadora con cantidad e IVA}
+\nivel{Básico}
+Amplía la app 01: agrega un \codigo{numericInput()} para la
+\emph{cantidad} de piezas (valor inicial 1) y un \codigo{checkboxInput()}
+``Incluir IVA (16\%)''. La app debe mostrar el total a pagar
+(precio $\times$ cantidad, menos el descuento y, si se marca la casilla,
+más IVA). Comprueba con \codigo{testServer()} que 3 piezas de \$500 con
+10\% de descuento e IVA dan \$1,566.
+\end{ejercicio}
+
+\begin{ejercicio}{m6-2}{Filtro por método de pago}
+\nivel{Básico}
+En el explorador de ventas (app 02) agrega un
+\codigo{checkboxGroupInput()} con los cuatro métodos de pago, todos
+marcados al inicio, y haz que filtre todas las salidas. ¿Cuántas
+transacciones y cuántas ventas quedan si solo dejas ``Efectivo''?
+\end{ejercicio}
+
+\begin{ejercicio}{m6-3}{Un KPI nuevo: margen bruto}
+\nivel{Intermedio}
+En el dashboard ejecutivo (app 03) agrega en la pestaña Resumen una quinta
+fila con un \codigo{valueBox()} de \emph{margen bruto}
+(ventas $-$ costo $\times$ cantidad) y otro con el \emph{\% de margen}. La
+caja del margen debe ser verde si es positivo y roja si es negativo.
+Escribe primero la función \codigo{calcular\_margen(datos)} y pruébala: ¿qué
+margen tiene la categoría Belleza? (Recuerda el hallazgo de calidad de datos
+del curso: hay productos cuyo costo supera su precio).
+\end{ejercicio}
+
+\begin{ejercicio}{m6-4}{Aplicar filtros solo al pulsar un botón}
+\nivel{Intermedio}
+Escribe una app con un \codigo{selectizeInput()} de tiendas (múltiple), un
+\codigo{dateRangeInput()} y un botón ``Aplicar''. Las ventas totales y el
+número de transacciones deben actualizarse \emph{solo} al pulsar el botón
+(usa \codigo{eventReactive()}). Demuestra con \codigo{testServer()} que
+cambiar los filtros sin pulsar no altera el resultado.
+\end{ejercicio}
+
+\begin{ejercicio}{m6-5}{Una pestaña nueva: días de la semana}
+\nivel{Intermedio}
+Agrega al dashboard ejecutivo una pestaña ``Días'' (con su
+\codigo{menuItem()} y su \codigo{tabItem()}) con una gráfica de barras de
+ventas por día de la semana (lunes a domingo, en ese orden) que resalte el
+mejor día. Respeta los filtros globales. ¿Qué día vende más en todo 2023?
+\end{ejercicio}
+
+\begin{ejercicio}{m6-6}{Descargar el top de productos}
+\nivel{Intermedio}
+En la pestaña ``Top productos'' de la app 02 agrega dos botones: ``Descargar
+CSV'' y ``Descargar Excel''. El archivo debe contener exactamente la tabla
+que se está viendo (con el número de productos del deslizador y los filtros
+activos) y llamarse \archivo{top\_productos\_AAAA-MM-DD}. Prueba el
+\codigo{downloadHandler()} con \codigo{testServer()}.
+\end{ejercicio}
+
+\begin{ejercicio}{m6-7}{Un módulo de ranking reutilizable}
+\nivel{Avanzado}
+Crea un módulo \codigo{ranking\_ui(id, titulo)} /
+\codigo{ranking\_server(id, datos, columna)} que muestre dentro de una
+\codigo{box()} un \codigo{sliderInput()} ``Mostrar top'' (3 a 10) y una
+gráfica de barras horizontales con las ventas por la columna indicada.
+Úsalo dos veces en la misma app: para productos
+(\codigo{"nombre\_producto"}) y para ciudades (\codigo{"ciudad"}), y verifica
+con \codigo{testServer()} que cada copia responde a su propio deslizador.
+\end{ejercicio}
+
+\begin{ejercicio}{m6-8}{Reto: dashboard de Recursos Humanos}
+\nivel{Reto}
+Construye desde cero, con \paquete{shinydashboard}, un dashboard para el
+área de Recursos Humanos con \archivo{empleados.csv}: filtros de
+departamento y sucursal (múltiples); cuatro \codigo{valueBox()} (plantilla,
+salario mensual promedio, antigüedad promedio y \% con maestría o
+doctorado); una gráfica de salario promedio por puesto; una tabla
+\paquete{DT} con formato de moneda y un botón para descargar la lista en
+Excel. Separa la lógica en funciones y pruébalas.
+\end{ejercicio}
