@@ -8,14 +8,14 @@ revisar y de modificar. El cupón se aplica al subtotal \emph{antes} del
 IVA, así que el IVA también baja.
 
 \begin{rcode}
-# ---- Datos de la compra ----------------------------------------------------
+# ---- Datos de la compra --------------------------------------------------
 precio_audifonos <- 899
 precio_teclado <- 1299
 precio_usb <- 189
 tasa_iva <- 0.16
 cupon <- 0.10
 
-# ---- Cálculos ----------------------------------------------------------------
+# ---- Cálculos ------------------------------------------------------------
 subtotal <- 2 * precio_audifonos + 1 * precio_teclado + 3 * precio_usb
 iva <- subtotal * tasa_iva
 total <- subtotal + iva
@@ -84,8 +84,8 @@ round((ingresos / punto_equilibrio - 1) * 100, 1)  # Colchón en %
 \end{rsalida}
 
 La sucursal tuvo un margen bruto de 38\% y un margen de operación de
-12.2\%, y superó su meta (105.6\%). Necesita vender \$415,832.19 al mes para
-no perder dinero; vendió \$196,567.81 más que eso, es decir, está 47.3\% por
+12.2\%, y superó su meta (105.6\%). Necesita vender unos \$415,811 al mes para
+no perder dinero; vendió unos \$196,589 más que eso, es decir, está 47.3\% por
 encima de su punto de equilibrio: tiene un colchón cómodo si las ventas
 bajan.
 \end{solucion}
@@ -127,7 +127,7 @@ weekdays(vencimientos)
 
 Las cuatro facturas suman \$17,736.45. Observa la última: vence el 30 de
 marzo porque febrero de 2023 tuvo 28 días; R lleva el calendario por ti.
-Dos facturas vencen en sábado, algo que conviene saber si tu área de
+Tres de las cuatro facturas vencen en sábado, algo que conviene saber si tu área de
 cobranza no trabaja fines de semana.
 \end{solucion}
 
@@ -172,8 +172,9 @@ names(which(acumulado > 3000)[1])     # Primer mes que supera 3 millones
 La tienda vendió 5.84 millones en el año, con un promedio de 487 mil por
 mes. Diciembre fue el mejor mes (640 mil) y febrero el peor (385 mil).
 Cinco meses superaron los 500 mil, todos en el segundo semestre salvo
-junio. El crecimiento más fuerte fue en diciembre (+14.3\%), típico de la
-temporada navideña. El acumulado superó los 3 millones en julio.
+junio. Los mayores crecimientos mensuales fueron en mayo (+18.9\%) y marzo
+(+18.2\%), y diciembre cerró fuerte (+14.3\%), típico de la temporada
+navideña. El acumulado superó los 3 millones en julio.
 \end{solucion}
 
 \begin{solucion}{m1-5}
@@ -329,11 +330,11 @@ Operaciones          TI      Ventas
 [1] "Ventas"
 \end{rsalida}
 
-TI tiene el salario promedio más alto (\$38,000) y, aunque solo son dos
-personas, es el departamento con mayor costo anual de nómina
-(\$997,200), por encima de Ventas con cuatro personas (\$1,009,200 si se
-revisa con cuidado: \emph{ver la salida}). Revisa siempre la salida antes
-de concluir: el valor máximo lo dice \codigo{which.max()}.
+TI tiene el salario promedio más alto (\$38,000) y reparte la mayor bolsa
+de bonos (\$91,200), pero el departamento con mayor costo anual de nómina
+es Ventas (\$1,062,600), simplemente porque tiene cuatro personas contra
+dos de TI. Para comparar departamentos de distinto tamaño conviene mirar
+tanto el total como el promedio por persona.
 \end{solucion}
 
 \begin{solucion}{m1-8}
@@ -341,7 +342,7 @@ Primero calculamos el cumplimiento de forma vectorizada; después lo usamos
 en el \codigo{ifelse()}, en el bucle y en el \codigo{while}.
 
 \begin{rcode}
-vendedores <- c("Luis", "Marta", "Nora", "Óscar", "Paula", "Raúl")
+vendedores <- c("Luis", "Marta", "Nora", "Oscar", "Paula", "Raul")
 ventas_trim <- c(185, 240, 132, 310, 198, 260)
 meta <- 200
 
@@ -373,9 +374,9 @@ round(venta, 1)
 Luis    185 mil    92.5%  Amarillo
 Marta   240 mil   120.0%  Verde
 Nora    132 mil    66.0%  Rojo
-Óscar  310 mil   155.0%  Verde
+Oscar   310 mil   155.0%  Verde
 Paula   198 mil    99.0%  Amarillo
-Raúl   260 mil   130.0%  Verde
+Raul    260 mil   130.0%  Verde
 [1] "Nora"
 [1] 6
 [1] 209.5
@@ -429,8 +430,8 @@ tryCatch(precio_final(1000, descuento = 1.5),
 [1] "El descuento debe estar entre 0 y 1 (0.15 = 15%)"
 \end{rsalida}
 
-El negocio necesita vender 501 unidades para cubrir sus \$85,000 de costos
-fijos (con 500 le faltarían \$20). \codigo{tryCatch()} ejecuta el código y,
+El negocio necesita vender 500 unidades para cubrir sus \$85,000 de costos
+fijos: cada unidad deja \$170 de contribución y $500 \times 170 = 85{,}000$. \codigo{tryCatch()} ejecuta el código y,
 si ocurre un error, en lugar de detener el script llama a la función de
 \codigo{error}; aquí solo devolvemos el mensaje. Sin \codigo{tryCatch()},
 R mostraría:
@@ -509,9 +510,9 @@ Stock Bajo   Stock OK
 [1] 4
 \end{rsalida}
 
-\textbf{Conclusiones para Compras:} 12 de los 50 productos (24\%) se venden
-por debajo de su costo; en los peores casos el costo es más de cuatro veces
-el precio, lo que sugiere errores de captura o precios desactualizados que
+\textbf{Conclusiones para Compras:} 10 de los 50 productos (20\%) se venden
+por debajo de su costo; en el peor caso el costo es unas 14 veces el
+precio, lo que sugiere errores de captura o precios desactualizados que
 hay que revisar antes de cualquier análisis de rentabilidad. Además, 4
 productos tienen stock bajo y ninguno está agotado. (Los datos del curso
 son simulados, por eso aparecen casos tan extremos; en una empresa real
@@ -653,7 +654,7 @@ RANKING DE TIENDAS 2023
 total (\$70,155) y, con solo 350 m$^2$, también la más productiva por metro
 cuadrado (\$200.44/m$^2$). En cambio, la Sucursal Premium, la más grande
 (800 m$^2$), vende menos de la mitad por metro cuadrado. La Sucursal Este
-es la de menor venta total, con solo 20 ventas en el año. Recuerda que en
+es la de menor venta total, con solo 23 ventas en el año. Recuerda que en
 estos datos cada registro es una venta diaria asignada al azar a una
 tienda, así que las diferencias entre tiendas son pequeñas; con datos
 reales, este mismo script te daría el ranking verdadero cada mes.

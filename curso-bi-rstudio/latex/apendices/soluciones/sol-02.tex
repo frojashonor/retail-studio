@@ -1,0 +1,535 @@
+% ============================================================================
+% Soluciones del Módulo 2
+% ============================================================================
+
+\begin{solucion}{m2-1}
+Filtramos con dos condiciones, elegimos columnas y ordenamos; después
+resumimos el resultado con \codigo{summarise()}.
+
+\begin{rcode}
+library(tidyverse)
+\end{rcode}
+
+\begin{rcode}
+ventas <- read_csv("datasets/ventas_retail.csv", show_col_types = FALSE)
+
+tienda3_desc <- ventas %>%
+  filter(tienda_id == 3, descuento_pct >= 10) %>%   # ambas condiciones
+  select(fecha, producto_id, descuento_pct, total) %>%
+  arrange(desc(total))
+tienda3_desc
+
+tienda3_desc %>%
+  summarise(ventas = n(), total = sum(total))
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 4
+  fecha      producto_id descuento_pct total
+  <date>           <dbl>         <dbl> <dbl>
+1 2023-11-05          27            10 1439.
+2 2023-03-02          26            20 1227.
+3 2023-12-20          17            10 1098.
+4 2023-07-08           6            10  742.
+# A tibble: 1 x 2
+  ventas total
+   <int> <dbl>
+1      4 4506.
+\end{rsalida}
+
+La tienda 3 hizo 4 ventas con descuento de 10\% o más, que suman
+\$4,506; la mayor fue de \$1,439 el 5 de noviembre. Observa que en
+\codigo{summarise(total = sum(total))} el nombre nuevo puede coincidir con
+el de la columna: dentro de la función, \codigo{total} todavía es la
+columna original.
+\end{solucion}
+
+\begin{solucion}{m2-2}
+Combinamos tres condiciones en \codigo{filter()} (el producto activo y el
+stock bajo el mínimo) y calculamos el faltante con \codigo{mutate()}.
+
+\begin{rcode}
+library(tidyverse)
+productos <- read_csv("datasets/productos.csv", show_col_types = FALSE)
+
+resurtir <- productos %>%
+  filter(activo, stock_actual < stock_minimo) %>%
+  mutate(faltante = stock_minimo - stock_actual) %>%
+  select(nombre_producto, proveedor, stock_actual, stock_minimo,
+         faltante) %>%
+  arrange(desc(faltante))
+resurtir
+resurtir %>% count(proveedor, wt = faltante, sort = TRUE)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 5
+  nombre_producto proveedor   stock_actual stock_minimo faltante
+  <chr>           <chr>              <dbl>        <dbl>    <dbl>
+1 Producto 03     Proveedor 3           22           26        4
+2 Producto 33     Proveedor 1           42           45        3
+3 Producto 06     Proveedor 1           36           38        2
+# A tibble: 2 x 2
+  proveedor       n
+  <chr>       <dbl>
+1 Proveedor 1     5
+2 Proveedor 3     4
+\end{rsalida}
+
+Solo 3 productos activos están bajo su mínimo. Por unidades faltantes hay
+que llamar primero al Proveedor 1 (5 unidades en dos productos), aunque el
+producto con el mayor faltante individual (Producto 03, 4 unidades) es del
+Proveedor 3. \codigo{filter(activo, \ldots)} funciona porque
+\codigo{activo} ya es lógica.
+\end{solucion}
+
+\begin{solucion}{m2-3}
+\codigo{case\_when()} evalúa las reglas en orden, así que basta con dar el
+límite superior de cada rango. El porcentaje se calcula después de
+\codigo{count()}.
+
+\begin{rcode}
+library(tidyverse)
+clientes <- read_csv("datasets/clientes.csv", show_col_types = FALSE)
+
+clientes %>%
+  mutate(rango_edad = case_when(
+    edad < 30 ~ "18-29",
+    edad < 45 ~ "30-44",
+    edad < 60 ~ "45-59",
+    .default  = "60+"
+  )) %>%
+  count(rango_edad) %>%
+  mutate(pct = round(n / sum(n) * 100, 1))
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 3
+  rango_edad     n   pct
+  <chr>      <int> <dbl>
+1 18-29         33  16.5
+2 30-44         52  26  
+3 45-59         51  25.5
+4 60+           64  32  
+\end{rsalida}
+
+El grupo más grande es el de 60 años o más (64 clientes, 32\%) y el más
+chico el de 18 a 29 (33 clientes, 16.5\%): una base de clientes madura.
+\end{solucion}
+
+\begin{solucion}{m2-4}
+El promedio de una columna lógica es la proporción de \codigo{TRUE}: con
+\codigo{mean(es\_premium)} obtenemos directamente el porcentaje de premium.
+
+\begin{rcode}
+library(tidyverse)
+clientes <- read_csv("datasets/clientes.csv", show_col_types = FALSE)
+
+perfil_ciudad <- clientes %>%
+  group_by(ciudad) %>%
+  summarise(clientes    = n(),
+            pct_premium = round(mean(es_premium) * 100, 1),
+            edad_prom   = round(mean(edad), 1),
+            .groups = "drop") %>%
+  arrange(desc(clientes))
+perfil_ciudad
+perfil_ciudad %>% slice_max(pct_premium, n = 1)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 10 x 4
+   ciudad      clientes pct_premium edad_prom
+   <chr>          <int>       <dbl>     <dbl>
+ 1 Puebla            28        42.9      51.3
+ 2 CDMX              27        48.1      56.2
+ 3 Guadalajara       22        27.3      49.2
+ 4 Cancún            20        30        45  
+ 5 Toluca            20        30        51  
+ 6 León              18        16.7      39.1
+ 7 Mérida            17        23.5      47.6
+ 8 Querétaro         17        35.3      53.7
+ 9 Tijuana           17        41.2      37.8
+10 Monterrey         14        71.4      51.1
+# A tibble: 1 x 4
+  ciudad    clientes pct_premium edad_prom
+  <chr>        <int>       <dbl>     <dbl>
+1 Monterrey       14        71.4      51.1
+\end{rsalida}
+
+Puebla y la CDMX tienen más clientes, pero Monterrey tiene la mayor
+proporción de premium: 71.4\% de sus 14 clientes. Es una plaza chica pero de
+alto valor.
+\end{solucion}
+
+\begin{solucion}{m2-5}
+\begin{rcode}
+library(tidyverse)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+
+transacciones %>%
+  mutate(dia = wday(fecha, label = TRUE, abbr = FALSE)) %>%
+  group_by(dia) %>%
+  summarise(transacciones = n(),
+            ingresos = sum(total_transaccion),
+            ticket_promedio = round(mean(total_transaccion), 2),
+            .groups = "drop") %>%
+  mutate(participacion_pct = round(ingresos / sum(ingresos) * 100, 1))
+\end{rcode}
+\begin{rsalida}
+# A tibble: 7 x 5
+  dia       transacciones ingresos ticket_promedio participacion_pct
+  <ord>             <int>    <dbl>           <dbl>             <dbl>
+1 domingo             146  148703.           1019.              15.5
+2 lunes               136  128878.            948.              13.4
+3 martes              129  119364.            925.              12.4
+4 miércoles           155  141329.            912.              14.7
+5 jueves              146  145280.            995.              15.1
+6 viernes             158  161266.           1021.              16.8
+7 sábado              130  115172.            886.              12  
+\end{rsalida}
+
+El viernes es el día con más transacciones (158) e ingresos (\$161,266,
+16.8\% del total), seguido del domingo; el sábado es el más flojo (12\%).
+Conviene reforzar el personal los viernes y domingos.
+\end{solucion}
+
+\begin{solucion}{m2-6}
+\begin{rcode}
+library(tidyverse)
+empleados <- read_csv("datasets/empleados.csv", show_col_types = FALSE)
+fecha_corte <- as.Date("2024-01-01")
+
+empleados_antig <- empleados %>%
+  mutate(
+    antig_calc = time_length(interval(fecha_ingreso, fecha_corte),
+                             "years"),
+    diferencia = abs(antig_calc - antiguedad_anos),
+    grupo = case_when(
+      antig_calc < 3  ~ "1. Menos de 3 años",
+      antig_calc <= 6 ~ "2. 3 a 6 años",
+      .default        = "3. Más de 6 años"
+    )
+  )
+max(empleados_antig$diferencia)          # diferencia máxima
+
+empleados_antig %>%
+  group_by(grupo) %>%
+  summarise(empleados = n(),
+            salario_prom = round(mean(salario_mensual), 2),
+            .groups = "drop")
+\end{rcode}
+\begin{rsalida}
+[1] 0.05245902
+# A tibble: 3 x 3
+  grupo              empleados salario_prom
+  <chr>                  <int>        <dbl>
+1 1. Menos de 3 años        41       27354.
+2 2. 3 a 6 años             34       27821.
+3 3. Más de 6 años          25       27228.
+\end{rsalida}
+
+La diferencia máxima entre ambos cálculos es de 0.05 años (unos 19
+días): la columna original dividía los días entre 365, mientras que
+\codigo{time\_length()} considera los años bisiestos. El salario promedio
+casi no cambia con la antigüedad (entre \$27,228 y \$27,821): en estos datos
+simulados la antigüedad no se refleja en el sueldo, algo que en una empresa
+real merecería una revisión de política salarial.
+\end{solucion}
+
+\begin{solucion}{m2-7}
+Solo necesitamos del catálogo la categoría y el costo, así que los
+seleccionamos dentro del \emph{join}.
+
+\begin{rcode}
+library(tidyverse)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+productos <- read_csv("datasets/productos.csv", show_col_types = FALSE)
+
+margen_cat <- transacciones %>%
+  left_join(select(productos, producto_id, categoria, costo),
+            by = "producto_id") %>%
+  mutate(utilidad = (precio_venta - costo) * cantidad) %>%
+  group_by(categoria) %>%
+  summarise(con_perdida = sum(utilidad < 0),   # antes de resumir
+            ingresos = sum(total_transaccion),
+            utilidad = sum(utilidad),
+            .groups = "drop") %>%
+  mutate(margen_pct = round(utilidad / ingresos * 100, 1)) %>%
+  arrange(desc(utilidad))
+margen_cat
+\end{rcode}
+\begin{rsalida}
+# A tibble: 10 x 5
+   categoria   con_perdida ingresos utilidad margen_pct
+   <chr>             <int>    <dbl>    <dbl>      <dbl>
+ 1 Alimentos            13  121543.   73870.       60.8
+ 2 Electrónica          27  132672.   73067.       55.1
+ 3 Juguetes             30  125093.   57714.       46.1
+ 4 Belleza              66  182143.   56054.       30.8
+ 5 Automotriz           26  104085.   55538.       53.4
+ 6 Deportes             20   86171.   48301.       56.1
+ 7 Mascotas             10   57668.   35423.       61.4
+ 8 Libros               21   57162.   25757.       45.1
+ 9 Hogar                24   63407.   13079.       20.6
+10 Ropa                 15   30048.    5835.       19.4
+\end{rsalida}
+
+Alimentos es la categoría que más utilidad deja (\$73,870), aunque
+Belleza tiene los mayores ingresos (\$182,143). Belleza es también la más
+problemática: 66 transacciones con utilidad negativa y un margen de 30.8\%.
+Ropa y Hogar tienen los márgenes más bajos (19--21\%). Cuidado con el orden
+dentro de \codigo{summarise()}: si calculas \codigo{utilidad = sum(utilidad)}
+\emph{antes} de \codigo{sum(utilidad < 0)}, la segunda usaría la suma ya
+calculada y el conteo saldría 0.
+\end{solucion}
+
+\begin{solucion}{m2-8}
+Trabajamos con listas de clientes \emph{únicos} de cada tabla
+(\codigo{distinct()}) para que los conteos sean de clientes y no de ventas.
+
+\begin{rcode}
+library(tidyverse)
+ventas <- read_csv("datasets/ventas_retail.csv", show_col_types = FALSE)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+clientes <- read_csv("datasets/clientes.csv", show_col_types = FALSE)
+
+cli_ventas <- ventas %>% distinct(cliente_id)
+cli_trans  <- transacciones %>% distinct(cliente_id)
+
+# (a) En ambas tablas
+cli_ventas %>% semi_join(cli_trans, by = "cliente_id") %>% nrow()
+# (b) En transacciones pero no en ventas
+cli_trans %>% anti_join(cli_ventas, by = "cliente_id") %>% nrow()
+# (c) Registrados que no aparecen en ninguna
+compradores <- bind_rows(cli_ventas, cli_trans) %>% distinct()
+clientes %>% anti_join(compradores, by = "cliente_id") %>%
+  select(cliente_id, nombre, fecha_registro)
+\end{rcode}
+\begin{rsalida}
+[1] 170
+[1] 28
+# A tibble: 0 x 3
+# i 3 variables: cliente_id <dbl>, nombre <chr>,
+#   fecha_registro <date>
+\end{rsalida}
+
+170 clientes compraron en ambas tablas y 28 aparecen solo en
+transacciones. Ningún cliente registrado quedó sin comprar en alguna de las
+dos: el resultado de (c) es una tabla vacía (0 filas), lo cual también es
+una respuesta válida.
+\end{solucion}
+
+\begin{solucion}{m2-9}
+Calculamos el porcentaje en formato largo (agrupado por tienda) y al final
+pivotamos a ancho.
+
+\begin{rcode}
+library(tidyverse)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+tiendas <- read_csv("datasets/tiendas.csv", show_col_types = FALSE)
+
+pagos_tienda <- transacciones %>%
+  left_join(select(tiendas, tienda_id, nombre_tienda), by = "tienda_id") %>%
+  group_by(nombre_tienda, metodo_pago) %>%
+  summarise(ingresos = sum(total_transaccion), .groups = "drop_last") %>%
+  mutate(pct = round(ingresos / sum(ingresos) * 100, 1)) %>%
+  ungroup() %>%
+  select(-ingresos) %>%
+  pivot_wider(names_from = metodo_pago, values_from = pct,
+              values_fill = 0) %>%
+  arrange(desc(Efectivo))
+pagos_tienda
+\end{rcode}
+\begin{rsalida}
+# A tibble: 10 x 5
+   nombre_tienda    Efectivo `Tarjeta Crédito` `Tarjeta Débito`
+   <chr>               <dbl>             <dbl>            <dbl>
+ 1 Sucursal Oeste       45.5              35.6             10.7
+ 2 Sucursal Este        37.5              27               25.6
+ 3 Sucursal Norte       37.1              43.5             14.2
+ 4 Sucursal Plaza A     36.2              21.5             31.4
+ 5 Sucursal Plaza B     33.5              42.8             18.1
+ 6 Sucursal Sur         29.3              36.4             29.6
+ 7 Sucursal Outlet      29.1              29.5             28  
+ 8 Sucursal Centro      28.9              44               21.2
+ 9 Sucursal Premium     24.6              40.8             25.2
+10 Sucursal Express     18.8              47.6             20.8
+# i 1 more variable: Transferencia <dbl>
+\end{rsalida}
+
+La Sucursal Oeste es la más dependiente del efectivo: 45.5\% de sus
+ingresos. En el otro extremo, la Sucursal Express cobra solo 18.8\% en
+efectivo y 47.6\% con tarjeta de crédito. Como los porcentajes se calcularon
+con el resultado agrupado por tienda (\codigo{.groups = "drop\_last"}),
+cada fila suma 100.
+\end{solucion}
+
+\begin{solucion}{m2-10}
+Primero completamos los meses faltantes; si no, \codigo{lag()} compararía
+contra el mes equivocado. \codigo{group\_by(tienda\_id)} hace que
+\codigo{lag()} y \codigo{cumsum()} reinicien en cada tienda.
+
+\begin{rcode}
+library(tidyverse)
+ventas <- read_csv("datasets/ventas_retail.csv", show_col_types = FALSE)
+
+tienda_mes <- ventas %>%
+  group_by(tienda_id, mes) %>%
+  summarise(ingresos = sum(total), .groups = "drop") %>%
+  complete(tienda_id, mes, fill = list(ingresos = 0)) %>%
+  arrange(tienda_id, mes) %>%
+  group_by(tienda_id) %>%
+  mutate(cambio_pesos = ingresos - lag(ingresos),
+         acumulado    = cumsum(ingresos)) %>%
+  ungroup()
+nrow(tienda_mes)
+
+tienda_mes %>%
+  slice_min(cambio_pesos, n = 3) %>%        # las 3 mayores caídas
+  mutate(across(where(is.numeric), ~ round(.x, 2)))
+\end{rcode}
+\begin{rsalida}
+[1] 120
+# A tibble: 3 x 5
+  tienda_id mes     ingresos cambio_pesos acumulado
+      <dbl> <chr>      <dbl>        <dbl>     <dbl>
+1         8 2023-08     781.      -12373.    50452 
+2         8 2023-03    1222.       -9457.    17226.
+3         2 2023-05    3698.       -7626.    25458.
+\end{rsalida}
+
+La tabla completa tiene 120 filas (10 tiendas $\times$ 12 meses) gracias
+a \codigo{complete()}. La mayor caída fue la de la tienda 8 en agosto:
+\$12,373 menos que en julio, al vender solo \$781 en el mes.
+\end{solucion}
+
+\begin{solucion}{m2-11}
+Seguimos el mismo orden que en la sección~\ref{sec:m2-limpieza}:
+duplicados, texto, números y fechas, y al final reglas de negocio.
+
+\begin{rcode}
+library(tidyverse)
+lista_proveedor <- tibble(
+  id        = c(1, 2, 2, 3, 4, 5, 6),
+  categoria = c("electronica", "Electrónica ", "Electrónica ",
+                "HOGAR", "hogar", "Ropa", " ropa"),
+  precio    = c("$1,250.00", "$899.50", "$899.50", "450", "$0",
+                "$320.75", "-15"),
+  fecha     = c("2023-05-01", "02/05/2023", "02/05/2023", "2023-05-03",
+                "04/05/2023", "2023-05-05", "06/05/2023")
+)
+
+lista_limpia <- lista_proveedor %>%
+  distinct() %>%                                   # 1. duplicados
+  mutate(
+    categoria = str_to_title(str_squish(categoria)),   # 2. texto
+    categoria = recode(categoria, "Electronica" = "Electrónica"),
+    precio    = parse_number(precio),                  # 3. número
+    fecha     = as_date(parse_date_time(fecha,         # 4. fecha
+                                        orders = c("ymd", "dmy"))),
+    sku       = str_c("SKU-", str_pad(id, 4, pad = "0"))
+  ) %>%
+  filter(precio > 0)                               # 5. regla de negocio
+lista_limpia
+
+lista_limpia %>%
+  group_by(categoria) %>%
+  summarise(productos = n(), precio_prom = mean(precio),
+            .groups = "drop")
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 5
+     id categoria   precio fecha      sku     
+  <dbl> <chr>        <dbl> <date>     <chr>   
+1     1 Electrónica  1250  2023-05-01 SKU-0001
+2     2 Electrónica   900. 2023-05-02 SKU-0002
+3     3 Hogar         450  2023-05-03 SKU-0003
+4     5 Ropa          321. 2023-05-05 SKU-0005
+# A tibble: 3 x 3
+  categoria   productos precio_prom
+  <chr>           <int>       <dbl>
+1 Electrónica         2       1075.
+2 Hogar               1        450 
+3 Ropa                1        321.
+\end{rsalida}
+
+De 7 registros quedaron 4: se eliminaron el duplicado del id 2, el precio
+en cero (id 4) y el negativo (id 6). Las categorías quedaron unificadas y
+las fechas en un solo formato.
+\end{solucion}
+
+\begin{solucion}{m2-12}
+Construimos una tabla maestra, la validamos con \codigo{stopifnot()},
+calculamos las tres hojas y las exportamos con \paquete{writexl}.
+
+\begin{rcode}
+library(tidyverse)
+library(writexl)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+productos <- read_csv("datasets/productos.csv", show_col_types = FALSE)
+tiendas   <- read_csv("datasets/tiendas.csv", show_col_types = FALSE)
+
+maestra_t <- transacciones %>%
+  left_join(select(productos, producto_id, nombre_producto, categoria),
+            by = "producto_id") %>%
+  left_join(select(tiendas, tienda_id, nombre_tienda), by = "tienda_id")
+stopifnot(nrow(maestra_t) == nrow(transacciones))   # control
+
+resumen <- maestra_t %>%
+  group_by(nombre_tienda) %>%
+  summarise(ingresos = sum(total_transaccion), transacciones = n(),
+            ticket_promedio = round(mean(total_transaccion), 2),
+            clientes_unicos = n_distinct(cliente_id), .groups = "drop") %>%
+  mutate(ranking = min_rank(desc(ingresos))) %>%
+  arrange(ranking)
+
+trimestres <- maestra_t %>%
+  group_by(nombre_tienda, trimestre) %>%
+  summarise(ingresos = round(sum(total_transaccion)), .groups = "drop") %>%
+  pivot_wider(names_from = trimestre, values_from = ingresos,
+              values_fill = 0)
+
+top_producto <- maestra_t %>%
+  group_by(nombre_tienda, nombre_producto, categoria) %>%
+  summarise(ingresos = sum(total_transaccion), .groups = "drop") %>%
+  group_by(nombre_tienda) %>%
+  slice_max(ingresos, n = 1, with_ties = FALSE) %>%
+  ungroup()
+
+dir.create("resultados", showWarnings = FALSE)
+write_xlsx(list("Resumen" = resumen, "Trimestres" = trimestres,
+                "Top producto" = top_producto),
+           "resultados/reporte_tiendas.xlsx")
+readxl::excel_sheets("resultados/reporte_tiendas.xlsx")
+resumen %>% select(ranking, nombre_tienda, ingresos, ticket_promedio)
+top_producto %>% head(3)
+\end{rcode}
+\begin{rsalida}
+[1] "Resumen"      "Trimestres"   "Top producto"
+# A tibble: 10 x 4
+   ranking nombre_tienda    ingresos ticket_promedio
+     <int> <chr>               <dbl>           <dbl>
+ 1       1 Sucursal Outlet   114377.           1079.
+ 2       2 Sucursal Sur      105305.            966.
+ 3       3 Sucursal Plaza A  105216.            965.
+ 4       4 Sucursal Express  102791.            952.
+ 5       5 Sucursal Premium  101538.            940.
+ 6       6 Sucursal Norte     89024.            899.
+ 7       7 Sucursal Este      88420.            941.
+ 8       8 Sucursal Centro    88414.           1016.
+ 9       9 Sucursal Oeste     84672.            891.
+10      10 Sucursal Plaza B   80236.            944.
+# A tibble: 3 x 4
+  nombre_tienda    nombre_producto categoria   ingresos
+  <chr>            <chr>           <chr>          <dbl>
+1 Sucursal Centro  Producto 40     Electrónica    5611.
+2 Sucursal Este    Producto 47     Automotriz     6652.
+3 Sucursal Express Producto 27     Juguetes       6072.
+\end{rsalida}
+
+El archivo tiene las tres hojas. La Sucursal Outlet vuelve a ser la
+número uno (\$114,377 en transacciones), igual que en \codigo{ventas}. Usamos
+\codigo{with\_ties = FALSE} en \codigo{slice\_max()} para garantizar un solo
+producto por tienda aunque hubiera empates.
+\end{solucion}

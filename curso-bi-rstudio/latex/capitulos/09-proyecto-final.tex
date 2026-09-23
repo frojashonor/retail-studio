@@ -2061,9 +2061,10 @@ después las gráficas que explican los números
   \node[font=\small\sffamily\bfseries, color=primario, anchor=west]
     at (-0.2,0.5) {TechRetail México -- Tablero ejecutivo de ventas};
   % Fila de KPIs
-  \foreach \x/\t/\v in {1.65/Ventas/\$959,993, 5.25/Ticket promedio/\$959.99,
-                        8.85/Clientes activos/198, 12.45/Margen estimado/46.3\%}
-    \node[kpi] at (\x,-0.5) {\t\\ {\normalsize\bfseries \v}\\ {\color{exito}vs. periodo previo}};
+  \node[kpi] at (1.65,-0.5) {Ventas\\ {\normalsize\bfseries \$959,993}\\ {\color{exito}vs. periodo previo}};
+  \node[kpi] at (5.25,-0.5) {Ticket promedio\\ {\normalsize\bfseries \$959.99}\\ {\color{exito}vs. periodo previo}};
+  \node[kpi] at (8.85,-0.5) {Clientes activos\\ {\normalsize\bfseries 198}\\ {\color{exito}vs. periodo previo}};
+  \node[kpi] at (12.45,-0.5) {Margen estimado\\ {\normalsize\bfseries 46.3\%}\\ {\color{exito}vs. periodo previo}};
   % Fila de filtros
   \foreach \x/\t in {1.65/Periodo, 5.25/Zona y sucursal, 8.85/Categoría,
                      12.45/Método de pago}
@@ -2099,7 +2100,7 @@ Segmentos RFM & ¿Cuántos clientes están en riesgo? & Sec.~\ref{sec:m09-rfm} \
 \end{table}
 
 No necesitas empezar desde cero. En el Módulo~\ref{cap:shiny} construiste la
-app \archivo{latex/codigo/apps/03-dashboard-ejecutivo/app.R}, que ya tiene
+app \nolinkurl{latex/codigo/apps/03-dashboard-ejecutivo/app.R}, que ya tiene
 fila de KPIs, filtros globales, pestañas y descargas, con toda la lógica en
 \archivo{R/funciones\_dashboard.R}. Para adaptarla al proyecto haz tres
 cambios:
@@ -2199,7 +2200,7 @@ estructura fija:
 \end{enumerate}
 
 En el Módulo~\ref{cap:reportes} automatizaste reportes con R Markdown; la
-plantilla \archivo{latex/codigo/reportes/02-reporte-ejecutivo.Rmd} ya genera
+plantilla \nolinkurl{latex/codigo/reportes/02-reporte-ejecutivo.Rmd} ya genera
 un reporte por tienda y mes con parámetros. Para el proyecto la adaptarías
 para leer \archivo{resultados/modelo\_techretail.rds} y agregar las
 secciones de hallazgos. Lo más valioso que aprendiste ahí es a

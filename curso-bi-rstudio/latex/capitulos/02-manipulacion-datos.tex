@@ -445,13 +445,13 @@ $ cliente_id  <chr> "94", "169", "136", "167", "81", "191", "82", "1~
 $ cantidad    <int> 10, 8, 3, 2, 10, 8, 10, 7, 7, 6, 1, 4, 1, 5, 10,~
 \end{rsalida}
 
-Ahora \codigo{producto\_id} es \texttt{<chr>} y \codigo{cantidad} es
+{\sloppy Ahora \codigo{producto\_id} es \texttt{<chr>} y \codigo{cantidad} es
 \texttt{<int>} (entero). Las funciones más usadas en \codigo{cols()} son
 \codigo{col\_character()}, \codigo{col\_double()}, \codigo{col\_integer()},
 \codigo{col\_logical()}, \codigo{col\_date(format = "\%d/\%m/\%Y")} y
 \codigo{col\_skip()} (para no leer una columna). Si solo necesitas algunas
 columnas de un archivo grande, \codigo{col\_select} lee únicamente esas:
-\codigo{read\_csv(ruta, col\_select = c(fecha, total))}.
+\codigo{read\_csv(ruta, col\_select = c(fecha, total))}.\par}
 
 \begin{advertencia}
 Para unir tablas (sección~\ref{sec:m2-joins}), la llave debe tener el
@@ -1078,11 +1078,11 @@ productos %>% select(where(is.numeric)) %>% names()
 [4] "stock_actual"    "stock_minimo"    "margen_pct"     
 \end{rsalida}
 
-\codigo{where()} recibe una función que devuelve \codigo{TRUE} o
+{\sloppy \codigo{where()} recibe una función que devuelve \codigo{TRUE} o
 \codigo{FALSE} para cada columna: \codigo{is.numeric}, \codigo{is.character},
 \codigo{is.logical}\ldots{} Otras auxiliares útiles son
 \codigo{everything()} (``todas las demás''), \codigo{matches()} (patrón de
-texto) y \codigo{any\_of()} (una lista de nombres que pueden no existir).
+texto) y \codigo{any\_of()} (una lista de nombres que pueden no existir).\par}
 
 \subsubsection{Renombrar y reacomodar: \texorpdfstring{\codigo{rename()}}{rename()} y \texorpdfstring{\codigo{relocate()}}{relocate()}}
 
@@ -2875,9 +2875,9 @@ veremos en un momento).
 
 \subsubsection{Llaves con nombres distintos: \texorpdfstring{\codigo{by = c(...)}}{by = c(...)} y \texorpdfstring{\codigo{join\_by()}}{join\_by()}}
 
-En \codigo{ventas} el vendedor se identifica con \codigo{vendedor\_id}, pero
+{\sloppy En \codigo{ventas} el vendedor se identifica con \codigo{vendedor\_id}, pero
 en \codigo{empleados} la llave se llama \codigo{empleado\_id}. Hay dos formas
-de indicarlo:
+de indicarlo:\par}
 
 \begin{rcode}
 # Forma clásica: c("nombre en x" = "nombre en y")
@@ -2894,10 +2894,10 @@ identical(v1, v2)       # ¿dan exactamente lo mismo?
 [1] TRUE
 \end{rsalida}
 
-\codigo{join\_by()} se lee más natural y además permite uniones por
+{\sloppy \codigo{join\_by()} se lee más natural y además permite uniones por
 desigualdad (por ejemplo, \codigo{join\_by(producto\_id, fecha >= inicio)}
 para buscar el precio vigente en cada fecha), que son muy útiles pero
-rebasan este módulo.
+rebasan este módulo.\par}
 
 \begin{ejemplo}{¿Quiénes son nuestros vendedores?}
 Recursos Humanos quiere saber de qué departamento son los empleados que
@@ -4368,8 +4368,8 @@ Caused by error:
 ! objeto 'Total' no encontrado
 \end{rsalida}
 
-R distingue mayúsculas de minúsculas. Revisa los nombres exactos con
-\codigo{names(ventas)} o \codigo{glimpse(ventas)}.
+{\sloppy R distingue mayúsculas de minúsculas. Revisa los nombres exactos con
+\codigo{names(ventas)} o \codigo{glimpse(ventas)}.\par}
 
 \subsection{Nombres de columna con espacios}
 
@@ -4474,8 +4474,8 @@ Error in `bind_rows()`:
 ! Can't combine `..1$monto` <character> and `..2$monto` <double>.
 \end{rsalida}
 
-\textbf{Solución}: homologa los tipos antes de apilar, por ejemplo con
-\codigo{mutate(monto = parse\_number(monto))} en la tabla de texto.
+{\sloppy \textbf{Solución}: homologa los tipos antes de apilar, por ejemplo con
+\codigo{mutate(monto = parse\_number(monto))} en la tabla de texto.\par}
 
 % ----------------------------------------------------------------------------
 \begin{resumen}

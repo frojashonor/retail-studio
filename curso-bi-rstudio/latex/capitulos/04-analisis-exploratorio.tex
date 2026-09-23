@@ -1203,7 +1203,7 @@ kpi_largo <- kpi_mensual %>%
 p_kpi <- ggplot(kpi_largo, aes(x = fecha_mes, y = valor, color = serie)) +
   geom_hline(yintercept = meta_mensual, linetype = "dashed",
              color = "#52514e", linewidth = 0.5) +
-  annotate("text", x = as.Date("2023-01-01"), y = meta_mensual + 2500,
+  annotate("text", x = as.Date("2023-09-20"), y = meta_mensual + 2500,
            label = "Meta: $80,000", hjust = 0, size = 3.3,
            color = "#52514e") +
   geom_line(linewidth = 0.8, na.rm = TRUE) +

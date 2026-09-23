@@ -34,7 +34,7 @@ distribución del precio es simétrica (recuerda que su asimetría era
 $-0.08$). El coeficiente de variación es 0.54, menor que el del ticket
 (0.79): el precio varía menos en términos relativos porque el ticket
 multiplica dos fuentes de variación (precio y cantidad). El 80\% central de
-los precios está entre \$73 y \$541.
+los precios está entre \$77 y \$545.
 \end{solucion}
 
 \begin{solucion}{m4-2}
@@ -76,9 +76,10 @@ transacciones %>%
 7 martes               129 119364.             0.129
 \end{rsalida}
 
-El viernes es el día con más transacciones (moda). Revisa la columna
-\codigo{ventas}: el orden por ventas no coincide exactamente con el orden
-por número de transacciones, porque el ticket promedio cambia de un día a
+El viernes es el día con más transacciones (moda) y también el de más
+ventas (\$161,266). Pero revisa el resto de la columna \codigo{ventas}: el
+domingo es segundo en ventas y solo tercero en transacciones; el orden no
+coincide exactamente, porque el ticket promedio cambia de un día a
 otro. Para programar personal importa el número de transacciones; para
 metas de venta, el monto.
 \end{solucion}
@@ -162,9 +163,9 @@ mean((ventas$total - mean(ventas$total))^3) / sd(ventas$total)^3
 [1] 0.8517708
 \end{rsalida}
 
-La regla del IQR marca 3 ventas (todas por encima de \$4,751) y la regla $z$
-ninguna. Las tres son ventas de 10 unidades a precios altos (más de \$480)
-con poco o ningún descuento: son ventas grandes \emph{legítimas}, no
+Ambas reglas marcan las mismas 3 ventas: están por encima de \$4,751 (límite
+del IQR) y su $z$ apenas supera 3. Las tres son ventas de 10 unidades a precios altos (más de \$480)
+sin descuento: son ventas grandes \emph{legítimas}, no
 errores, así que se conservan. La asimetría de 0.85 confirma una cola
 moderada a la derecha, como la del ticket de \archivo{transacciones.csv}.
 \end{solucion}
@@ -205,8 +206,9 @@ sum(kpi_trimestral$ventas) / (4 * meta_trimestral) - 1   # vs meta anual
 \end{rsalida}
 
 Solo el tercer y el cuarto trimestre superaron la meta de \$130,000 (Q3 por
-3.4\% y Q4 por 1.9\%). El segundo trimestre cayó 4.4\% contra el primero y
-el tercero creció 11.4\%. En el año, las ventas quedaron 0.8\% por debajo de
+3.4\% y Q4 por 1.9\%). El segundo trimestre cayó 4.4\% contra el primero, el
+tercero creció 11.4\% y el cuarto bajó 1.4\%. En el año, las ventas quedaron
+1.2\% por debajo de
 la meta anual de \$520,000: la recuperación del segundo semestre no alcanzó
 para compensar el primero.
 \end{solucion}
@@ -253,8 +255,9 @@ mean in group FALSE  mean in group TRUE
            5.182540            4.819444
 \end{rsalida}
 
-Los clientes premium compraron en promedio 5.2 veces en el año y los no
-premium 5.0: una diferencia de apenas 0.2 compras. Con $p = 0.61$ no
+Los clientes premium compraron en promedio 4.8 veces en el año y los no
+premium 5.2: los premium incluso compran un poco \emph{menos} (0.36 compras),
+aunque la diferencia es pequeña. Con $p = 0.29$ no
 rechazamos $H_0$. Conclusión para la directora: \emph{con los datos de 2023
 no hay evidencia de que los clientes premium compren con más frecuencia ni
 gasten más por ticket que los demás; el programa premium no está cambiando
@@ -305,8 +308,9 @@ abc_clientes %>%
 1       39        0.367
 \end{rsalida}
 
-Se necesitan 116 clientes (el 58.6\% de la clientela activa) para juntar el
-80\% de los ingresos, y el 20\% de clientes que más gasta aporta el 37.2\%.
+Los 119 clientes de la clase A (el 60.1\% de la clientela activa) juntan el
+79.8\% de los ingresos, y el 20\% de clientes que más gasta (39 clientes)
+aporta el 36.7\%.
 Los ingresos están más concentrados en clientes que en productos (donde el
 20\% superior aportaba el 26.4\%), pero siguen lejos de la regla 80/20.
 Para la empresa significa que un programa de lealtad no puede enfocarse en
@@ -339,7 +343,7 @@ dbinom(0, size = 150, prob = 0.03)            # P(ninguna)
   \item Hay un 40.6\% de probabilidad de que una semana venda entre
         \$15,000 y \$20,000. Solo el 5\% de las semanas supera \$25,997.
   \item Con 150 ventas se esperan $150 \times 0.03 = 4.5$ devoluciones. Tener
-        más de 8 ocurre el 3.9\% de los días; no tener ninguna, solo el
+        más de 8 ocurre el 3.8\% de los días; no tener ninguna, solo el
         1.0\%.
   \item Recibir 8 o más llamadas en 10 minutos tiene una probabilidad de
         5.1\%: pasa en uno de cada 20 intervalos, útil para dimensionar el
@@ -432,11 +436,11 @@ precio       -3.30276  -2.644474
 [1] 0.8681726
 \end{rsalida}
 
-La pendiente estimada es $-3.13$: por cada peso que sube el precio, se
-venden en promedio 3.1 unidades menos a la semana. Su intervalo del 95\%
-(de $-3.63$ a $-2.64$) contiene el valor real de $-3$, así que la regresión
-recuperó la relación simulada. El $R^2$ de 0.76 indica que el precio explica
-el 76\% de la variación de las unidades.
+La pendiente estimada es $-2.97$: por cada peso que sube el precio, se
+venden en promedio 2.97 unidades menos a la semana. Su intervalo del 95\%
+(de $-3.30$ a $-2.64$) contiene el valor real de $-3$, así que la regresión
+recuperó la relación simulada. El $R^2$ de 0.87 indica que el precio explica
+el 87\% de la variación de las unidades.
 
 \textbf{2 y 3. Predicciones.}
 
@@ -454,9 +458,9 @@ range(semanas$precio)       # rango de precios observado
 [1]  80.98455 119.77079
 \end{rsalida}
 
-Con un precio de \$100 esperamos vender unas 196 unidades en la semana,
-con un intervalo de predicción de 164 a 228. Con \$200 el modelo predice
-unidades \emph{negativas}, algo imposible: los precios observados van de
+Con un precio de \$100 esperamos vender unas 201 unidades en la semana,
+con un intervalo de predicción de 173 a 229. Con \$200 el modelo predice
+$-96$ unidades, algo imposible: los precios observados van de
 \$80 a \$120 y fuera de ese rango no sabemos si la relación sigue siendo
 lineal. Es un ejemplo claro de por qué no se debe extrapolar.
 

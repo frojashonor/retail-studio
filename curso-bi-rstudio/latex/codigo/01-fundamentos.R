@@ -98,7 +98,7 @@ caja <- caja - 300       # Pago a un proveedor en efectivo
 caja
 
 # ---- Bloque 14 --------------------------------------------------------
-ls()                      # Lista los objetos del entorno
+ls(pattern = "ventas")    # Objetos cuyo nombre contiene "ventas"
 rm(caja)                  # Borra la variable caja
 exists("caja")            # ¿Todavía existe?
 
@@ -541,11 +541,11 @@ ventas_mes <- c(485000, 468900, 391200, 552300, 298700)
 metas_mes <- c(520000, 450000, 420000, 540000, 280000)
 
 cat("REPORTE DE CUMPLIMIENTO - MARZO 2023\n")
-for (i in seq_along(sucursales)) {
-  cumpl <- ventas_mes[i] / metas_mes[i] * 100
+for (k in seq_along(sucursales)) {
+  cumpl <- ventas_mes[k] / metas_mes[k] * 100
   alerta <- if (cumpl < 95) "  <- REVISAR" else ""
-  cat(sprintf("%-8s $%9s  %6.1f%%%s\n", sucursales[i],
-              format(ventas_mes[i], big.mark = ","), cumpl, alerta))
+  cat(sprintf("%-8s $%9s  %6.1f%%%s\n", sucursales[k],
+              format(ventas_mes[k], big.mark = ","), cumpl, alerta))
 }
 
 # ---- Bloque 67 --------------------------------------------------------

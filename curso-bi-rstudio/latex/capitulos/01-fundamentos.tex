@@ -322,8 +322,8 @@ para cancelar, corrige la línea en el script y vuelve a ejecutarla.
 
 Guarda con \tecla{Ctrl} + \tecla{S}. La primera vez RStudio te pedirá un
 nombre: usa nombres descriptivos, sin espacios ni acentos y con la
-extensión \archivo{.R}, por ejemplo \archivo{01\_primeros\_pasos.R} o
-\archivo{reporte\_ventas\_mensual.R}. Si el nombre de la pestaña del editor
+extensión \archivo{.R}. Dos buenos ejemplos son
+\archivo{01\_primeros\_pasos.R} y \archivo{reporte\_ventas\_mensual.R}. Si el nombre de la pestaña del editor
 aparece en rojo con un asterisco, hay cambios sin guardar.
 
 \begin{consejo}
@@ -344,9 +344,12 @@ computadora que R toma como ``aquí''. Puedes preguntarle cuál es con
 getwd()   # ¿En qué carpeta está trabajando R?
 \end{rcode}
 
-R responde con una ruta que depende de tu computadora; en Windows se verá
-algo como \codigo{"C:/Users/Ana/Documents/curso-bi-rstudio"} y en Mac algo
-como \codigo{"/Users/ana/Documents/curso-bi-rstudio"}. Lo importante es que
+R responde con una ruta que depende de tu computadora. En Windows se verá
+algo como
+
+\codigo{"C:/Users/Ana/Documents/curso-bi-rstudio"}
+
+y en Mac algo como \codigo{"/Users/ana/Documents/curso-bi-rstudio"}. Lo importante es que
 esa carpeta sea la del curso, la que contiene \archivo{datasets/}.
 
 La forma profesional de lograrlo son los \termino{Proyectos de RStudio}. Un
@@ -410,7 +413,7 @@ Fíjate en que escribimos \archivo{"datasets/ventas\_retail.csv"} y no la
 dirección completa del archivo. Eso es una \termino{ruta relativa}: se
 interpreta \emph{a partir} del directorio de trabajo, como cuando dices ``la
 segunda puerta a la derecha''. Una \termino{ruta absoluta} es la dirección
-completa (\codigo{"C:/Users/Ana/Documents/curso-bi-rstudio/datasets/..."}) y
+completa, como \codigo{"C:/Users/Ana/Documents/.../ventas\_retail.csv"}, y
 solo funciona en la computadora de Ana.
 
 \begin{rnoejecutar}
@@ -717,7 +720,8 @@ comunidad añade algunas convenciones:
         problemas al abrir el script en otra computadora.
 \end{itemize}
 
-En este libro usamos \termino{snake\_case}: palabras en minúsculas unidas
+En este libro usamos el estilo \termino{snake\_\allowbreak case}:
+palabras en minúsculas unidas
 con guion bajo, como \codigo{ventas\_netas\_mensuales}. Es el estilo más
 común en R y el que recomienda la guía de estilo del \emph{tidyverse}.
 
@@ -2867,7 +2871,7 @@ primer al segundo trimestre, repuntaron 11.4\% en el tercero y bajaron
 ligeramente en el cuarto. Y la cartera tiene dos clientes Bronce, dos Plata
 y un cliente en cada uno de los niveles Oro y Platino.
 
-Observa el truco de \codigo{ventas\_trim[-1]} (todos menos el primero, es
+Observa el truco de comparar \codigo{ventas\_trim[-1]} (todos menos el primero, es
 decir Q2 a Q4) contra \codigo{ventas\_trim[-4]} (todos menos el último, Q1
 a Q3): así comparas cada trimestre con el anterior sin bucles. Los nombres
 del resultado son los del periodo actual.

@@ -11,7 +11,12 @@ cliente por fecha y restamos la fecha anterior con \codigo{lag()}.
 library(tidyverse)
 transacciones <- read_csv("datasets/transacciones.csv",
                           show_col_types = FALSE)
+\end{rcode}
 
+Al cargar \paquete{tidyverse} aparece su mensaje de bienvenida (no lo
+copiamos aquí). Ahora los tres cálculos:
+
+\begin{rcode}
 # (a) Porcentaje de clientes activos con 2 o más compras
 compras_cliente <- transacciones %>% count(cliente_id, name = "compras")
 compras_cliente %>%
