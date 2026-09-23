@@ -1,0 +1,4128 @@
+% ============================================================================
+% MÓDULO 7: MACHINE LEARNING PARA BUSINESS INTELLIGENCE
+% ============================================================================
+\chapter{Machine learning para Business Intelligence}
+\label{cap:ml}
+
+\begin{objetivos}
+\begin{itemize}
+  \item Explicar con palabras de negocio qué es el \emph{machine learning}, qué
+        problemas resuelve y cuáles no.
+  \item Distinguir aprendizaje supervisado (regresión y clasificación) y no
+        supervisado (clustering y reglas de asociación), y elegir el algoritmo
+        adecuado para cada pregunta de negocio.
+  \item Aplicar el flujo de trabajo completo: separar datos de entrenamiento y
+        prueba, entrenar, evaluar con las métricas correctas y evitar el
+        sobreajuste y la fuga de datos.
+  \item Segmentar clientes con RFM y \emph{k-means}, y darle un nombre de
+        negocio a cada segmento.
+  \item Predecir ventas con regresión lineal y \emph{random forest}, y medir el
+        error con MAE, RMSE, MAPE y R².
+  \item Predecir qué clientes van a abandonar (\emph{churn}) con regresión
+        logística, árboles de decisión y \emph{random forest}; leer una matriz
+        de confusión, una curva ROC y elegir el umbral según el costo.
+  \item Pronosticar la demanda mensual con modelos de series de tiempo
+        (ingenuo, ETS y ARIMA) y comunicar la incertidumbre.
+  \item Descubrir qué productos se compran juntos (análisis de canasta) para
+        campañas de venta cruzada.
+  \item Guardar un modelo, usarlo para puntuar clientes nuevos, vigilar que siga
+        funcionando y usarlo de forma ética.
+\end{itemize}
+\end{objetivos}
+
+Es lunes por la mañana y la directora comercial te escribe tres preguntas:
+\emph{``¿Qué clientes están a punto de irse y a quiénes llamamos primero?'',
+``¿Cuánto vamos a vender en diciembre para pedir el inventario a tiempo?'' y
+``¿A qué clientes les mandamos la campaña VIP?''}. Hasta ahora, con lo que
+aprendiste en los módulos anteriores, sabes responder muy bien \emph{qué pasó}:
+cuánto se vendió, en qué tienda, qué producto fue el más rentable. Estas tres
+preguntas son distintas: piden \emph{anticipar} lo que va a pasar y
+\emph{decidir} qué hacer. Ahí entra el \termino{machine learning} (aprendizaje
+automático).
+
+En este módulo vas a construir, paso a paso y con código comentado, los modelos
+que más se usan en Business Intelligence: segmentación de clientes, predicción
+de ventas, predicción de abandono, pronóstico de demanda y análisis de canasta.
+No necesitas matemáticas avanzadas: te explicaremos cada modelo con analogías
+de negocio, y nos concentraremos en lo que de verdad importa en una empresa:
+\textbf{hacer la pregunta correcta, evaluar honestamente el modelo y convertir
+el resultado en una decisión}.
+
+\begin{concepto}{Las cuatro preguntas de la analítica}
+\begin{itemize}
+  \item \textbf{Descriptiva:} ¿qué pasó? (reportes, tableros; Módulos~\ref{cap:manipulacion}
+        y~\ref{cap:visualizacion}).
+  \item \textbf{Diagnóstica:} ¿por qué pasó? (análisis exploratorio, Módulo~\ref{cap:eda}).
+  \item \textbf{Predictiva:} ¿qué va a pasar? (machine learning, este módulo).
+  \item \textbf{Prescriptiva:} ¿qué debemos hacer? (combinar la predicción con
+        costos y reglas de negocio; también lo verás aquí, por ejemplo al
+        elegir a qué clientes llamar).
+\end{itemize}
+\end{concepto}
+
+Una advertencia honesta desde el principio: los datos del curso
+(\archivo{ventas\_retail.csv}, \archivo{transacciones.csv}, etc.) se generaron
+\emph{al azar}. Sirven perfectamente para la segmentación de clientes, porque
+ahí solo queremos \emph{describir} grupos, pero no tienen patrones que un modelo
+predictivo pueda aprender. Por eso, para predicción de ventas, abandono de
+clientes, series de tiempo y canastas vamos a \textbf{simular datos con
+relaciones conocidas} (como si fueran los datos de un cliente real). Tiene una
+ventaja didáctica enorme: como sabemos la ``verdad'' con la que se generaron,
+podremos comprobar si el modelo la descubre. Y en la
+sección~\ref{sec:m7-sin-senal} verás, con los datos del curso, la primera gran
+lección del machine learning: \textbf{sin señal no hay modelo}.
+
+% ============================================================================
+\section{¿Qué es machine learning para negocio?}
+\label{sec:m7-que-es}
+
+Piensa en la gerente de una sucursal con 15 años de experiencia. Con solo ver a
+un cliente ``sabe'' si va a volver: se fija en cuánto tiempo lleva comprando, si
+se ha quejado, si viene seguido. Nadie le dio una fórmula; la aprendió viendo
+miles de casos. El machine learning hace lo mismo, pero con datos: revisa miles
+de casos históricos, encuentra el patrón y lo aplica a casos nuevos, de forma
+consistente y a escala (a 100{,}000 clientes en segundos).
+
+\begin{concepto}{Machine learning}
+El \termino{machine learning} es un conjunto de técnicas con las que la
+computadora \textbf{aprende patrones a partir de datos históricos} para hacer
+predicciones o encontrar grupos, sin que alguien programe las reglas a mano.
+\begin{itemize}
+  \item Un \termino{modelo} es una ``receta'' que convierte datos de entrada
+        (antigüedad, quejas, uso\ldots) en una salida (probabilidad de
+        abandono).
+  \item \termino{Entrenar} un modelo es ajustar esa receta usando datos
+        históricos donde ya conocemos la respuesta.
+  \item \termino{Predecir} (o \emph{puntuar}) es aplicar la receta a datos
+        nuevos, donde todavía no conocemos la respuesta.
+\end{itemize}
+\end{concepto}
+
+\subsection{Supervisado y no supervisado}
+
+Hay dos grandes familias de problemas, y distinguirlas es el primer paso para
+elegir la herramienta correcta:
+
+\begin{itemize}
+  \item \termino{Aprendizaje supervisado}: tienes ejemplos históricos
+        \emph{con la respuesta} (este cliente se fue, este no; esta tienda
+        vendió \$850{,}000). El modelo aprende a predecir esa respuesta.
+        \begin{itemize}
+          \item \termino{Regresión}: la respuesta es un \textbf{número}
+                (ventas, demanda, precio, días de retraso).
+          \item \termino{Clasificación}: la respuesta es una \textbf{categoría}
+                (se va / se queda; fraude / no fraude; compra / no compra).
+        \end{itemize}
+  \item \termino{Aprendizaje no supervisado}: \emph{no} hay una respuesta que
+        predecir; buscas estructura oculta en los datos.
+        \begin{itemize}
+          \item \termino{Clustering} (agrupamiento): formar grupos de clientes,
+                tiendas o productos parecidos entre sí.
+          \item \termino{Reglas de asociación}: descubrir qué cosas ocurren
+                juntas (quien compra laptop también compra mouse).
+        \end{itemize}
+\end{itemize}
+
+Los \termino{pronósticos de series de tiempo} son un caso especial de
+regresión: predicen un número futuro usando la historia de la propia variable
+(tendencia y estacionalidad). La tabla~\ref{tab:m7-problemas} traduce preguntas
+de negocio típicas a tipo de modelo y algoritmo.
+
+\begin{table}[H]
+\centering
+\small
+\caption{De la pregunta de negocio al algoritmo.}
+\label{tab:m7-problemas}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X
+                              >{\raggedright\arraybackslash}p{3.1cm}
+                              >{\raggedright\arraybackslash}p{4.4cm}}
+\toprule
+\textbf{Pregunta de negocio} & \textbf{Tipo de problema} & \textbf{Algoritmos típicos} \\
+\midrule
+¿Cuánto venderá cada tienda el próximo mes? & Regresión & Regresión lineal, random forest \\
+¿Qué clientes cancelarán su suscripción? & Clasificación & Regresión logística, árbol, random forest \\
+¿Esta transacción es fraudulenta? & Clasificación (desbalanceada) & Regresión logística, random forest \\
+¿Cuántas unidades pediremos al proveedor en diciembre? & Serie de tiempo & Ingenuo estacional, ETS, ARIMA \\
+¿Qué grupos de clientes tenemos? & Clustering & RFM + k-means, clustering jerárquico \\
+¿Qué productos se compran juntos? & Reglas de asociación & Soporte--confianza--lift, Apriori \\
+¿Qué sucursales se parecen entre sí? & Clustering & k-means con variables escaladas \\
+¿Aprobamos este crédito a un cliente? & Clasificación & Regresión logística (fácil de explicar) \\
+¿Cuánto gastará un cliente en su vida con nosotros? & Regresión & Regresión lineal, random forest \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{El flujo de trabajo de un proyecto de machine learning}
+\label{sec:m7-flujo}
+
+Un proyecto de machine learning no es ``correr un algoritmo''. Es un ciclo que
+empieza y termina en el negocio (figura~\ref{fig:m7-flujo}).
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  paso/.style={rectangle, rounded corners=3pt, draw=primario, thick,
+    fill=primario!6, text width=2.75cm, minimum height=1.3cm, align=center,
+    font=\sffamily\small},
+  pasomodelo/.style={paso, draw=secundario, fill=secundario!8},
+  flecha/.style={-{Stealth[length=2.5mm]}, thick, color=gristexto},
+  node distance=0.65cm
+]
+\node[paso] (p1) {\textbf{1. Pregunta}\\de negocio};
+\node[paso, right=of p1] (p2) {\textbf{2. Datos}\\históricos};
+\node[paso, right=of p2] (p3) {\textbf{3. Variables}\\(features)};
+\node[paso, right=of p3] (p4) {\textbf{4. Separar}\\entrenamiento\\y prueba};
+\node[pasomodelo, below=1.3cm of p4] (p5) {\textbf{5. Entrenar}\\el modelo};
+\node[pasomodelo, left=of p5] (p6) {\textbf{6. Evaluar}\\con datos de prueba};
+\node[paso, left=of p6] (p7) {\textbf{7. Desplegar}\\(usar en el día a día)};
+\node[paso, left=of p7] (p8) {\textbf{8. Monitorear}\\y reentrenar};
+\draw[flecha] (p1) -- (p2);
+\draw[flecha] (p2) -- (p3);
+\draw[flecha] (p3) -- (p4);
+\draw[flecha] (p4) -- (p5);
+\draw[flecha] (p5) -- (p6);
+\draw[flecha] (p6) -- (p7);
+\draw[flecha] (p7) -- (p8);
+\draw[flecha, dashed, color=acento] (p8.west) -- ++(-0.45,0) |- (p1.west)
+  node[pos=0.25, left, font=\sffamily\scriptsize, color=acento,
+       align=center] {el negocio\\cambia};
+\draw[flecha, dashed, color=acento] (p6.north) -- (p3.south)
+  node[midway, left, font=\sffamily\scriptsize, color=acento,
+       align=right] {¿no alcanza?\\mejora variables};
+\end{tikzpicture}
+\caption{Flujo de trabajo de machine learning. Las flechas punteadas indican
+que el proceso es un ciclo, no una línea recta.}
+\label{fig:m7-flujo}
+\end{figure}
+
+\begin{enumerate}
+  \item \textbf{Pregunta de negocio.} ``¿Qué clientes se van a ir en los
+        próximos 3 meses?'' es una buena pregunta; ``haz algo con IA'' no lo
+        es. Define también qué decisión tomarás con la respuesta.
+  \item \textbf{Datos históricos.} Casos pasados donde ya conoces el resultado
+        (clientes que se fueron y que se quedaron).
+  \item \textbf{Variables (\termino{features}).} Las características que el
+        modelo usará: antigüedad, número de quejas, uso del servicio\ldots{}
+        Aquí se gana o se pierde la mayor parte del valor.
+  \item \textbf{Separar entrenamiento y prueba.} Guardas una parte de los datos
+        que el modelo \emph{nunca} ve al aprender, para evaluarlo honestamente.
+  \item \textbf{Entrenar} uno o varios algoritmos.
+  \item \textbf{Evaluar} con métricas que tengan sentido para el negocio.
+  \item \textbf{Desplegar}: poner el modelo a trabajar (un CSV semanal para el
+        call center, una columna en el tablero, una API).
+  \item \textbf{Monitorear y reentrenar}: los clientes, los precios y la
+        competencia cambian; un modelo que no se vigila se degrada.
+\end{enumerate}
+
+\begin{negocio}{El 80\% del trabajo no es el algoritmo}
+En proyectos reales, la mayor parte del tiempo se va en los pasos 1 a 4:
+entender la pregunta, conseguir y limpiar datos, y construir buenas variables
+(todo lo que aprendiste en los Módulos~\ref{cap:manipulacion} a~\ref{cap:eda}).
+Entrenar el modelo son unas cuantas líneas de código. Un modelo sencillo con
+buenas variables casi siempre le gana a un modelo sofisticado con variables
+pobres.
+\end{negocio}
+
+\subsection{Paquetes que usaremos}
+
+Este módulo usa, además del \paquete{tidyverse}, estos paquetes: \paquete{cluster}
+y \paquete{factoextra} (clustering), \paquete{rpart} (árboles de decisión),
+\paquete{randomForest} (bosques aleatorios), \paquete{caret} (marco común para
+entrenar y comparar modelos) y \paquete{forecast} (series de tiempo). Si no los
+tienes, instálalos una sola vez:
+
+\begin{rnoejecutar}
+install.packages(c("cluster", "factoextra", "rpart", "randomForest",
+                   "caret", "forecast"))
+\end{rnoejecutar}
+
+Y cárgalos al inicio de tu script:
+
+\begin{rcode}
+library(tidyverse)     # dplyr, ggplot2, readr, tidyr, purrr...
+library(cluster)       # silueta y otras medidas de clustering
+library(factoextra)    # gráficas de clustering (devuelven ggplot)
+library(rpart)         # árboles de decisión
+library(randomForest)  # bosques aleatorios
+library(caret)         # entrenar y comparar modelos con un mismo formato
+library(forecast)      # series de tiempo: ETS, ARIMA, pronósticos
+
+# Comillas simples normales en las salidas de R (en lugar de tipográficas)
+options(useFancyQuotes = FALSE)
+
+# Colores corporativos del libro (Módulo 3)
+color_principal <- "#2a78d6"
+color_resalte   <- "#eb6834"
+color_gris      <- "#b5b3ad"
+paleta_libro <- c("#2a78d6", "#eb6834", "#1baf7a", "#eda100",
+                  "#e87ba4", "#008300", "#4a3aa7", "#e34948")
+\end{rcode}
+
+Al cargarlos verás algunos mensajes normales, no errores: \paquete{caret}
+avisa que carga \paquete{lattice}, \paquete{forecast} menciona un método de
+\paquete{quantmod}, y \paquete{randomForest} avisa que ``enmascara'' las
+funciones \codigo{combine()} de \paquete{dplyr} y \codigo{margin()} de
+\paquete{ggplot2}. Eso significa que, si necesitas esas dos funciones, debes
+escribirlas con su paquete: \codigo{dplyr::combine()} o
+\codigo{ggplot2::margin()}.
+
+\subsection{Sin señal no hay modelo}
+\label{sec:m7-sin-senal}
+
+Antes de entrenar cualquier cosa, veamos la lección más importante del módulo.
+Un modelo solo puede aprender un patrón \emph{si el patrón existe en los
+datos}. Intentemos explicar el monto de cada compra de
+\archivo{transacciones.csv} con la tienda, el método de pago y el día de la
+semana, usando una regresión lineal (la viste en el Módulo~\ref{cap:eda}).
+
+\begin{rcode}
+# Transacciones del curso (1,000 compras de 2023)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+
+# ¿El monto depende de la tienda, el método de pago o el día?
+modelo_sin_senal <- lm(
+  total_transaccion ~ factor(tienda_id) + metodo_pago + dia_semana,
+  data = transacciones
+)
+
+# R²: proporción de la variación del monto que explica el modelo (0 a 1)
+summary(modelo_sin_senal)$r.squared
+summary(modelo_sin_senal)$adj.r.squared   # R² ajustado
+\end{rcode}
+
+\begin{rsalida}
+[1] 0.01406052
+[1] -0.00403011
+\end{rsalida}
+
+El modelo explica apenas 1.4\% de la variación del monto, y el
+\termino{R² ajustado} (que penaliza agregar variables inútiles) es incluso
+negativo: el modelo es \emph{peor} que simplemente predecir el promedio. No es
+un error de código: el generador de datos eligió tienda, método de pago y monto
+de forma independiente, al azar. No hay nada que aprender.
+
+\begin{advertencia}
+Cuidado con la ``señal'' falsa. Si agregas \codigo{cantidad} al modelo anterior,
+el R² sube a 0.45. ¿Descubrimos algo? No: en este archivo
+\codigo{total\_transaccion} se \emph{calcula} como \codigo{cantidad} $\times$
+\codigo{precio\_venta}, así que es aritmética, no un patrón de comportamiento.
+Usar como predictora una variable que es parte del cálculo de la respuesta es
+una forma de \textbf{fuga de datos} (sección~\ref{sec:m7-fuga}).
+\end{advertencia}
+
+Por eso, en las secciones de predicción simularemos datos donde \emph{sí}
+existe una relación (por ejemplo, las quejas aumentan la probabilidad de
+abandono). En tu empresa, los datos reales tendrán señal (y ruido); tu trabajo
+será encontrarla y medir cuánta hay.
+
+\begin{hazlotu}
+Ajusta \codigo{lm(total\_transaccion \textasciitilde{} cantidad, data = transacciones)}
+y revisa su R². Luego piensa: si mañana quisieras predecir el monto de una
+compra \emph{antes} de que ocurra, ¿conocerías la cantidad? ¿Te sirve ese
+modelo?
+\end{hazlotu}
+
+% ============================================================================
+\section{Conceptos clave antes de entrenar}
+\label{sec:m7-conceptos}
+
+\subsection{Variables predictoras y variable objetivo}
+
+En aprendizaje supervisado cada fila es una \termino{observación} (un cliente,
+una tienda, un mes) y las columnas se dividen en dos tipos:
+
+\begin{itemize}
+  \item La \termino{variable objetivo} (\emph{target}, respuesta, $y$): lo que
+        quieres predecir. Ejemplo: \codigo{churn} (si el cliente se fue).
+  \item Las \termino{variables predictoras} (\emph{features}, $X$): la
+        información que usarás para predecir. Ejemplo: antigüedad, quejas,
+        uso, plan contratado.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Ejemplo de datos para predecir abandono: cuatro predictoras y una
+variable objetivo.}
+\label{tab:m7-xy}
+\begin{tabular}{lrrrlc}
+\toprule
+\textbf{Cliente} & \textbf{Antigüedad} & \textbf{Quejas} & \textbf{Uso mensual}
+  & \textbf{Plan} & \textbf{¿Se fue? ($y$)} \\
+\midrule
+C0001 & 36 & 0 & 11 & Premium  & No \\
+C0002 & 4  & 3 & 5  & Básico   & Sí \\
+C0003 & 18 & 1 & 8  & Estándar & No \\
+\multicolumn{5}{c}{\emph{variables predictoras ($X$)}} & \emph{objetivo} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La regla de oro: \textbf{una predictora solo es válida si la conocerás en el
+momento de predecir}. Si quieres saber hoy quién se irá el próximo mes, no
+puedes usar ``motivo de cancelación'', porque ese dato solo existe cuando el
+cliente ya se fue.
+
+\subsection{Entrenamiento y prueba}
+\label{sec:m7-split}
+
+Imagina que preparas a un vendedor con 100 casos resueltos y luego lo evalúas
+con \emph{esos mismos} 100 casos: sacará 10, pero no sabrás si aprendió o solo
+memorizó. Con los modelos pasa igual. Por eso separamos los datos:
+
+\begin{itemize}
+  \item \termino{Conjunto de entrenamiento} (\emph{train}, 70--80\%): con él
+        aprende el modelo.
+  \item \termino{Conjunto de prueba} (\emph{test}, 20--30\%): se guarda bajo
+        llave y solo se usa al final para medir qué tan bien predice casos que
+        nunca vio.
+\end{itemize}
+
+Veámoslo con un ejemplo que usaremos en las siguientes secciones: 60
+sucursales, cada una con su inversión mensual en publicidad y sus ventas del
+mes (ambas en miles de pesos). Lo simulamos con una relación conocida:
+\emph{ventas = 200 + 6 $\times$ publicidad + ruido}.
+
+\begin{rcode}
+set.seed(123)   # fija el azar: cualquiera que corra esto obtiene lo mismo
+sucursales <- tibble(
+  sucursal   = 1:60,
+  publicidad = round(runif(60, min = 5, max = 50), 1),   # miles de $
+  ventas     = round(200 + 6 * publicidad + rnorm(60, 0, 25), 1)
+)
+
+# Elegimos al azar 45 filas (75 %) para entrenar
+set.seed(123)
+filas_ent <- sample(nrow(sucursales), size = 45)
+
+suc_entrenamiento <- sucursales[filas_ent, ]    # 45 sucursales
+suc_prueba        <- sucursales[-filas_ent, ]   # las 15 restantes
+
+nrow(suc_entrenamiento)
+nrow(suc_prueba)
+\end{rcode}
+
+\begin{rsalida}
+[1] 45
+[1] 15
+\end{rsalida}
+
+\codigo{sample()} desordena al azar los números de fila y toma 45; el signo
+menos en \codigo{sucursales[-filas\_ent, ]} significa ``todas las filas
+\emph{excepto} esas''. Gracias a \codigo{set.seed(123)}, cada vez que ejecutes el
+código obtendrás exactamente la misma división, algo indispensable para que tus
+resultados sean reproducibles (y para que coincidan con los del libro).
+
+\begin{consejo}
+Para problemas de clasificación con una clase poco frecuente (por ejemplo, 20\%
+de clientes que se van), usa \codigo{caret::createDataPartition()}: hace una
+división \termino{estratificada}, es decir, mantiene la misma proporción de cada
+clase en entrenamiento y prueba. Lo usaremos en la sección de churn.
+\end{consejo}
+
+\subsection{Sobreajuste: cuando el modelo memoriza}
+\label{sec:m7-sobreajuste}
+
+El \termino{sobreajuste} (\emph{overfitting}) ocurre cuando un modelo es tan
+flexible que aprende de memoria los datos de entrenamiento, incluido su ruido,
+y falla con datos nuevos. Es como el estudiante que memoriza las respuestas del
+examen de práctica y reprueba el examen real.
+
+Para verlo, supongamos que solo tuviéramos 14 sucursales para entrenar y
+ajustemos polinomios cada vez más flexibles (grado 1 es una recta; grado 10 es
+una curva con muchas ondas). Medimos el error con el \termino{RMSE} (raíz del
+error cuadrático medio: el tamaño típico del error, en las mismas unidades que
+las ventas; lo verás a detalle en la sección~\ref{sec:m7-metricas-reg}).
+
+\begin{rcode}
+# Función auxiliar: error típico de una predicción
+rmse <- function(real, predicho) sqrt(mean((real - predicho)^2))
+
+pocas_sucursales <- sucursales %>% slice(1:14)    # entrenamiento chico
+resto_sucursales <- sucursales %>% slice(15:60)   # 46 casos "nuevos"
+
+errores_por_grado <- map_dfr(1:10, function(g) {
+  modelo <- lm(ventas ~ poly(publicidad, g), data = pocas_sucursales)
+  tibble(
+    grado = g,
+    error_entrenamiento = rmse(pocas_sucursales$ventas, fitted(modelo)),
+    error_prueba = rmse(resto_sucursales$ventas,
+                        predict(modelo, resto_sucursales))
+  )
+})
+
+errores_por_grado %>% mutate(across(-grado, ~ round(.x, 1)))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 10 x 3
+   grado error_entrenamiento error_prueba
+   <int>               <dbl>        <dbl>
+ 1     1                20.3         22  
+ 2     2                20.3         22.2
+ 3     3                20.2         22.1
+ 4     4                20.2         22  
+ 5     5                19.8         26.3
+ 6     6                17.6         56.6
+ 7     7                17.4         35.6
+ 8     8                15.9        669. 
+ 9     9                13.1       2945. 
+10    10                10        14455. 
+\end{rsalida}
+
+Lee la tabla por columnas. El \textbf{error de entrenamiento} baja siempre que
+el modelo se vuelve más flexible: la curva se acerca cada vez más a los 14
+puntos. Pero el \textbf{error de prueba}, el que importa, empieza a subir en el
+grado 5 y se dispara a partir del grado 8 (¡más de 14{,}000 en el grado 10!):
+el modelo memorizó el ruido. La recta (grado 1), que coincide con
+la forma real de los datos, es la que mejor generaliza. La
+figura~\ref{fig:m07-sobreajuste} lo muestra visualmente.
+
+\begin{rcode}
+malla <- tibble(publicidad = seq(min(pocas_sucursales$publicidad),
+                                 max(pocas_sucursales$publicidad),
+                                 length.out = 300))
+recta   <- lm(ventas ~ publicidad, data = pocas_sucursales)
+memoria <- lm(ventas ~ poly(publicidad, 10), data = pocas_sucursales)
+
+curvas <- bind_rows(
+  malla %>% mutate(modelo = "Grado 1: generaliza",
+                   ventas = predict(recta, malla)),
+  malla %>% mutate(modelo = "Grado 10: memoriza",
+                   ventas = predict(memoria, malla))
+)
+
+grafico_sobreajuste <- ggplot() +
+  geom_point(data = resto_sucursales, aes(publicidad, ventas),
+             color = color_gris, alpha = 0.8) +
+  geom_point(data = pocas_sucursales, aes(publicidad, ventas),
+             color = "black", size = 2.2) +
+  geom_line(data = curvas, aes(publicidad, ventas, color = modelo),
+            linewidth = 0.8) +
+  scale_color_manual(values = c(color_principal, color_resalte)) +
+  coord_cartesian(ylim = c(150, 600)) +
+  labs(title = "Un modelo demasiado flexible memoriza el ruido",
+       subtitle = paste("Negro: 14 sucursales de entrenamiento;",
+                        "gris: sucursales nuevas"),
+       x = "Publicidad (miles de $)", y = "Ventas (miles de $)",
+       color = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(), legend.position = "top")
+grafico_sobreajuste
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m07-sobreajuste}
+\caption{La recta (azul) captura la relación real; el polinomio de grado 10
+(naranja) pasa cerca de cada punto de entrenamiento, pero hace predicciones
+absurdas para sucursales nuevas.}
+\label{fig:m07-sobreajuste}
+\end{figure}
+
+\begin{concepto}{Sesgo y varianza, en una frase}
+Un modelo demasiado \textbf{simple} no captura el patrón (\emph{subajuste}); uno
+demasiado \textbf{complejo} captura hasta el ruido (\emph{sobreajuste}). El
+objetivo es el punto medio, y la única forma honesta de encontrarlo es medir el
+error en datos que el modelo no usó para aprender.
+\end{concepto}
+
+\subsection{Validación cruzada}
+\label{sec:m7-cv}
+
+Con una sola división entrenamiento/prueba, el resultado depende un poco de la
+suerte: quizá justo quedaron casos fáciles en la prueba. La
+\termino{validación cruzada} de $k$ pliegues (\emph{k-fold cross-validation})
+lo resuelve: parte los datos en $k$ grupos (típicamente 5 o 10), entrena $k$
+veces dejando fuera un grupo distinto cada vez, y promedia los $k$ errores
+(figura~\ref{fig:m7-cv}).
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  bloque/.style={rectangle, draw=white, thick, minimum width=1.9cm,
+    minimum height=0.55cm, font=\sffamily\scriptsize},
+  ent/.style={bloque, fill=primario!25},
+  val/.style={bloque, fill=acento!80, text=white},
+]
+\foreach \r in {1,...,5} {
+  \node[font=\sffamily\small, anchor=east] at (-0.2, -\r*0.7) {Ronda \r};
+  \foreach \c in {1,...,5} {
+    \ifnum\c=\r
+      \node[val] at (\c*1.95, -\r*0.7) {validación};
+    \else
+      \node[ent] at (\c*1.95, -\r*0.7) {entrena};
+    \fi
+  }
+  \node[font=\sffamily\small, anchor=west] at (10.9, -\r*0.7) {error$_{\r}$};
+}
+\node[font=\sffamily\small, anchor=west, text=primario] at (10.9, -4.35)
+  {\textbf{promedio}};
+\end{tikzpicture}
+\caption{Validación cruzada de 5 pliegues: cada sucursal se usa 4 veces para
+entrenar y exactamente una vez para validar.}
+\label{fig:m7-cv}
+\end{figure}
+
+Hagámoslo a mano una vez, para entender lo que después hará \paquete{caret}
+automáticamente. Comparamos la recta con polinomios de grado 3, 6 y 10 usando
+las 60 sucursales:
+
+\begin{rcode}
+set.seed(123)
+# Asigna cada sucursal a uno de 5 pliegues, al azar y en partes iguales
+pliegue <- sample(rep(1:5, length.out = nrow(sucursales)))
+table(pliegue)
+
+error_cv <- function(grado) {
+  errores <- map_dbl(1:5, function(k) {
+    entrena <- sucursales[pliegue != k, ]   # 4 pliegues para aprender
+    valida  <- sucursales[pliegue == k, ]   # 1 pliegue para evaluar
+    modelo  <- lm(ventas ~ poly(publicidad, grado), data = entrena)
+    rmse(valida$ventas, predict(modelo, valida))
+  })
+  mean(errores)   # promedio de los 5 errores
+}
+
+tibble(grado = c(1, 3, 6, 10)) %>%
+  mutate(rmse_cv = map_dbl(grado, error_cv))
+\end{rcode}
+
+\begin{rsalida}
+pliegue
+ 1  2  3  4  5 
+12 12 12 12 12 
+# A tibble: 4 x 2
+  grado rmse_cv
+  <dbl>   <dbl>
+1     1    21.5
+2     3    22.2
+3     6    22.6
+4    10    29.0
+\end{rsalida}
+
+Primero, \codigo{table(pliegue)} confirma que cada pliegue tiene 12
+sucursales. Luego, la recta tiene el menor error de validación cruzada (21.5
+mil pesos), y el error crece con la complejidad hasta 29.0 con el grado 10. La
+validación cruzada llega a la misma conclusión que la figura, pero usando las
+60 sucursales y sin depender de una sola división afortunada. En la práctica
+la usarás para \textbf{elegir entre modelos o ajustar sus parámetros}, y
+reservarás el conjunto de prueba para la evaluación final.
+
+\subsection{Fuga de datos: el error más caro}
+\label{sec:m7-fuga}
+
+La \termino{fuga de datos} (\emph{data leakage}) ocurre cuando, al entrenar, el
+modelo tiene acceso a información que \textbf{no estará disponible en el
+momento real de predecir}. El resultado es un modelo espectacular en el
+laboratorio y inútil en la operación. Es el error más común y más caro del
+machine learning, porque no produce ningún mensaje de error: produce
+\emph{optimismo}.
+
+\begin{negocio}{Un modelo de abandono ``perfecto''}
+Un equipo entrena un modelo de churn y obtiene 98\% de exactitud. Entre las
+predictoras incluyó \codigo{dias\_desde\_ultima\_llamada\_a\_cancelaciones}.
+Pero los clientes llaman al área de cancelaciones \emph{cuando ya decidieron
+irse}: esa variable es una consecuencia del abandono, no una causa observable
+con anticipación. En producción, el modelo avisa cuando el cliente ya está
+cancelando, demasiado tarde para retenerlo.
+\end{negocio}
+
+Formas típicas de fuga en BI:
+
+\begin{itemize}
+  \item \textbf{Variables del futuro}: motivo de cancelación, fecha de baja,
+        monto de reembolso, ``estatus final'' del pedido.
+  \item \textbf{Variables calculadas con la respuesta}: como el
+        \codigo{total\_transaccion} que ya contiene a \codigo{cantidad}.
+  \item \textbf{Preprocesar con todos los datos}: escalar, imputar o calcular
+        promedios usando también los datos de prueba antes de separarlos.
+  \item \textbf{Series de tiempo mezcladas}: separar al azar meses de una serie
+        (entrenas con marzo de 2025 para ``predecir'' febrero de 2025). En series
+        de tiempo, la prueba siempre son los periodos más recientes.
+\end{itemize}
+
+En la sección de errores comunes (sección~\ref{sec:m7-errores}) verás con
+código cómo una sola variable con fuga convierte un modelo mediocre en uno
+aparentemente perfecto.
+
+\begin{hazlotu}
+Piensa en tu empresa: escribe tres variables que \emph{parecerían} excelentes
+para predecir si un pedido llegará tarde, pero que en realidad solo se conocen
+después de la entrega.
+\end{hazlotu}
+
+% ============================================================================
+\section{Caso 1: segmentación de clientes con RFM y k-means}
+\label{sec:m7-segmentacion}
+
+\begin{ejemplo}{¿A quién le mandamos la campaña VIP?}
+El área de marketing tiene presupuesto para tres campañas distintas y quiere
+dejar de mandar el mismo correo a los 200 clientes. La pregunta es: \emph{¿qué
+grupos de clientes con comportamiento de compra parecido tenemos y qué
+estrategia conviene para cada uno?} Es un problema \textbf{no supervisado}: no
+hay una respuesta correcta que predecir; queremos descubrir grupos. Usaremos
+los datos reales del curso: \archivo{transacciones.csv} y
+\archivo{clientes.csv}.
+\end{ejemplo}
+
+\subsection{Paso 1: calcular Recencia, Frecuencia y Monto}
+
+\begin{concepto}{RFM}
+El análisis \termino{RFM} resume el comportamiento de cada cliente en tres
+números, muy usados en retail y marketing directo:
+\begin{itemize}
+  \item \textbf{Recencia (R):} días desde su última compra. \emph{Menos} es
+        mejor: quien compró hace poco tiene más probabilidad de volver.
+  \item \textbf{Frecuencia (F):} número de compras en el periodo. Más es mejor.
+  \item \textbf{Monto (M):} dinero total gastado en el periodo. Más es mejor.
+\end{itemize}
+La recencia se mide respecto a una \termino{fecha de corte} fija (por ejemplo,
+el día en que haces el análisis). Fíjala en el código; si usas
+\codigo{Sys.Date()}, tus resultados cambiarán cada día.
+\end{concepto}
+
+Las transacciones cubren todo 2023, así que usaremos como fecha de corte el
+1 de enero de 2024:
+
+\begin{rcode}
+clientes <- read_csv("datasets/clientes.csv", show_col_types = FALSE)
+
+fecha_corte <- as.Date("2024-01-01")   # fecha fija del análisis
+
+rfm <- transacciones %>%
+  group_by(cliente_id) %>%
+  summarise(
+    ultima_compra = max(fecha),
+    recencia   = as.numeric(fecha_corte - ultima_compra),  # días
+    frecuencia = n(),                                      # compras
+    monto      = sum(total_transaccion),                   # pesos
+    .groups = "drop"
+  )
+
+rfm
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 198 x 5
+   cliente_id ultima_compra recencia frecuencia  monto
+        <dbl> <date>           <dbl>      <int>  <dbl>
+ 1          1 2023-12-01          31          7  4859.
+ 2          2 2023-12-02          30          5  7950.
+ 3          3 2023-11-04          58          8  9562 
+ 4          4 2023-12-24           8          5  7759.
+ 5          5 2023-12-31           1         13 14680.
+ 6          6 2023-12-31           1          6  6087.
+ 7          7 2023-12-13          19          5  1552.
+ 8          8 2023-12-05          27          5  3555.
+ 9          9 2023-12-23           9          6  5071.
+10         10 2023-07-09         176          4  2487.
+# i 188 more rows
+\end{rsalida}
+
+Cada fila es ahora un cliente. El cliente 1, por ejemplo, compró por última vez
+el 1 de diciembre (31 días antes del corte), hizo 7 compras y gastó \$4{,}859.
+Hay 198 filas, pero \archivo{clientes.csv} tiene 200 clientes. ¿Quiénes faltan?
+
+\begin{rcode}
+# Clientes registrados que no aparecen en las transacciones
+clientes %>%
+  anti_join(rfm, by = "cliente_id") %>%
+  select(cliente_id, nombre, fecha_registro)
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 2 x 3
+  cliente_id nombre            fecha_registro
+       <dbl> <chr>             <date>        
+1        171 Rosa Jiménez      2022-08-27    
+2        199 Ricardo Hernández 2023-09-16    
+\end{rsalida}
+
+Dos clientes no compraron nada en 2023. No entran al clustering (no tienen
+recencia ni frecuencia), pero no los olvides: en la práctica formarían su propio
+grupo, ``registrados sin compra'', con una estrategia de activación.
+
+\begin{rcode}
+rfm %>%
+  select(recencia, frecuencia, monto) %>%
+  summary()
+\end{rcode}
+
+\begin{rsalida}
+    recencia        frecuencia         monto        
+ Min.   :  1.00   Min.   : 1.000   Min.   :  152.6  
+ 1st Qu.: 21.00   1st Qu.: 3.000   1st Qu.: 3101.4  
+ Median : 48.00   Median : 5.000   Median : 4521.8  
+ Mean   : 69.19   Mean   : 5.051   Mean   : 4848.4  
+ 3rd Qu.: 98.75   3rd Qu.: 6.000   3rd Qu.: 6183.0  
+ Max.   :314.00   Max.   :13.000   Max.   :14680.1  
+\end{rsalida}
+
+Observa las escalas: la recencia va de 1 a 314 días, la frecuencia de 1 a 13
+compras y el monto de 153 a 14{,}680 pesos. Esto es crucial para el siguiente
+paso.
+
+\subsection{Paso 2: escalar las variables}
+
+\begin{concepto}{Por qué escalar antes de k-means}
+\termino{k-means} agrupa clientes según la \emph{distancia} entre ellos. Si una
+variable se mide en miles (monto) y otra en unidades (frecuencia), la distancia
+la domina casi por completo la de números grandes: una diferencia de 2 compras
+``pesaría'' lo mismo que una diferencia de 2 pesos. \termino{Escalar}
+(estandarizar) convierte cada variable a media 0 y desviación estándar 1, para
+que las tres pesen lo mismo. En R se hace con \codigo{scale()}.
+\end{concepto}
+
+\begin{rcode}
+rfm_escalado <- rfm %>%
+  select(recencia, frecuencia, monto) %>%
+  scale()                     # (x - media) / desviación estándar
+
+round(colMeans(rfm_escalado), 2)          # medias: todas 0
+round(apply(rfm_escalado, 2, sd), 2)      # desviaciones: todas 1
+head(round(rfm_escalado, 2), 3)
+\end{rcode}
+
+\begin{rsalida}
+  recencia frecuencia      monto 
+         0          0          0 
+  recencia frecuencia      monto 
+         1          1          1 
+     recencia frecuencia monto
+[1,]    -0.59       0.85  0.00
+[2,]    -0.60      -0.02  1.15
+[3,]    -0.17       1.28  1.75
+\end{rsalida}
+
+Un valor escalado se lee como ``cuántas desviaciones estándar está este cliente
+por arriba o por debajo del promedio''. El primer cliente tiene una recencia de
+$-0.59$: compró más recientemente que el cliente promedio. \codigo{scale()}
+guarda las medias y desviaciones usadas como atributos del resultado; los
+necesitaremos después para asignar clientes nuevos.
+
+\subsection{Paso 3: ¿cuántos grupos? Método del codo y silueta}
+
+k-means necesita que le digas cuántos grupos ($k$) formar. Dos herramientas
+ayudan a decidir:
+
+\begin{itemize}
+  \item \textbf{Método del codo:} para cada $k$ calcula la
+        \termino{suma de cuadrados dentro de los grupos} (WSS, qué tan
+        dispersos están los clientes respecto al centro de su grupo). Siempre
+        baja al aumentar $k$; buscamos el ``codo'', el punto a partir del cual
+        agregar grupos ya casi no mejora.
+  \item \textbf{Silueta:} mide, para cada cliente, qué tan cerca está de su
+        propio grupo comparado con el grupo vecino (de $-1$ a $1$; más alto es
+        mejor). Buscamos el $k$ con la silueta promedio más alta.
+\end{itemize}
+
+\begin{rcode}
+set.seed(123)
+codo <- tibble(k = 1:10) %>%
+  mutate(wss = map_dbl(k, function(k) {
+    kmeans(rfm_escalado, centers = k, nstart = 25)$tot.withinss
+  }))
+
+codo %>%
+  mutate(mejora_pct = round(100 * (lag(wss) - wss) / lag(wss), 1),
+         wss = round(wss, 1))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 10 x 3
+       k   wss mejora_pct
+   <int> <dbl>      <dbl>
+ 1     1 591         NA  
+ 2     2 344.        41.9
+ 3     3 239         30.5
+ 4     4 175.        26.9
+ 5     5 146.        16.3
+ 6     6 127.        13  
+ 7     7 114         10.5
+ 8     8 102.        10.3
+ 9     9  92.3        9.7
+10    10  85.1        7.8
+\end{rsalida}
+
+La columna \codigo{mejora\_pct} dice cuánto baja la dispersión al agregar un
+grupo más. Pasar de 1 a 2 grupos reduce la WSS 41.9\%; de 2 a 3, 30.5\%; de 3 a
+4, 26.9\%; y a partir de ahí las mejoras son cada vez menores. Veámoslo en una
+gráfica, resaltando $k = 4$:
+
+\begin{rcode}
+grafico_codo <- ggplot(codo, aes(x = k, y = wss)) +
+  geom_line(color = color_principal, linewidth = 0.8) +
+  geom_point(color = color_principal, size = 2) +
+  geom_point(data = filter(codo, k == 4), color = color_resalte,
+             size = 4) +
+  annotate("text", x = 4.3, y = codo$wss[4] + 60, hjust = 0,
+           label = "k = 4: las mejoras\nempiezan a ser pequeñas",
+           color = color_resalte, size = 3.5) +
+  scale_x_continuous(breaks = 1:10) +
+  labs(title = "Método del codo",
+       subtitle = "Dispersión dentro de los grupos según k",
+       x = "Número de grupos (k)",
+       y = "Suma de cuadrados dentro (WSS)") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+grafico_codo
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m07-codo}
+\caption{Método del codo para el RFM de los clientes del curso. La curva se
+suaviza entre $k = 3$ y $k = 4$.}
+\label{fig:m07-codo}
+\end{figure}
+
+Ahora la silueta. La función \codigo{fviz\_nbclust()} de \paquete{factoextra}
+hace todo el cálculo y devuelve una gráfica de \paquete{ggplot2}, que puedes
+personalizar con \codigo{labs()} y \codigo{theme()} como cualquier otra:
+
+\begin{rcode}
+set.seed(123)
+grafico_silueta <- fviz_nbclust(rfm_escalado, kmeans,
+                                method = "silhouette", k.max = 10,
+                                nstart = 25, linecolor = color_principal) +
+  labs(title = "Silueta promedio según el número de grupos",
+       subtitle = "Más alto = grupos más separados",
+       x = "Número de grupos (k)", y = "Silueta promedio") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+grafico_silueta
+
+# Los valores calculados vienen dentro del objeto ggplot
+grafico_silueta$data %>%
+  mutate(y = round(y, 3)) %>%
+  filter(clusters %in% 2:6)
+\end{rcode}
+
+\begin{rsalida}
+  clusters     y
+1        2 0.345
+2        3 0.337
+3        4 0.328
+4        5 0.325
+5        6 0.292
+\end{rsalida}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m07-silueta}
+\caption{Silueta promedio para $k$ de 1 a 10. La línea punteada marca el
+máximo ($k = 2$), aunque las diferencias entre 2 y 5 grupos son mínimas.}
+\label{fig:m07-silueta}
+\end{figure}
+
+La silueta más alta es para $k = 2$ (0.345), pero $k = 3$, 4 y 5 están
+prácticamente empatados (0.337, 0.328 y 0.325). Una silueta de alrededor de
+0.33 indica una estructura \emph{débil}: los clientes no forman ``islas''
+naturales, sino un continuo que k-means parte en regiones. Es lo esperable con
+datos generados al azar, y muy común con clientes reales.
+
+\begin{consejo}
+Cuando las métricas no dan un ganador claro, decide con criterio de negocio.
+Dos grupos (``buenos'' y ``malos'') no alcanzan para diseñar tres campañas;
+diez grupos son imposibles de operar. Aquí elegimos $k = 4$: el codo lo
+respalda, la silueta casi no empeora y el área de marketing puede manejar
+cuatro estrategias. Las métricas orientan; la decisión es tuya.
+\end{consejo}
+
+\subsection{Paso 4: entrenar k-means}
+
+\begin{concepto}{Cómo trabaja k-means}
+\begin{enumerate}
+  \item Coloca $k$ centros al azar.
+  \item Asigna cada cliente al centro más cercano.
+  \item Mueve cada centro al promedio de sus clientes.
+  \item Repite 2 y 3 hasta que los grupos ya no cambian.
+\end{enumerate}
+Como el resultado depende de los centros iniciales, el argumento
+\codigo{nstart = 25} prueba 25 arranques distintos y se queda con el mejor
+(el de menor WSS). Usa siempre \codigo{set.seed()} y un \codigo{nstart} de 10
+o más.
+\end{concepto}
+
+\begin{rcode}
+set.seed(123)
+modelo_kmeans <- kmeans(rfm_escalado, centers = 4, nstart = 25)
+
+modelo_kmeans$size                     # clientes por grupo
+round(modelo_kmeans$centers, 2)        # centros (en escala estandarizada)
+
+# Proporción de la variación total explicada por los grupos
+round(modelo_kmeans$betweenss / modelo_kmeans$totss, 3)
+\end{rcode}
+
+\begin{rsalida}
+[1] 22 87 60 29
+  recencia frecuencia monto
+1    -0.53       1.81  1.97
+2    -0.42       0.36  0.27
+3    -0.13      -0.71 -0.73
+4     1.95      -0.98 -0.80
+[1] 0.704
+\end{rsalida}
+
+Los centros están en escala estandarizada, así que se leen como ``desviaciones
+respecto al promedio''. El grupo 1 tiene frecuencia $+1.81$ y monto $+1.97$:
+compra mucho más que el promedio. El grupo 4 tiene recencia $+1.95$: hace mucho
+que no compra. Los cuatro grupos explican el 70.4\% de la variación total de los
+datos.
+
+\begin{advertencia}
+Los números de grupo (1, 2, 3, 4) son etiquetas \textbf{arbitrarias}: si
+cambias la semilla, el orden de los datos o la versión de R, el grupo de
+``mejores clientes'' puede aparecer como 3 en lugar de 1. Nunca escribas en tu
+código \codigo{cluster == 1 \textasciitilde{} "VIP"}. Nombra los grupos a partir
+de su perfil calculado, como haremos enseguida.
+\end{advertencia}
+
+Revisemos también la calidad de cada grupo con la silueta individual:
+
+\begin{rcode}
+silueta <- silhouette(modelo_kmeans$cluster, dist(rfm_escalado))
+
+# Silueta promedio por grupo y cuántos clientes quedaron "mal ubicados"
+round(summary(silueta)$clus.avg.widths, 3)
+sum(silueta[, "sil_width"] < 0)
+\end{rcode}
+
+\begin{rsalida}
+    1     2     3     4 
+0.375 0.321 0.298 0.379 
+[1] 0
+\end{rsalida}
+
+Todos los grupos tienen silueta positiva; los más compactos son el 4 (0.379)
+y el 1 (0.375), y el menos definido es el 3 (0.298). Ningún cliente tiene
+silueta negativa (el \codigo{0} de la última línea): nadie quedó más cerca del
+grupo vecino que del suyo. Si hubiera clientes con silueta negativa, serían
+clientes ``frontera'' que conviene revisar a mano.
+
+\subsection{Paso 5: perfilar y nombrar los segmentos}
+
+Un segmento no sirve hasta que alguien de negocio puede describirlo en una
+frase. Calculamos el perfil de cada grupo \emph{en las unidades originales}
+(días, compras, pesos) y su peso en clientes e ingresos:
+
+\begin{rcode}
+rfm_seg <- rfm %>%
+  mutate(cluster = modelo_kmeans$cluster)
+
+perfil <- rfm_seg %>%
+  group_by(cluster) %>%
+  summarise(
+    clientes        = n(),
+    recencia_prom   = mean(recencia),
+    frecuencia_prom = mean(frecuencia),
+    monto_prom      = mean(monto),
+    ingresos        = sum(monto),
+    .groups = "drop"
+  ) %>%
+  mutate(pct_clientes = 100 * clientes / sum(clientes),
+         pct_ingresos = 100 * ingresos / sum(ingresos))
+
+perfil %>%
+  select(cluster, clientes, recencia_prom, frecuencia_prom, monto_prom,
+         pct_ingresos) %>%
+  mutate(across(where(is.double), ~ round(.x, 1)))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 4 x 6
+  cluster clientes recencia_prom frecuencia_prom monto_prom
+    <int>    <int>         <dbl>           <dbl>      <dbl>
+1       1       22          34.5             9.2     10159.
+2       2       87          41.8             5.9      5577.
+3       3       60          60.5             3.4      2879.
+4       4       29         196.              2.8      2708.
+# i 1 more variable: pct_ingresos <dbl>
+\end{rsalida}
+
+Ahora asignamos los nombres \textbf{con una regla basada en el perfil}, no en
+el número del grupo. La regla de negocio es: el grupo con la recencia promedio
+más alta son los ``Dormidos''; los demás se ordenan por monto promedio de mayor
+a menor y se llaman ``Campeones'', ``Leales'' y ``Ocasionales''.
+
+\begin{rcode}
+nombres_segmentos <- perfil %>%
+  mutate(es_dormido = recencia_prom == max(recencia_prom)) %>%
+  arrange(es_dormido, desc(monto_prom)) %>%   # dormidos al final
+  mutate(segmento = c("Campeones", "Leales", "Ocasionales",
+                      "Dormidos")) %>%
+  select(cluster, segmento)
+
+orden_segmentos <- c("Campeones", "Leales", "Ocasionales", "Dormidos")
+
+rfm_seg <- rfm_seg %>%
+  left_join(nombres_segmentos, by = "cluster") %>%
+  mutate(segmento = factor(segmento, levels = orden_segmentos))
+
+perfil_segmentos <- perfil %>%
+  left_join(nombres_segmentos, by = "cluster") %>%
+  mutate(segmento = factor(segmento, levels = orden_segmentos)) %>%
+  arrange(segmento) %>%
+  transmute(segmento, clientes,
+            recencia_dias = round(recencia_prom),
+            compras       = round(frecuencia_prom, 1),
+            monto_prom    = round(monto_prom),
+            pct_ingresos  = round(pct_ingresos, 1))
+perfil_segmentos
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 4 x 6
+  segmento    clientes recencia_dias compras monto_prom pct_ingresos
+  <fct>          <int>         <dbl>   <dbl>      <dbl>        <dbl>
+1 Campeones         22            35     9.2      10159         23.3
+2 Leales            87            42     5.9       5577         50.5
+3 Ocasionales       60            60     3.4       2879         18  
+4 Dormidos          29           195     2.8       2708          8.2
+\end{rsalida}
+
+Ahora sí, cada grupo cuenta una historia:
+
+\begin{itemize}
+  \item \textbf{Campeones} (22 clientes, 11\% de la base): compraron hace unos
+        35 días, 9.2 veces en el año y gastaron en promedio \$10{,}159. Son
+        apenas uno de cada nueve clientes, pero generan el 23.3\% de los
+        ingresos.
+  \item \textbf{Leales} (87 clientes): el grueso de la base. Compran seguido
+        (5.9 veces) y aportan la mitad de los ingresos (50.5\%).
+  \item \textbf{Ocasionales} (60): activos (60 días de recencia), pero compran
+        poco y gastan \$2{,}879 en promedio.
+  \item \textbf{Dormidos} (29): su última compra fue hace 195 días en
+        promedio, más de seis meses. Aportan solo 8.2\% de los ingresos.
+\end{itemize}
+
+Observa que la regla de nombres no menciona ningún número de grupo: si mañana
+k-means numera distinto, cada cliente seguirá recibiendo el nombre correcto.
+
+\begin{hazlotu}
+Cambia la semilla a \codigo{set.seed(2024)} antes de \codigo{kmeans()} y vuelve
+a correr los pasos 4 y 5. ¿Cambian los números de grupo? ¿Cambian los nombres
+asignados a cada cliente? (Deberían mantenerse, porque los nombres dependen del
+perfil y no del número.)
+\end{hazlotu}
+
+\subsection{Paso 6: visualizar los segmentos}
+
+\codigo{fviz\_cluster()} dibuja los grupos en dos dimensiones. Como tenemos tres
+variables, primero las resume en dos ``componentes principales'' (combinaciones
+de R, F y M que conservan la mayor parte de la información); los porcentajes de
+los ejes indican cuánta información conserva cada una.
+
+\begin{rcode}
+grafico_clusters <- fviz_cluster(modelo_kmeans, data = rfm_escalado,
+                                 geom = "point", ellipse.type = "convex",
+                                 palette = paleta_libro[1:4],
+                                 ggtheme = theme_minimal()) +
+  labs(title = "Grupos de k-means sobre el RFM escalado",
+       subtitle = "Proyección en los dos componentes principales",
+       color = "Grupo", fill = "Grupo", shape = "Grupo")
+grafico_clusters
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m07-clusters}
+\caption{Los cuatro grupos de k-means proyectados en dos componentes
+principales, que juntos conservan 93.2\% de la información de R, F y M.}
+\label{fig:m07-clusters}
+\end{figure}
+
+La gráfica de componentes principales es útil para ver si los grupos se
+separan, pero sus ejes son difíciles de explicar a la dirección. Para una
+presentación, grafica las variables originales con los nombres de negocio:
+
+\begin{rcode}
+grafico_segmentos <- ggplot(rfm_seg,
+                            aes(recencia, monto, color = segmento)) +
+  geom_point(size = 2, alpha = 0.8) +
+  scale_color_manual(values = paleta_libro[1:4]) +
+  scale_y_continuous(labels = scales::dollar) +
+  labs(title = "Segmentos de clientes según recencia y monto",
+       subtitle = "Clientes del curso, compras de 2023",
+       x = "Días desde la última compra (recencia)",
+       y = "Monto total comprado", color = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(), legend.position = "top")
+grafico_segmentos
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m07-segmentos}
+\caption{Segmentos RFM en unidades de negocio: los Dormidos se separan por
+recencia; Campeones, Leales y Ocasionales, por monto.}
+\label{fig:m07-segmentos}
+\end{figure}
+
+\subsection{Paso 7: de segmentos a estrategias}
+
+La segmentación solo genera valor cuando cada segmento tiene una acción
+asociada. La tabla~\ref{tab:m7-estrategias} es un ejemplo de cómo se
+presentaría a marketing.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Estrategia sugerida por segmento RFM.}
+\label{tab:m7-estrategias}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.2cm}
+                              >{\raggedright\arraybackslash}p{4.2cm}
+                              >{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Segmento} & \textbf{Quiénes son} & \textbf{Estrategia} \\
+\midrule
+Campeones & Compran seguido, gastan el doble del promedio y compraron hace poco. &
+  Programa VIP, acceso anticipado a lanzamientos, atención preferente. No
+  regalar descuentos: ya compran sin ellos. \\
+Leales & Compradores regulares con gasto por encima del promedio. &
+  Venta cruzada y \emph{up-selling} (sección~\ref{sec:m7-canasta}); programa
+  de puntos para convertirlos en Campeones. \\
+Ocasionales & Compran poco y gastan poco, pero siguen activos. &
+  Campañas de frecuencia: cupones con fecha de vencimiento, recordatorios,
+  paquetes de entrada. \\
+Dormidos & No compran desde hace más de seis meses en promedio. &
+  Campaña de reactivación con oferta fuerte y encuesta de salida; si no
+  responden, reducir la inversión en ellos. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Para enriquecer el perfil, puedes unir los segmentos con los datos
+demográficos de \archivo{clientes.csv}. Por ejemplo, ¿los Campeones son más
+``premium'' o más jóvenes?
+
+\begin{rcode}
+rfm_seg %>%
+  # de clientes.csv solo tomamos lo que necesitamos (ya trae una
+  # columna "segmento" por edad que chocaría con la nuestra)
+  left_join(select(clientes, cliente_id, edad, es_premium),
+            by = "cliente_id") %>%
+  group_by(segmento) %>%
+  summarise(clientes    = n(),
+            edad_prom   = round(mean(edad), 1),
+            pct_premium = round(100 * mean(es_premium), 1),
+            .groups = "drop")
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 4 x 4
+  segmento    clientes edad_prom pct_premium
+  <fct>          <int>     <dbl>       <dbl>
+1 Campeones         22      49.2        31.8
+2 Leales            87      47.4        34.5
+3 Ocasionales       60      49.2        45  
+4 Dormidos          29      51.3        27.6
+\end{rsalida}
+
+La edad promedio es casi igual en los cuatro segmentos (47 a 51 años) y el
+porcentaje de clientes \emph{premium} no sigue ningún patrón lógico: los
+Ocasionales tienen más premium (45\%) que los Campeones (31.8\%). En estos datos
+simulados, la membresía premium y la edad no tienen relación con el
+comportamiento de compra. En una empresa real este cruce sería un hallazgo
+importante: si pagas beneficios premium a clientes que compran poco, el
+programa necesita revisión.
+
+\subsection{Paso 8: asignar un segmento a clientes nuevos}
+
+El modelo ya está entrenado. Cuando un cliente acumula historial, no necesitas
+volver a correr k-means: basta con escalar sus valores \textbf{con las mismas
+medias y desviaciones del entrenamiento} y asignarlo al centro más cercano.
+
+\begin{rcode}
+asignar_segmento <- function(nuevos, modelo, datos_escalados, nombres) {
+  medias   <- attr(datos_escalados, "scaled:center")
+  desv_est <- attr(datos_escalados, "scaled:scale")
+  # Escalamos con los parámetros del entrenamiento (no con los nuevos)
+  nuevos_esc <- scale(nuevos[, names(medias)], center = medias,
+                      scale = desv_est)
+  # Para cada cliente: el centro con menor distancia al cuadrado
+  grupo <- apply(nuevos_esc, 1, function(fila) {
+    which.min(colSums((t(modelo$centers) - fila)^2))
+  })
+  nuevos %>%
+    mutate(cluster = grupo) %>%
+    left_join(nombres, by = "cluster")
+}
+
+nuevos_clientes <- tibble(
+  cliente    = c("Ana", "Beto", "Carla"),
+  recencia   = c(10, 250, 45),
+  frecuencia = c(11, 2, 4),
+  monto      = c(9500, 1800, 3500)
+)
+
+asignar_segmento(nuevos_clientes, modelo_kmeans, rfm_escalado,
+                 nombres_segmentos)
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 3 x 6
+  cliente recencia frecuencia monto cluster segmento   
+  <chr>      <dbl>      <dbl> <dbl>   <int> <chr>      
+1 Ana           10         11  9500       1 Campeones  
+2 Beto         250          2  1800       4 Dormidos   
+3 Carla         45          4  3500       3 Ocasionales
+\end{rsalida}
+
+Ana (compró hace 10 días, 11 compras, \$9{,}500) es Campeona; Beto, que no
+compra desde hace 250 días, cae en Dormidos; y Carla, con un comportamiento
+modesto pero reciente, en Ocasionales. Este tipo de función es la que después
+se programa para que corra cada semana (Módulo~\ref{cap:reportes}).
+
+\subsection{Alternativa sencilla: RFM por reglas con quintiles}
+
+No siempre necesitas k-means. Muchas empresas usan \termino{RFM por reglas}: a
+cada cliente se le asigna una calificación de 1 a 5 en cada dimensión según su
+quintil (el 20\% con mejor valor recibe 5) y luego se definen segmentos con
+reglas fáciles de explicar. En R, \codigo{ntile()} de \paquete{dplyr} hace el
+trabajo.
+
+\begin{rcode}
+rfm_reglas <- rfm %>%
+  mutate(
+    r_score = ntile(desc(recencia), 5),   # 5 = compró más recientemente
+    f_score = ntile(frecuencia, 5),       # 5 = compra más seguido
+    m_score = ntile(monto, 5),            # 5 = gasta más
+    codigo_rfm = paste0(r_score, f_score, m_score),
+    segmento_reglas = case_when(
+      r_score >= 4 & f_score >= 4 & m_score >= 4 ~ "Campeones",
+      r_score >= 3 & f_score >= 3                ~ "Leales",
+      r_score <= 2 & f_score >= 3                ~ "En riesgo",
+      r_score <= 2                               ~ "Dormidos",
+      TRUE                                       ~ "Ocasionales"
+    )
+  )
+
+rfm_reglas %>%
+  select(cliente_id, recencia, frecuencia, monto, codigo_rfm,
+         segmento_reglas) %>%
+  head(5)
+
+rfm_reglas %>% count(segmento_reglas, sort = TRUE)
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 5 x 6
+  cliente_id recencia frecuencia  monto codigo_rfm segmento_reglas
+       <dbl>    <dbl>      <int>  <dbl> <chr>      <chr>          
+1          1       31          7  4859. 443        Leales         
+2          2       30          5  7950. 435        Leales         
+3          3       58          8  9562  355        Leales         
+4          4        8          5  7759. 535        Leales         
+5          5        1         13 14680. 555        Campeones      
+# A tibble: 5 x 2
+  segmento_reglas     n
+  <chr>           <int>
+1 Leales             56
+2 Dormidos           50
+3 Campeones          32
+4 En riesgo          30
+5 Ocasionales        30
+\end{rsalida}
+
+El cliente 1 tiene código 443 (recencia y frecuencia altas, monto medio): no
+alcanza el 4 en monto para ser Campeón y cae en ``Leales''. Ahora un segmento nuevo aparece: ``En riesgo'', clientes que
+\emph{solían} comprar seguido pero llevan tiempo sin volver; k-means los había
+repartido entre otros grupos. ¿Qué tanto coinciden ambos métodos?
+
+\begin{rcode}
+table(Reglas = rfm_reglas$segmento_reglas, kmeans = rfm_seg$segmento)
+\end{rcode}
+
+\begin{rsalida}
+             kmeans
+Reglas        Campeones Leales Ocasionales Dormidos
+  Campeones          12     20           0        0
+  Dormidos            0      1          23       26
+  En riesgo           3     19           5        3
+  Leales              7     44           5        0
+  Ocasionales         0      3          27        0
+\end{rsalida}
+
+Las filas son los segmentos por reglas y las columnas los de k-means. La
+coincidencia es buena en los extremos: 27 de los 30 Ocasionales por reglas son
+Ocasionales en k-means y 26 de los 29 Dormidos de k-means son Dormidos por
+reglas. Los 30 clientes ``En riesgo'' se reparten entre Leales (19) y otros
+grupos: k-means los mezcló con clientes activos porque su monto y frecuencia
+pesan más que su recencia. Ningún método es ``el correcto''; son dos formas de
+mirar a los mismos clientes.
+
+\begin{negocio}{¿Reglas o k-means?}
+Las reglas RFM son transparentes (``Campeón = calificación 4 o 5 en todo''),
+estables en el tiempo y fáciles de programar incluso en SQL o Excel. k-means
+descubre grupos sin que tú fijes los cortes y admite más variables (margen,
+categorías compradas, devoluciones), pero sus grupos pueden moverse al
+reentrenar. Muchas empresas empiezan con reglas y pasan a clustering cuando
+necesitan más variables.
+\end{negocio}
+
+\begin{hazlotu}
+Agrega al RFM una cuarta variable: el número de tiendas distintas en las que
+compró cada cliente (\codigo{n\_distinct(tienda\_id)}). Escala, vuelve a correr
+k-means con $k = 4$ y compara los perfiles. ¿Aparece algún grupo nuevo con
+sentido de negocio?
+\end{hazlotu}
+
+% ============================================================================
+\section{Caso 2: regresión para predecir ventas}
+\label{sec:m7-regresion}
+
+\begin{ejemplo}{¿Cuánto venderá una tienda nueva?}
+Una cadena con 400 tiendas planea abrir sucursales y quiere estimar sus ventas
+mensuales antes de firmar el contrato de renta. Para cada tienda existente
+conoce su zona, tamaño en m², tráfico peatonal mensual, inversión en
+publicidad local y si participa en el programa de promociones. La pregunta:
+\emph{¿cuánto venderá una tienda con ciertas características y qué palancas
+mueven más las ventas?} Es un problema de \textbf{regresión}: la respuesta es
+un número.
+\end{ejemplo}
+
+\subsection{Datos simulados con una relación conocida}
+
+Como explicamos al inicio, los datos del curso no tienen esta información
+(\archivo{tiendas.csv} solo tiene 10 tiendas y sin publicidad), así que
+simulamos 400 tiendas. Las ventas mensuales (en miles de pesos) se generan con
+esta ``verdad'' que el modelo tendrá que descubrir:
+
+\[
+\text{ventas} = 120 + 3.2\,\text{publicidad} + 0.25\,\text{m}^2 +
+0.04\,\text{tráfico} + 60\,\text{promoción} + \text{efecto zona} + \text{ruido}
+\]
+
+con efecto zona de $+40$ en el Norte, $-30$ en el Sur y 0 en el Centro. El
+tráfico depende en parte del tamaño (las tiendas grandes atraen más gente),
+como en la vida real.
+
+\begin{rcode}
+set.seed(123)
+n_tiendas <- 400
+tiendas_sim <- tibble(
+  tienda     = sprintf("T%03d", 1:n_tiendas),
+  zona       = sample(c("Centro", "Norte", "Sur"), n_tiendas,
+                      replace = TRUE),
+  tamano_m2  = round(runif(n_tiendas, 150, 1200)),
+  publicidad = round(runif(n_tiendas, 10, 120), 1),  # miles de $/mes
+  promocion  = rbinom(n_tiendas, 1, 0.35),           # 1 = participa
+  trafico    = round(3000 + 5 * tamano_m2 +          # personas/mes
+                       rnorm(n_tiendas, 0, 1500))
+) %>%
+  mutate(
+    efecto_zona = case_when(zona == "Norte" ~ 40,
+                            zona == "Sur"   ~ -30,
+                            TRUE            ~ 0),
+    ventas = round(120 + 3.2 * publicidad + 0.25 * tamano_m2 +
+                     0.04 * trafico + 60 * promocion + efecto_zona +
+                     rnorm(n_tiendas, 0, 50), 1)       # miles de $/mes
+  ) %>%
+  select(-efecto_zona)   # el modelo no debe ver la "respuesta secreta"
+
+head(tiendas_sim, 4)
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 4 x 7
+  tienda zona  tamano_m2 publicidad promocion trafico ventas
+  <chr>  <chr>     <dbl>      <dbl>     <int>   <dbl>  <dbl>
+1 T001   Sur         508       17.9         0    5980   517.
+2 T002   Sur         638       10.4         0    3903   408.
+3 T003   Sur         237       15.7         0    5900   400.
+4 T004   Norte      1053      105.          1   10671  1263.
+\end{rsalida}
+
+Separamos 80\% para entrenar y 20\% para probar:
+
+\begin{rcode}
+set.seed(123)
+filas_ent <- sample(nrow(tiendas_sim), size = 0.8 * nrow(tiendas_sim))
+tiendas_ent    <- tiendas_sim[filas_ent, ]    # 320 tiendas
+tiendas_prueba <- tiendas_sim[-filas_ent, ]   # 80 tiendas
+c(entrenamiento = nrow(tiendas_ent), prueba = nrow(tiendas_prueba))
+\end{rcode}
+
+\begin{rsalida}
+entrenamiento        prueba 
+          320            80 
+\end{rsalida}
+
+\subsection{Regresión lineal múltiple}
+
+La \termino{regresión lineal múltiple} (función \codigo{lm()}, que ya usaste en
+el Módulo~\ref{cap:eda} con una sola variable) estima cuánto cambia la
+respuesta por cada unidad de cada predictora, \emph{manteniendo las demás
+constantes}. La fórmula \codigo{ventas \textasciitilde{} publicidad + tamano\_m2 + \ldots}
+se lee ``ventas en función de publicidad, tamaño, \ldots''.
+
+\begin{rcode}
+modelo_lm <- lm(ventas ~ publicidad + tamano_m2 + trafico + promocion +
+                  zona, data = tiendas_ent)
+summary(modelo_lm)
+\end{rcode}
+
+\begin{rsalida}
+
+Call:
+lm(formula = ventas ~ publicidad + tamano_m2 + trafico + promocion + 
+    zona, data = tiendas_ent)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-120.181  -38.036   -1.857   35.175  141.550 
+
+Coefficients:
+              Estimate Std. Error t value Pr(>|t|)    
+(Intercept) 107.296043  11.071131   9.692  < 2e-16 ***
+publicidad    3.259854   0.091005  35.821  < 2e-16 ***
+tamano_m2     0.270330   0.013935  19.399  < 2e-16 ***
+trafico       0.038681   0.001903  20.330  < 2e-16 ***
+promocion    57.226212   6.042430   9.471  < 2e-16 ***
+zonaNorte    41.704523   6.880492   6.061 3.88e-09 ***
+zonaSur     -29.067746   6.992714  -4.157 4.17e-05 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 50.65 on 313 degrees of freedom
+Multiple R-squared:  0.937,	Adjusted R-squared:  0.9358 
+F-statistic:   776 on 6 and 313 DF,  p-value: < 2.2e-16
+\end{rsalida}
+
+\begin{concepto}{Cómo leer la tabla de coeficientes}
+\begin{itemize}
+  \item \textbf{Estimate}: el efecto estimado. Para una variable numérica, es
+        el cambio en ventas por cada unidad adicional; para una categoría
+        (\codigo{zonaNorte}), es la diferencia respecto a la categoría base
+        (Centro, la primera en orden alfabético).
+  \item \textbf{Pr(>|t|)} (valor p): si es muy pequeño (menor a 0.05), el
+        efecto difícilmente se debe al azar. Los asteriscos lo resumen.
+  \item \textbf{Residual standard error}: el tamaño típico del error del
+        modelo, en unidades de la respuesta.
+  \item \textbf{R-squared}: proporción de la variación de las ventas que el
+        modelo explica.
+\end{itemize}
+\end{concepto}
+
+Traducido al lenguaje de negocio (recuerda que ventas y publicidad están en
+miles de pesos):
+
+\begin{itemize}
+  \item \textbf{Publicidad:} cada \$1{,}000 adicionales de publicidad se asocian
+        con \$3{,}260 más de ventas mensuales. El valor real era 3.2: el modelo
+        lo descubrió.
+  \item \textbf{Tamaño:} cada m² adicional aporta unos \$270 al mes (real: 250).
+  \item \textbf{Tráfico:} cada 100 visitantes más, \$3{,}900 más de ventas
+        (0.039 $\times$ 100, real: 0.04).
+  \item \textbf{Promoción:} participar suma unos \$57{,}000 al mes (real: 60).
+  \item \textbf{Zona:} una tienda del Norte vende \$41{,}700 más que una
+        equivalente del Centro; una del Sur, \$29{,}100 menos.
+  \item El modelo explica el 93.7\% de la variación de las ventas
+        (R² = 0.937), y el error típico es de unos \$50{,}000, justo el tamaño
+        del ruido que simulamos.
+\end{itemize}
+
+\begin{advertencia}
+Un coeficiente de regresión mide \textbf{asociación, no causalidad}. En datos
+simulados sabemos que la publicidad \emph{causa} ventas, porque así lo
+programamos. En datos reales, quizá las tiendas que ya venden mucho reciben más
+presupuesto de publicidad (la causalidad va al revés). Para afirmar ``si
+invierto \$1{,}000 más en publicidad venderé \$3{,}260 más'' necesitas un
+experimento (por ejemplo, aumentar la publicidad en tiendas elegidas al azar).
+\end{advertencia}
+
+\begin{consejo}
+Para saber qué variable ``pesa'' más, no compares los coeficientes
+directamente: están en unidades distintas (pesos, m², personas). Compara el
+efecto de un cambio \emph{realista}: pasar de 40 a 80 mil pesos de publicidad
+suma $40 \times 3.26 \approx 130$ mil pesos; pasar de 400 a 800 m² suma
+$400 \times 0.27 \approx 108$ mil pesos directamente, más el tráfico extra que
+atrae.
+\end{consejo}
+
+\subsection{Evaluar el modelo: MAE, RMSE, MAPE y R²}
+\label{sec:m7-metricas-reg}
+
+El resumen del modelo describe el ajuste en los datos de entrenamiento. La
+evaluación honesta se hace con las 80 tiendas de prueba. Las cuatro métricas
+de regresión más usadas son:
+
+\begin{table}[H]
+\centering
+\small
+\caption{Métricas de error para regresión.}
+\label{tab:m7-metricas-reg}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.3cm}
+                              >{\raggedright\arraybackslash}p{4.8cm}
+                              >{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Métrica} & \textbf{Cálculo} & \textbf{Cómo se lee} \\
+\midrule
+MAE (error absoluto medio) & promedio de $|\text{real} - \text{predicho}|$ &
+  ``En promedio nos equivocamos por \$X''. La más fácil de explicar. \\
+RMSE (raíz del error cuadrático medio) &
+  $\sqrt{\text{promedio de } (\text{real} - \text{predicho})^2}$ &
+  Como el MAE, pero castiga más los errores grandes. Útil si un error grande
+  es muy costoso. \\
+MAPE (error porcentual absoluto medio) &
+  promedio de $|\text{real} - \text{predicho}| / \text{real} \times 100$ &
+  ``Nos equivocamos X\% en promedio''. Comparable entre negocios de distinto
+  tamaño; falla si hay valores reales cercanos a cero. \\
+R² (coeficiente de determinación) &
+  $1 - \dfrac{\sum (\text{real} - \text{predicho})^2}{\sum (\text{real} - \text{promedio})^2}$ &
+  Proporción de la variación explicada: 1 es perfecto, 0 es igual a predecir
+  siempre el promedio, negativo es peor que el promedio. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Calculémoslas a mano con una función reutilizable:
+
+\begin{rcode}
+metricas_regresion <- function(real, predicho) {
+  error <- real - predicho
+  tibble(
+    MAE  = mean(abs(error)),
+    RMSE = sqrt(mean(error^2)),
+    MAPE = mean(abs(error) / real) * 100,
+    R2   = 1 - sum(error^2) / sum((real - mean(real))^2)
+  )
+}
+
+tiendas_prueba <- tiendas_prueba %>%
+  mutate(pred_lm = predict(modelo_lm, newdata = tiendas_prueba))
+
+metricas_regresion(tiendas_prueba$ventas, tiendas_prueba$pred_lm) %>%
+  mutate(across(everything(), ~ round(.x, 3)))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 1 x 4
+    MAE  RMSE  MAPE    R2
+  <dbl> <dbl> <dbl> <dbl>
+1  37.2  45.1  5.04 0.947
+\end{rsalida}
+
+En tiendas que el modelo nunca vio, nos equivocamos en promedio por \$37{,}200
+al mes (MAE = 37.2 miles), lo que equivale a un error de 5\% (MAPE). El RMSE
+(45.1) es algo mayor que el MAE porque penaliza más los errores grandes; si
+fuera mucho mayor, indicaría que hay algunas tiendas con errores enormes. El R²
+en prueba (0.947) es tan bueno como en entrenamiento (0.937): no hay señales de
+sobreajuste.
+
+\begin{consejo}
+Compara siempre contra una \termino{línea base} (\emph{baseline}): el modelo
+más tonto posible. Aquí, predecir para toda tienda nueva el promedio de ventas
+del entrenamiento. Si tu modelo no le gana claramente a la línea base, no
+aporta valor.
+\end{consejo}
+
+\begin{rcode}
+prediccion_ingenua <- mean(tiendas_ent$ventas)   # siempre el promedio
+metricas_regresion(tiendas_prueba$ventas,
+                   rep(prediccion_ingenua, nrow(tiendas_prueba))) %>%
+  mutate(across(everything(), ~ round(.x, 3)))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 1 x 4
+    MAE  RMSE  MAPE     R2
+  <dbl> <dbl> <dbl>  <dbl>
+1  154.  196.  24.7 -0.003
+\end{rsalida}
+
+Predecir siempre el promedio tiene un MAE de 154 mil pesos y un MAPE de
+24.7\%; su R² es prácticamente cero (por definición, el promedio no explica
+nada). Nuestro modelo reduce el error promedio en más de tres cuartas partes:
+de 154 a 37 mil pesos.
+
+\subsection{Gráfico real contra predicho}
+
+La mejor forma de mostrar la calidad de un modelo de regresión a la dirección
+es un diagrama de dispersión de valores reales contra predichos: si el modelo
+fuera perfecto, todos los puntos caerían sobre la diagonal.
+
+\begin{rcode}
+grafico_real_pred <- ggplot(tiendas_prueba,
+                            aes(x = pred_lm, y = ventas)) +
+  geom_abline(slope = 1, intercept = 0, color = color_gris,
+              linewidth = 0.8, linetype = "dashed") +
+  geom_point(color = color_principal, size = 2, alpha = 0.8) +
+  scale_x_continuous(labels = scales::dollar_format(suffix = "k")) +
+  scale_y_continuous(labels = scales::dollar_format(suffix = "k")) +
+  labs(title = "Ventas reales contra ventas predichas",
+       subtitle = "80 tiendas de prueba; diagonal = predicción perfecta",
+       x = "Ventas predichas (miles)", y = "Ventas reales (miles)") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+grafico_real_pred
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m07-real-vs-predicho}
+\caption{Ventas reales contra predichas por la regresión lineal en las tiendas
+de prueba. Los puntos se agrupan alrededor de la diagonal, sin patrones
+sistemáticos.}
+\label{fig:m07-real-vs-predicho}
+\end{figure}
+
+Busca dos cosas en esta gráfica: que los puntos estén cerca de la diagonal y
+que el error no dependa del tamaño (por ejemplo, que el modelo no subestime
+sistemáticamente las tiendas más grandes). Aquí ambas se cumplen.
+
+\subsection{Usar el modelo: estimar las ventas de tiendas candidatas}
+
+\begin{rcode}
+candidatas <- tibble(
+  tienda     = c("Local Plaza Norte", "Local Centro Histórico",
+                 "Local Sur Express"),
+  zona       = c("Norte", "Centro", "Sur"),
+  tamano_m2  = c(900, 400, 250),
+  publicidad = c(80, 50, 30),
+  promocion  = c(1, 0, 1),
+  trafico    = c(9000, 6500, 4000)
+)
+
+predict(modelo_lm, newdata = candidatas, interval = "prediction") %>%
+  as_tibble() %>%
+  mutate(tienda = candidatas$tienda, .before = 1) %>%
+  mutate(across(where(is.numeric), ~ round(.x)))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 3 x 4
+  tienda                   fit   lwr   upr
+  <chr>                  <dbl> <dbl> <dbl>
+1 Local Plaza Norte       1058   958  1159
+2 Local Centro Histórico   630   529   730
+3 Local Sur Express        456   354   557
+\end{rsalida}
+
+\codigo{interval = "prediction"} agrega un \termino{intervalo de predicción}
+del 95\%: \codigo{fit} es la estimación puntual, y \codigo{lwr} y \codigo{upr}
+los límites inferior y superior. Para
+el local de Plaza Norte, el modelo estima ventas de \$1{,}058 mil al mes, y con
+95\% de confianza entre \$958 mil y \$1{,}159 mil. Ese rango es lo que debes
+llevar a la junta: si la renta solo es rentable con ventas mayores a \$1{,}100
+mil, el local es una apuesta arriesgada aunque la estimación puntual se vea
+bien. El local Sur Express, con ventas esperadas de \$456 mil, probablemente
+no justifica la inversión.
+
+\subsection{Comparación con random forest}
+
+\begin{concepto}{Árboles de decisión y random forest}
+Un \termino{árbol de decisión} hace preguntas sucesivas del tipo ``¿tamaño
+mayor a 700 m²?'' y en cada hoja predice el promedio de las tiendas que llegan
+ahí. Un \termino{random forest} (bosque aleatorio) entrena cientos de árboles,
+cada uno con una muestra distinta de tiendas y de variables, y promedia sus
+predicciones. Captura relaciones no lineales e interacciones sin que tengas
+que especificarlas, pero es una ``caja negra'' más difícil de explicar.
+\end{concepto}
+
+\begin{rcode}
+set.seed(123)
+modelo_rf_ventas <- randomForest(
+  ventas ~ publicidad + tamano_m2 + trafico + promocion + zona,
+  data = tiendas_ent %>% mutate(zona = factor(zona)),
+  ntree = 300,          # número de árboles
+  importance = TRUE     # calcular importancia de variables
+)
+modelo_rf_ventas
+\end{rcode}
+
+\begin{rsalida}
+
+Call:
+...
+               Type of random forest: regression
+                     Number of trees: 300
+No. of variables tried at each split: 1
+
+          Mean of squared residuals: 7887.08
+                    % Var explained: 80.2
+\end{rsalida}
+
+El bosque reporta un error \termino{OOB} (\emph{out-of-bag}): como cada árbol
+se entrena con una muestra, las tiendas que quedaron fuera de esa muestra
+sirven para evaluarlo, una especie de validación cruzada gratuita. Comparemos
+ambos modelos en el conjunto de prueba:
+
+\begin{rcode}
+tiendas_prueba <- tiendas_prueba %>%
+  mutate(pred_rf = predict(modelo_rf_ventas,
+                           newdata = tiendas_prueba %>%
+                             mutate(zona = factor(zona))))
+
+bind_rows(
+  metricas_regresion(tiendas_prueba$ventas, tiendas_prueba$pred_lm) %>%
+    mutate(modelo = "Regresión lineal", .before = 1),
+  metricas_regresion(tiendas_prueba$ventas, tiendas_prueba$pred_rf) %>%
+    mutate(modelo = "Random forest", .before = 1)
+) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 3)))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 2 x 5
+  modelo             MAE  RMSE  MAPE    R2
+  <chr>            <dbl> <dbl> <dbl> <dbl>
+1 Regresión lineal  37.2  45.1  5.04 0.947
+2 Random forest     67.7  85.3 10.5  0.809
+\end{rsalida}
+
+La regresión lineal gana con claridad: MAE de 37.2 contra 67.7 del random
+forest, y R² de 0.947 contra 0.809. El bosque explica el 80.2\% de la varianza
+según su estimación OOB, muy parecido a lo que obtuvo en la prueba (0.809): el
+OOB es un buen adelanto del desempeño real.
+
+\begin{negocio}{El modelo más sofisticado no siempre gana}
+En esta simulación la relación es lineal por construcción, así que la
+regresión lineal es el modelo ``correcto'' y le gana al bosque aleatorio. En
+datos reales con umbrales y combinaciones (por ejemplo, la promoción solo
+funciona en tiendas grandes), el bosque suele ganar. Por eso la práctica
+profesional es: \textbf{probar un modelo simple y uno flexible, compararlos en
+datos de prueba y quedarte con el más sencillo que cumpla}. Además, la
+regresión lineal te da coeficientes que la dirección entiende.
+\end{negocio}
+
+\begin{hazlotu}
+Quita \codigo{trafico} del modelo lineal y vuelve a evaluarlo. ¿Cuánto empeora
+el MAE? ¿Cómo cambia el coeficiente de \codigo{tamano\_m2}? (Pista: al no estar
+el tráfico, el tamaño absorbe parte de su efecto, porque ambas variables están
+relacionadas.)
+\end{hazlotu}
+
+% ============================================================================
+\section{Caso 3: clasificación para predecir el abandono de clientes}
+\label{sec:m7-churn}
+
+\begin{ejemplo}{¿A quién llama primero el equipo de retención?}
+Una empresa de suscripción (piensa en un club de compras con membresía
+mensual, un servicio de internet o un gimnasio) pierde cada mes a una parte de
+sus clientes. El equipo de retención puede llamar a 150 clientes por semana y
+ofrecerles un descuento. La pregunta: \emph{¿qué clientes tienen mayor
+probabilidad de irse y, por lo tanto, a quiénes conviene llamar primero?} Es un
+problema de \textbf{clasificación}: la respuesta es ``se va'' o ``se queda''.
+\end{ejemplo}
+
+El \termino{churn} (abandono, deserción o cancelación) es la proporción de
+clientes que dejan de serlo en un periodo. Retener a un cliente suele costar
+mucho menos que conseguir uno nuevo, por eso los modelos de churn son de los
+más rentables en BI.
+
+\subsection{Datos simulados de clientes}
+
+Simulamos 2{,}000 clientes con variables típicas de un sistema de
+suscripciones. El abandono se genera con reglas de negocio realistas: aumenta
+con las quejas y los pagos tardíos, es mayor en los primeros meses, y disminuye
+con la antigüedad, el uso del servicio y los planes más completos. El
+\textbf{género y la edad no influyen} (los incluimos para una discusión de
+ética más adelante).
+
+\begin{rcode}
+set.seed(123)
+n_clientes <- 2000
+clientes_churn <- tibble(
+  cliente_id       = sprintf("C%04d", 1:n_clientes),
+  antiguedad_meses = sample(1:72, n_clientes, replace = TRUE),
+  plan             = sample(c("Básico", "Estándar", "Premium"),
+                            n_clientes, replace = TRUE,
+                            prob = c(0.5, 0.3, 0.2)),
+  uso_mensual      = rpois(n_clientes, 8),    # visitas/usos al mes
+  quejas_6m        = rpois(n_clientes, 0.8),  # quejas últimos 6 meses
+  pagos_tardios    = rpois(n_clientes, 0.4),  # pagos atrasados en el año
+  genero           = sample(c("F", "M"), n_clientes, replace = TRUE),
+  edad             = sample(18:70, n_clientes, replace = TRUE)
+) %>%
+  mutate(
+    # "Verdad" oculta: puntaje de riesgo (el modelo no la verá)
+    efecto_plan = case_when(plan == "Básico"   ~ 0,
+                            plan == "Estándar" ~ -0.6,
+                            TRUE               ~ -1.3),
+    riesgo = 2.0 - 0.05 * antiguedad_meses +
+      1.0 * (antiguedad_meses <= 6) + 1.0 * quejas_6m -
+      0.35 * uso_mensual + 0.8 * pagos_tardios + efecto_plan,
+    prob_real = plogis(riesgo),               # convierte a probabilidad
+    churn = if_else(runif(n_clientes) < prob_real, "Si", "No"),
+    churn = factor(churn, levels = c("No", "Si")),
+    plan  = factor(plan, levels = c("Básico", "Estándar", "Premium")),
+    cuota_mensual = case_when(plan == "Básico"   ~ 199,
+                              plan == "Estándar" ~ 349,
+                              TRUE               ~ 599)
+  ) %>%
+  select(-efecto_plan, -riesgo, -prob_real)
+
+glimpse(clientes_churn)
+clientes_churn %>% count(churn) %>% mutate(pct = round(100 * n / sum(n), 1))
+\end{rcode}
+
+\begin{rsalida}
+Rows: 2,000
+Columns: 10
+$ cliente_id       <chr> "C0001", "C0002", "C0003", "C0004", "C0005"~
+$ antiguedad_meses <int> 31, 51, 14, 67, 42, 50, 43, 14, 25, 69, 57,~
+$ plan             <fct> Estándar, Premium, Premium, Estándar, Básic~
+$ uso_mensual      <int> 9, 8, 5, 14, 11, 14, 8, 10, 10, 8, 8, 9, 8,~
+$ quejas_6m        <int> 1, 0, 0, 2, 1, 1, 1, 0, 0, 1, 0, 0, 3, 0, 0~
+$ pagos_tardios    <int> 0, 3, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1~
+$ genero           <chr> "M", "F", "M", "M", "F", "M", "M", "F", "M"~
+$ edad             <int> 58, 44, 27, 57, 19, 43, 48, 36, 67, 18, 40,~
+$ churn            <fct> No, No, No, No, No, No, No, No, No, No, No,~
+$ cuota_mensual    <dbl> 349, 599, 599, 349, 199, 199, 349, 199, 349~
+# A tibble: 2 x 3
+  churn     n   pct
+  <fct> <int> <dbl>
+1 No     1545  77.2
+2 Si      455  22.8
+\end{rsalida}
+
+\codigo{glimpse()} muestra las 10 columnas: 7 predictoras, el identificador,
+la cuota mensual (que usaremos para calcular el valor del cliente) y la
+variable objetivo \codigo{churn}. De los 2{,}000 clientes, 455 (22.8\%) se
+fueron. Es una clase \termino{desbalanceada}: los que se quedan son más de
+tres veces los que se van. Tenlo presente al leer la exactitud.
+
+\begin{consejo}
+Convierte la variable objetivo a \codigo{factor} con los niveles en un orden
+explícito: \codigo{levels = c("No", "Si")}. Así R sabe que ``Si'' es la clase
+de interés (la segunda), y \codigo{glm()} modelará la probabilidad de ``Si''.
+Evitamos la tilde en ``Si'' para no tener problemas con nombres de columnas que
+generan algunas funciones.
+\end{consejo}
+
+Antes de modelar, una mirada exploratoria rápida (como en el
+Módulo~\ref{cap:eda}): ¿cómo cambia la tasa de abandono con las quejas?
+
+\begin{rcode}
+clientes_churn %>%
+  mutate(quejas = if_else(quejas_6m >= 3, "3 o más",
+                          as.character(quejas_6m))) %>%
+  group_by(quejas) %>%
+  summarise(clientes = n(),
+            tasa_churn = round(100 * mean(churn == "Si"), 1),
+            .groups = "drop")
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 4 x 3
+  quejas  clientes tasa_churn
+  <chr>      <int>      <dbl>
+1 0            903       13.4
+2 1            747       22.6
+3 2            270       42.6
+4 3 o más       80       62.5
+\end{rsalida}
+
+La relación es clarísima: sin quejas, solo 13.4\% abandona; con 3 o más
+quejas, 62.5\%. Este tipo de tabla es la mejor forma de verificar, antes de
+modelar, que hay señal en los datos.
+
+Dividimos en entrenamiento (70\%) y prueba (30\%) de forma
+\textbf{estratificada} con \codigo{createDataPartition()}, para que ambos
+conjuntos tengan la misma proporción de abandono:
+
+\begin{rcode}
+set.seed(123)
+filas_ent <- createDataPartition(clientes_churn$churn, p = 0.7,
+                                 list = FALSE)
+churn_ent    <- clientes_churn[filas_ent, ]
+churn_prueba <- clientes_churn[-filas_ent, ]
+
+# Misma proporción de "Si" en ambos conjuntos
+round(prop.table(table(churn_ent$churn)), 3)
+round(prop.table(table(churn_prueba$churn)), 3)
+\end{rcode}
+
+\begin{rsalida}
+
+   No    Si 
+0.772 0.228 
+
+   No    Si 
+0.773 0.227 
+\end{rsalida}
+
+\subsection{Regresión logística}
+
+\begin{concepto}{Regresión logística}
+La \termino{regresión logística} es la ``regresión lineal de la
+clasificación''. En lugar de predecir un número cualquiera, predice una
+\textbf{probabilidad} entre 0 y 1 (por ejemplo, 0.73 = 73\% de probabilidad de
+abandono). En R se ajusta con \codigo{glm(..., family = binomial)}. Es rápida,
+estable y, sobre todo, \textbf{explicable}: cada coeficiente dice cómo cambia
+el riesgo.
+\end{concepto}
+
+\begin{rcode}
+formula_churn <- churn ~ antiguedad_meses + plan + uso_mensual +
+  quejas_6m + pagos_tardios + genero + edad
+
+modelo_log <- glm(formula_churn, data = churn_ent, family = binomial)
+summary(modelo_log)
+\end{rcode}
+
+\begin{rsalida}
+
+Call:
+glm(formula = formula_churn, family = binomial, data = churn_ent)
+
+Coefficients:
+                  Estimate Std. Error z value Pr(>|z|)    
+(Intercept)       2.114728   0.385699   5.483 4.19e-08 ***
+antiguedad_meses -0.054049   0.004438 -12.178  < 2e-16 ***
+planEstándar     -0.448662   0.175005  -2.564   0.0104 *  
+planPremium      -1.247963   0.234692  -5.317 1.05e-07 ***
+uso_mensual      -0.310629   0.032282  -9.622  < 2e-16 ***
+quejas_6m         1.048309   0.091879  11.410  < 2e-16 ***
+pagos_tardios     0.528275   0.121604   4.344 1.40e-05 ***
+generoM           0.019595   0.154767   0.127   0.8992    
+edad             -0.003247   0.005179  -0.627   0.5306    
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 1503.2  on 1400  degrees of freedom
+Residual deviance: 1063.0  on 1392  degrees of freedom
+AIC: 1081
+
+Number of Fisher Scoring iterations: 5
+\end{rsalida}
+
+Los coeficientes de la logística están en una escala poco intuitiva
+(\emph{log-odds}). Para explicarlos al negocio, conviértelos en
+\termino{razones de momios} (\emph{odds ratios}) con \codigo{exp()}:
+
+\begin{rcode}
+tibble(variable   = names(coef(modelo_log)),
+       odds_ratio = round(exp(coef(modelo_log)), 3)) %>%
+  mutate(efecto = case_when(
+    odds_ratio > 1 ~ paste0("+", round(100 * (odds_ratio - 1)), "% riesgo"),
+    TRUE           ~ paste0(round(100 * (odds_ratio - 1)), "% riesgo")
+  )) %>%
+  filter(variable != "(Intercept)")
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 8 x 3
+  variable         odds_ratio efecto      
+  <chr>                 <dbl> <chr>       
+1 antiguedad_meses      0.947 -5% riesgo  
+2 planEstándar          0.638 -36% riesgo 
+3 planPremium           0.287 -71% riesgo 
+4 uso_mensual           0.733 -27% riesgo 
+5 quejas_6m             2.85  +185% riesgo
+6 pagos_tardios         1.70  +70% riesgo 
+7 generoM               1.02  +2% riesgo  
+8 edad                  0.997 0% riesgo   
+\end{rsalida}
+
+\begin{concepto}{Cómo leer una razón de momios}
+Los \emph{momios} (\emph{odds}) son la probabilidad de que algo pase dividida
+entre la probabilidad de que no pase. Una razón de momios de 1 significa ``no
+cambia el riesgo''; mayor a 1, lo aumenta; menor a 1, lo reduce. Se interpreta
+\emph{por cada unidad} de la variable y manteniendo las demás constantes.
+\end{concepto}
+
+Traducido al negocio:
+\begin{itemize}
+  \item \textbf{Quejas:} cada queja adicional multiplica los momios de
+        abandono por 2.85 (casi los triplica). Es la palanca más fuerte:
+        resolver bien una queja vale mucho.
+  \item \textbf{Pagos tardíos:} cada pago atrasado aumenta los momios 70\%.
+        Es una señal temprana que cobranza ya tiene y puede compartir.
+  \item \textbf{Uso:} cada uso adicional al mes reduce los momios 27\%. Los
+        clientes que usan el servicio se quedan.
+  \item \textbf{Antigüedad:} cada mes adicional reduce los momios 5\%; en un
+        año, eso se acumula ($0.947^{12} \approx 0.52$, casi la mitad).
+  \item \textbf{Plan:} frente al Básico, el Premium reduce los momios 71\% y
+        el Estándar 36\%.
+  \item \textbf{Género y edad:} razones cercanas a 1 y valores p altos (0.90
+        y 0.53 en el resumen): no influyen, tal como los simulamos.
+\end{itemize}
+Observa también que el modelo no ``descubrió'' el riesgo extra de los primeros
+6 meses, porque no le dimos una variable que lo represente; la antigüedad
+lineal lo absorbe en parte. Crear variables como
+\codigo{cliente\_nuevo = antiguedad\_meses <= 6} es el tipo de mejora que se
+logra entendiendo el negocio (ejercicio~\ref{ej:m7-6}).
+
+\subsection{Predicciones y matriz de confusión}
+
+El modelo entrega probabilidades. Para convertirlas en una decisión (llamar o
+no llamar) necesitamos un \termino{umbral}: si la probabilidad es mayor o igual
+al umbral, clasificamos como ``Si''. Empecemos con el umbral por defecto,
+0.5:
+
+\begin{rcode}
+churn_prueba <- churn_prueba %>%
+  mutate(prob_log = predict(modelo_log, newdata = churn_prueba,
+                            type = "response"),   # probabilidad de "Si"
+         pred_log = factor(if_else(prob_log >= 0.5, "Si", "No"),
+                           levels = c("No", "Si")))
+
+churn_prueba %>%
+  select(cliente_id, antiguedad_meses, quejas_6m, prob_log, pred_log,
+         churn) %>%
+  mutate(prob_log = round(prob_log, 3)) %>%
+  head(5)
+
+# Matriz de confusión: filas = predicción, columnas = realidad
+matriz <- table(Prediccion = churn_prueba$pred_log,
+                Real = churn_prueba$churn)
+matriz
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 5 x 6
+  cliente_id antiguedad_meses quejas_6m prob_log pred_log churn
+  <chr>                 <int>     <int>    <dbl> <fct>    <fct>
+1 C0003                    14         0    0.181 No       No   
+2 C0007                    43         1    0.154 No       No   
+3 C0012                     9         0    0.119 No       No   
+4 C0014                    26         0    0.224 No       No   
+5 C0015                     7         0    0.416 No       Si   
+          Real
+Prediccion  No  Si
+        No 434  69
+        Si  29  67
+\end{rsalida}
+
+\begin{concepto}{Matriz de confusión}
+Compara lo que el modelo predijo con lo que realmente pasó:
+
+\begin{center}
+\small
+\begin{tabular}{lcc}
+\toprule
+ & \textbf{Real: No se fue} & \textbf{Real: Sí se fue} \\
+\midrule
+\textbf{Predicción: No} & Verdadero negativo (VN) & Falso negativo (FN) \\
+\textbf{Predicción: Sí} & Falso positivo (FP) & Verdadero positivo (VP) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{itemize}
+  \item \textbf{Falso positivo:} llamas a un cliente que no se iba a ir
+        (desperdicias un descuento).
+  \item \textbf{Falso negativo:} no llamas a un cliente que sí se va (lo
+        pierdes). Suele ser el error más caro.
+\end{itemize}
+\end{concepto}
+
+En nuestros 599 clientes de prueba: el modelo acertó 434 clientes que se
+quedaron (VN) y 67 que se fueron (VP). Se equivocó con 29 clientes que marcó
+como ``se va'' y se quedaron (FP) y, lo más grave, dejó pasar a 69 clientes que
+se fueron sin que los detectara (FN). Mira también el cliente C0015 en la
+tabla de arriba: tenía 41.6\% de probabilidad y sí se fue; con el umbral de 0.5
+no lo habríamos llamado.
+
+\subsection{Métricas de clasificación}
+\label{sec:m7-metricas-clas}
+
+De la matriz de confusión salen todas las métricas. Las calculamos a mano para
+entender qué significa cada una:
+
+\begin{rcode}
+metricas_clasificacion <- function(prediccion, real, positivo = "Si") {
+  vp <- sum(prediccion == positivo & real == positivo)
+  vn <- sum(prediccion != positivo & real != positivo)
+  fp <- sum(prediccion == positivo & real != positivo)
+  fn <- sum(prediccion != positivo & real == positivo)
+  precision    <- vp / (vp + fp)
+  sensibilidad <- vp / (vp + fn)
+  tibble(
+    exactitud    = (vp + vn) / (vp + vn + fp + fn),
+    precision    = precision,
+    sensibilidad = sensibilidad,
+    especificidad = vn / (vn + fp),
+    F1           = 2 * precision * sensibilidad /
+                   (precision + sensibilidad)
+  )
+}
+
+metricas_clasificacion(churn_prueba$pred_log, churn_prueba$churn) %>%
+  mutate(across(everything(), ~ round(.x, 3)))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 1 x 5
+  exactitud precision sensibilidad especificidad    F1
+      <dbl>     <dbl>        <dbl>         <dbl> <dbl>
+1     0.836     0.698        0.493         0.937 0.578
+\end{rsalida}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Métricas de clasificación y la pregunta de negocio que responden.}
+\label{tab:m7-metricas-clas}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.6cm}
+                              >{\raggedright\arraybackslash}p{3.3cm}
+                              >{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Métrica} & \textbf{Fórmula} & \textbf{Pregunta que responde} \\
+\midrule
+Exactitud (\emph{accuracy}) & $(VP + VN) / \text{total}$ &
+  ¿Qué proporción de clientes clasificamos bien? Engañosa si una clase es
+  rara. \\
+Precisión (\emph{precision}) & $VP / (VP + FP)$ &
+  De los clientes que marcamos como ``se va'', ¿cuántos realmente se iban?
+  (eficiencia de las llamadas). \\
+Sensibilidad (\emph{recall}) & $VP / (VP + FN)$ &
+  De los clientes que se fueron, ¿a cuántos detectamos? (cobertura). \\
+Especificidad & $VN / (VN + FP)$ &
+  De los que se quedaron, ¿a cuántos dejamos tranquilos? \\
+F1 & $2 \cdot \dfrac{\text{prec.} \cdot \text{sens.}}{\text{prec.} + \text{sens.}}$ &
+  Equilibrio entre precisión y sensibilidad en un solo número. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+La exactitud es de 83.6\%, que suena bien, pero la sensibilidad es de solo
+49.3\%: con el umbral de 0.5 detectamos a menos de la mitad de los clientes que
+se van. La precisión de 69.8\% dice que de cada 10 llamadas, 7 serían a
+clientes realmente en riesgo. Recuerda que predecir ``nadie se va'' ya daría
+77.3\% de exactitud (la proporción de ``No'' en la prueba), así que la exactitud
+por sí sola dice poco (sección~\ref{sec:m7-errores}).
+
+\subsection{Curva ROC y AUC}
+
+Cada umbral produce una matriz de confusión distinta. La \termino{curva ROC}
+muestra todos los umbrales a la vez: en el eje horizontal, la tasa de falsos
+positivos ($1 -$ especificidad); en el vertical, la sensibilidad. El
+\termino{AUC} (área bajo la curva) resume la curva en un número: la
+probabilidad de que, al tomar un cliente que se fue y uno que se quedó al azar,
+el modelo le asigne mayor riesgo al que se fue. Un AUC de 0.5 es adivinar con
+una moneda; 1 es perfecto; en churn, de 0.75 a 0.85 ya es un buen modelo.
+
+Calculamos la curva a mano, probando 101 umbrales:
+
+\begin{rcode}
+curva_roc <- function(prob, real, positivo = "Si") {
+  map_dfr(seq(0, 1, by = 0.01), function(u) {
+    pred <- prob >= u
+    tibble(umbral = u,
+           sensibilidad = sum(pred & real == positivo) /
+                          sum(real == positivo),
+           tasa_fp = sum(pred & real != positivo) / sum(real != positivo))
+  })
+}
+
+# AUC como probabilidad de ordenar bien un par (positivo, negativo)
+calcular_auc <- function(prob, real, positivo = "Si") {
+  p_pos <- prob[real == positivo]
+  p_neg <- prob[real != positivo]
+  mean(outer(p_pos, p_neg, ">") + 0.5 * outer(p_pos, p_neg, "=="))
+}
+
+roc_log <- curva_roc(churn_prueba$prob_log, churn_prueba$churn)
+auc_log <- calcular_auc(churn_prueba$prob_log, churn_prueba$churn)
+round(auc_log, 3)
+# round() evita problemas de precisión al comparar decimales
+roc_log %>% filter(round(umbral, 2) %in% c(0.1, 0.2, 0.3, 0.5, 0.7))
+\end{rcode}
+
+\begin{rsalida}
+[1] 0.86
+# A tibble: 5 x 3
+  umbral sensibilidad tasa_fp
+   <dbl>        <dbl>   <dbl>
+1    0.1        0.941  0.460 
+2    0.2        0.801  0.298 
+3    0.3        0.691  0.173 
+4    0.5        0.493  0.0626
+5    0.7        0.331  0.0151
+\end{rsalida}
+
+El AUC es de 0.86: si tomas al azar un cliente que se fue y uno que se quedó,
+en 86\% de los casos el modelo le asigna más riesgo al que se fue. La tabla
+muestra el dilema del umbral: con 0.5 detectamos 49.3\% de los que se van
+molestando solo a 6.3\% de los que se quedan; con 0.2 detectamos 80.1\%, pero
+molestamos a 29.8\%; con 0.1, 94.1\% y 46\%. En el otro extremo, con 0.7 casi no molestamos a nadie (1.5\%), pero solo
+detectamos a un tercio (33.1\%) de los que se van.
+
+\begin{rcode}
+grafico_roc <- ggplot(roc_log, aes(x = tasa_fp, y = sensibilidad)) +
+  geom_abline(slope = 1, intercept = 0, color = color_gris,
+              linetype = "dashed", linewidth = 0.8) +
+  geom_path(color = color_principal, linewidth = 0.8) +
+  geom_point(data = filter(roc_log, umbral %in% c(0.2, 0.5)),
+             color = color_resalte, size = 3) +
+  geom_text(data = filter(roc_log, umbral %in% c(0.2, 0.5)),
+            aes(label = paste("umbral", umbral)), color = color_resalte,
+            hjust = -0.2, vjust = 1.2, size = 3.5) +
+  annotate("text", x = 0.75, y = 0.25,
+           label = paste("AUC =", round(auc_log, 3)), size = 4.5) +
+  scale_x_continuous(labels = scales::percent) +
+  scale_y_continuous(labels = scales::percent) +
+  coord_equal() +
+  labs(title = "Curva ROC de la regresión logística",
+       subtitle = "Clientes de prueba; la diagonal equivale a adivinar",
+       x = "Tasa de falsos positivos (1 - especificidad)",
+       y = "Sensibilidad") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+grafico_roc
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m07-roc}
+\caption{Curva ROC del modelo de abandono. Bajar el umbral de 0.5 a 0.2 sube
+mucho la sensibilidad a cambio de más falsos positivos.}
+\label{fig:m07-roc}
+\end{figure}
+
+\subsection{Elegir el umbral según el costo de negocio}
+\label{sec:m7-umbral}
+
+El umbral de 0.5 no tiene nada de especial. La decisión correcta depende de
+cuánto cuesta cada error. Supongamos estos valores (en pesos):
+
+\begin{table}[H]
+\centering
+\small
+\caption{Supuestos de costos para la campaña de retención.}
+\label{tab:m7-costos}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{4.2cm}
+                              >{\raggedright\arraybackslash}X r}
+\toprule
+\textbf{Resultado} & \textbf{Qué pasa} & \textbf{Costo} \\
+\midrule
+Verdadero positivo (VP) & Llamamos y ofrecemos descuento; la mitad de ellos se
+  queda y la otra mitad se va de todos modos. & $300 + 0.5 \times 3{,}000 = 1{,}800$ \\
+Falso positivo (FP) & Damos un descuento a quien no se iba a ir. & 300 \\
+Falso negativo (FN) & No llamamos y el cliente se va: perdemos su margen de
+  un año. & 3{,}000 \\
+Verdadero negativo (VN) & No hacemos nada y el cliente se queda. & 0 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Con esos costos, calculamos el costo total de la campaña para cada umbral y
+buscamos el mínimo:
+
+\begin{rcode}
+costo_vp <- 300 + 0.5 * 3000   # descuento + clientes que igual se van
+costo_fp <- 300                # descuento desperdiciado
+costo_fn <- 3000               # cliente perdido sin intentar retenerlo
+
+costos_umbral <- map_dfr(seq(0.05, 0.95, by = 0.05), function(u) {
+  pred <- churn_prueba$prob_log >= u
+  real <- churn_prueba$churn == "Si"
+  tibble(umbral = u,
+         llamadas = sum(pred),
+         vp = sum(pred & real), fp = sum(pred & !real),
+         fn = sum(!pred & real),
+         costo_total = vp * costo_vp + fp * costo_fp + fn * costo_fn)
+})
+
+costos_umbral %>% arrange(costo_total) %>% head(3)
+costos_umbral %>% filter(umbral %in% c(0.5, 0.95))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 3 x 6
+  umbral llamadas    vp    fp    fn costo_total
+   <dbl>    <int> <int> <int> <int>       <dbl>
+1   0.15      294   120   174    16      316200
+2   0.1       341   128   213     8      318300
+3   0.2       247   109   138    27      318600
+# A tibble: 2 x 6
+  umbral llamadas    vp    fp    fn costo_total
+   <dbl>    <int> <int> <int> <int>       <dbl>
+1   0.5        96    67    29    69      336300
+2   0.95        4     4     0   132      403200
+\end{rsalida}
+
+Con estos costos, el mejor umbral es 0.15: llamaríamos a 294 clientes de
+prueba, detectaríamos a 120 de los 136 que se van y el costo total sería
+\$316{,}200. Con el umbral por defecto de 0.5 el costo sube a \$336{,}300,
+y casi sin llamar a nadie (umbral 0.95) a \$403{,}200. Elegir bien el umbral
+ahorra \$20{,}100 en solo 599 clientes; escalado a una cartera de 100{,}000
+clientes, son más de 3 millones de pesos.
+
+\begin{rcode}
+grafico_costos <- ggplot(costos_umbral, aes(umbral, costo_total)) +
+  geom_line(color = color_principal, linewidth = 0.8) +
+  geom_point(color = color_principal, size = 1.5) +
+  geom_point(data = slice_min(costos_umbral, costo_total, n = 1),
+             color = color_resalte, size = 4) +
+  scale_y_continuous(labels = scales::dollar) +
+  labs(title = "Costo total de la campaña según el umbral",
+       subtitle = "Clientes de prueba; en naranja, el umbral óptimo",
+       x = "Umbral de probabilidad para llamar al cliente",
+       y = "Costo total") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+grafico_costos
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m07-costo-umbral}
+\caption{Costo total de la campaña de retención para cada umbral. Con errores
+de costos tan distintos, conviene un umbral mucho más bajo que 0.5.}
+\label{fig:m07-costo-umbral}
+\end{figure}
+
+\begin{negocio}{El umbral es una decisión de negocio, no técnica}
+Cuando el costo de perder un cliente es mucho mayor que el de un descuento, el
+umbral óptimo baja: conviene llamar a más gente aunque muchos no se fueran a ir.
+Si el equipo de retención tiene capacidad limitada (150 llamadas por semana),
+el umbral lo fija la capacidad: llamas a los 150 de mayor probabilidad. Lo
+importante es que el modelo \emph{ordena} bien a los clientes por riesgo, y
+eso lo mide el AUC.
+\end{negocio}
+
+\begin{hazlotu}
+Repite el cálculo de costos suponiendo que el descuento cuesta \$800 en lugar
+de \$300. ¿Sube o baja el umbral óptimo? ¿Por qué?
+\end{hazlotu}
+
+\subsection{Árbol de decisión con \texorpdfstring{\codigo{rpart}}{rpart}}
+
+Un \termino{árbol de decisión} produce reglas del tipo ``si antigüedad < 20
+meses y uso < 8, entonces riesgo alto''. Su gran ventaja es que cualquier
+gerente las entiende. Para que el árbol sea legible limitamos su complejidad
+con el parámetro \codigo{cp} (\emph{complexity parameter}): un corte solo se
+hace si mejora el ajuste al menos en esa proporción.
+
+\begin{rcode}
+set.seed(123)
+modelo_arbol <- rpart(formula_churn, data = churn_ent, method = "class",
+                      control = rpart.control(cp = 0.02))
+modelo_arbol
+\end{rcode}
+
+\begin{rsalida}
+n= 1401 
+
+node), split, n, loss, yval, (yprob)
+      * denotes terminal node
+
+ 1) root 1401 319 No (0.7723055 0.2276945)  
+   2) antiguedad_meses>=20.5 1014 151 No (0.8510848 0.1489152) *
+   3) antiguedad_meses< 20.5 387 168 No (0.5658915 0.4341085)  
+     6) uso_mensual>=7.5 211  63 No (0.7014218 0.2985782) *
+     7) uso_mensual< 7.5 176  71 Si (0.4034091 0.5965909)  
+      14) quejas_6m< 1.5 134  64 Si (0.4776119 0.5223881)  
+        28) plan=Estándar,Premium 66  25 No (0.6212121 0.3787879) *
+        29) plan=Básico 68  23 Si (0.3382353 0.6617647) *
+      15) quejas_6m>=1.5 42   7 Si (0.1666667 0.8333333) *
+\end{rsalida}
+
+Cada línea es un nodo: número, regla, clientes que llegan, clientes mal
+clasificados, clase predicha y proporciones (No, Si). Las hojas se marcan con
+\codigo{*}. Leídas como reglas de negocio:
+
+\begin{enumerate}
+  \item \textbf{Antigüedad $\geq$ 21 meses} (1{,}014 clientes): riesgo bajo,
+        14.9\% abandona.
+  \item \textbf{Antigüedad < 21 meses y uso $\geq$ 8} (211): riesgo medio,
+        29.9\%.
+  \item \textbf{Antigüedad < 21, uso < 8 y 2 o más quejas} (42): riesgo muy
+        alto, 83.3\%.
+  \item \textbf{Antigüedad < 21, uso < 8, menos de 2 quejas y plan Básico}
+        (68): riesgo alto, 66.2\%.
+  \item Lo mismo pero con plan Estándar o Premium (66): 37.9\%.
+\end{enumerate}
+
+Estas reglas se pueden pegar tal cual en una presentación o programar en SQL.
+Coinciden con lo que dijo la logística: antigüedad, uso, quejas y plan.
+
+Para dibujar el árbol, el paquete \paquete{rpart.plot} produce diagramas muy
+claros. No viene con R; si lo instalas, bastan dos líneas:
+
+\begin{rnoejecutar}
+install.packages("rpart.plot")
+library(rpart.plot)
+rpart.plot(modelo_arbol, type = 4, extra = 104,
+           box.palette = "BuOr", main = "Árbol de abandono")
+\end{rnoejecutar}
+
+Sin paquetes extra, \codigo{plot(modelo\_arbol); text(modelo\_arbol)} dibuja
+una versión sencilla con gráficos base. ¿Qué variables usa más el árbol?
+
+\begin{rcode}
+round(modelo_arbol$variable.importance, 1)
+
+churn_prueba <- churn_prueba %>%
+  mutate(prob_arbol = predict(modelo_arbol, newdata = churn_prueba,
+                              type = "prob")[, "Si"])
+round(calcular_auc(churn_prueba$prob_arbol, churn_prueba$churn), 3)
+\end{rcode}
+
+\begin{rsalida}
+antiguedad_meses      uso_mensual        quejas_6m             plan 
+            46.1             17.4              7.0              5.4 
+            edad           genero    pagos_tardios 
+             0.6              0.4              0.2 
+[1] 0.674
+\end{rsalida}
+
+La antigüedad es, por mucho, la variable más importante para el árbol,
+seguida por el uso. Pero su AUC en prueba es de solo 0.674, bastante peor que
+el 0.86 de la logística: con apenas 5 hojas, el árbol asigna la misma
+probabilidad a cientos de clientes y no puede ordenarlos con detalle. Es el
+precio de la simplicidad.
+
+\subsection{Random forest}
+
+\begin{rcode}
+set.seed(123)
+modelo_rf <- randomForest(formula_churn, data = churn_ent,
+                          ntree = 300, importance = TRUE)
+modelo_rf
+\end{rcode}
+
+\begin{rsalida}
+
+Call:
+...
+               Type of random forest: classification
+                     Number of trees: 300
+No. of variables tried at each split: 2
+
+        OOB estimate of  error rate: 19.49%
+Confusion matrix:
+     No  Si class.error
+No 1008  74  0.06839187
+Si  199 120  0.62382445
+\end{rsalida}
+
+El error OOB es de 19.5\%, pero la matriz de confusión OOB revela el mismo
+problema de antes: el bosque clasifica bien a los que se quedan (6.8\% de error)
+y mal a los que se van (62.4\% de error), porque usa el umbral de 0.5 por
+defecto. Como vimos, para churn conviene trabajar con las probabilidades y
+elegir el umbral.
+
+\begin{rcode}
+importancia_rf <- importance(modelo_rf) %>%
+  as.data.frame() %>%
+  rownames_to_column("variable") %>%
+  as_tibble() %>%
+  select(variable, MeanDecreaseAccuracy) %>%
+  arrange(desc(MeanDecreaseAccuracy))
+importancia_rf %>% mutate(MeanDecreaseAccuracy =
+                            round(MeanDecreaseAccuracy, 1))
+
+grafico_importancia <- ggplot(importancia_rf,
+       aes(x = MeanDecreaseAccuracy,
+           y = reorder(variable, MeanDecreaseAccuracy))) +
+  geom_col(fill = color_principal, width = 0.7) +
+  labs(title = "¿Qué variables usa el bosque para predecir el abandono?",
+       subtitle = "Pérdida de exactitud al desordenar cada variable",
+       x = "Importancia (disminución media de exactitud)", y = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank())
+grafico_importancia
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 7 x 2
+  variable         MeanDecreaseAccuracy
+  <chr>                           <dbl>
+1 antiguedad_meses                 32.6
+2 quejas_6m                        31.3
+3 uso_mensual                      23  
+4 plan                              6.9
+5 pagos_tardios                     4.7
+6 genero                            3  
+7 edad                              2.4
+\end{rsalida}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m07-importancia}
+\caption{Importancia de variables del random forest. Antigüedad, quejas y uso
+dominan; género y edad no aportan.}
+\label{fig:m07-importancia}
+\end{figure}
+
+\begin{concepto}{Importancia por permutación}
+\codigo{MeanDecreaseAccuracy} responde: ``si desordeno al azar los valores de
+esta variable (rompiendo su relación con el abandono), ¿cuánto empeora el
+modelo?''. Si casi no empeora, la variable no aportaba. Es una forma de abrir
+un poco la caja negra.
+\end{concepto}
+
+El bosque coincide con los demás modelos: antigüedad (32.6), quejas (31.3) y
+uso (23.0) son las variables clave; plan y pagos tardíos aportan algo; género y
+edad aportan muy poco. Que distintos algoritmos coincidan en las variables
+importantes da confianza en el hallazgo.
+
+\subsection{Comparar modelos con \texorpdfstring{\paquete{caret}}{caret}}
+
+Hasta ahora cada algoritmo tenía su propia sintaxis. El paquete
+\paquete{caret} ofrece una interfaz común, \codigo{train()}, para más de 200
+algoritmos, y se encarga de la validación cruzada y del ajuste de parámetros.
+Comparemos los tres modelos con validación cruzada de 5 pliegues usando el AUC
+(que \paquete{caret} llama \codigo{ROC}) como criterio.
+
+\begin{rcode}
+# caret toma como clase positiva el PRIMER nivel del factor
+churn_ent_caret <- churn_ent %>%
+  mutate(churn = factor(churn, levels = c("Si", "No")))
+
+control_cv <- trainControl(
+  method = "cv", number = 5,           # validación cruzada de 5 pliegues
+  classProbs = TRUE,                   # calcular probabilidades
+  summaryFunction = twoClassSummary    # reportar ROC, Sens y Spec
+)
+
+set.seed(123)
+cv_log <- train(formula_churn, data = churn_ent_caret, method = "glm",
+                family = binomial, trControl = control_cv, metric = "ROC")
+set.seed(123)
+cv_arbol <- train(formula_churn, data = churn_ent_caret,
+                  method = "rpart", trControl = control_cv,
+                  metric = "ROC", tuneLength = 5)   # prueba 5 valores de cp
+set.seed(123)
+cv_rf <- train(formula_churn, data = churn_ent_caret, method = "rf",
+               trControl = control_cv, metric = "ROC", ntree = 200,
+               tuneGrid = data.frame(mtry = 2:4))   # variables por corte
+
+cv_rf
+\end{rcode}
+
+\begin{rsalida}
+Random Forest 
+
+1401 samples
+   7 predictor
+   2 classes: 'Si', 'No' 
+
+No pre-processing
+Resampling: Cross-Validated (5 fold) 
+Summary of sample sizes: 1121, 1121, 1120, 1122, 1120 
+Resampling results across tuning parameters:
+
+  mtry  ROC        Sens       Spec     
+  2     0.8187057  0.3446925  0.9454600
+  3     0.8115210  0.4198413  0.9149727
+  4     0.8048380  0.4293155  0.9094342
+
+ROC was used to select the optimal model using the largest value.
+The final value used for the model was mtry = 2.
+\end{rsalida}
+
+\codigo{train()} probó tres valores de \codigo{mtry} (cuántas variables
+considera el bosque en cada corte) y eligió el de mayor AUC promedio en los 5
+pliegues. Ahora juntamos los tres modelos en una tabla:
+
+\begin{rcode}
+comparacion <- resamples(list(Logistica = cv_log, Arbol = cv_arbol,
+                              RandomForest = cv_rf))
+
+summary(comparacion)$statistics$ROC[, c("Min.", "Mean", "Max.")] %>%
+  round(3)
+\end{rcode}
+
+\begin{rsalida}
+              Min.  Mean  Max.
+Logistica    0.828 0.843 0.882
+Arbol        0.657 0.691 0.735
+RandomForest 0.795 0.819 0.842
+\end{rsalida}
+
+Y confirmamos con los datos de prueba, que ningún modelo ha visto:
+
+\begin{rcode}
+churn_prueba <- churn_prueba %>%
+  mutate(prob_rf = predict(modelo_rf, newdata = churn_prueba,
+                           type = "prob")[, "Si"])
+
+tibble(
+  modelo = c("Regresión logística", "Árbol de decisión",
+             "Random forest"),
+  auc_prueba = c(calcular_auc(churn_prueba$prob_log, churn_prueba$churn),
+                 calcular_auc(churn_prueba$prob_arbol, churn_prueba$churn),
+                 calcular_auc(churn_prueba$prob_rf, churn_prueba$churn))
+) %>%
+  mutate(auc_prueba = round(auc_prueba, 3)) %>%
+  arrange(desc(auc_prueba))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 3 x 2
+  modelo              auc_prueba
+  <chr>                    <dbl>
+1 Regresión logística      0.86 
+2 Random forest            0.846
+3 Árbol de decisión        0.674
+\end{rsalida}
+
+Validación cruzada y prueba cuentan la misma historia: la regresión logística
+gana (AUC de 0.843 en validación cruzada y 0.86 en prueba), seguida muy de
+cerca por el random forest (0.819 y 0.846), mientras que el árbol sencillo
+queda muy atrás (0.691 y 0.674). Como en la regresión de ventas, la relación
+simulada es casi lineal y el modelo simple gana. Con la logística tenemos,
+además, odds ratios que el negocio entiende: es el modelo que llevaríamos a
+producción.
+
+\subsection{Del modelo a la acción: lista priorizada de clientes en riesgo}
+
+El entregable final para el equipo de retención no es un AUC: es una
+\textbf{lista de clientes ordenada por prioridad}. Una buena práctica es
+ordenar por \termino{pérdida esperada}: probabilidad de abandono $\times$
+valor del cliente (aquí, su cuota de un año). Así, un cliente Premium con 50\%
+de riesgo puede ir antes que uno Básico con 70\%.
+
+\begin{rcode}
+lista_retencion <- churn_prueba %>%
+  mutate(valor_anual     = cuota_mensual * 12,
+         perdida_esperada = prob_log * valor_anual) %>%
+  arrange(desc(perdida_esperada)) %>%
+  mutate(prioridad = row_number()) %>%
+  select(prioridad, cliente_id, plan, quejas_6m, prob_log,
+         perdida_esperada)
+
+lista_retencion %>%
+  mutate(prob_log = round(prob_log, 2),
+         perdida_esperada = round(perdida_esperada)) %>%
+  head(8)
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 8 x 6
+  prioridad cliente_id plan     quejas_6m prob_log perdida_esperada
+      <int> <chr>      <fct>        <int>    <dbl>            <dbl>
+1         1 C0259      Premium          2     0.88             6313
+2         2 C1336      Premium          2     0.87             6261
+3         3 C0609      Premium          1     0.67             4838
+4         4 C1058      Premium          1     0.66             4768
+5         5 C1912      Premium          2     0.57             4085
+6         6 C1072      Estándar         3     0.97             4049
+7         7 C1354      Premium          2     0.56             4029
+8         8 C0795      Premium          2     0.55             3973
+\end{rsalida}
+
+Los primeros lugares los ocupan clientes Premium con probabilidad alta: su
+cuota de \$599 hace que perderlos cueste más. El cliente C1072 tiene la mayor
+probabilidad de la tabla (0.97), pero como es Estándar queda en el sexto lugar.
+Esta lista, exportada a CSV cada semana, es lo que realmente usa el call
+center (sección~\ref{sec:m7-produccion}).
+
+\begin{hazlotu}
+Agrega a la lista una columna \codigo{motivo\_principal} con
+\codigo{case\_when()}: ``Quejas'' si \codigo{quejas\_6m >= 2}, ``Cliente
+nuevo'' si \codigo{antiguedad\_meses <= 6}, ``Poco uso'' si
+\codigo{uso\_mensual < 5} y ``Otro'' en los demás casos. El equipo de retención
+podrá adaptar su guion según el motivo.
+\end{hazlotu}
+
+% ============================================================================
+\section{Caso 4: pronóstico de demanda con series de tiempo}
+\label{sec:m7-series}
+
+\begin{ejemplo}{¿Cuántas unidades pedimos para diciembre?}
+El área de compras de la categoría de electrónica debe colocar sus pedidos con
+dos meses de anticipación. Si pide de menos en noviembre y diciembre (Buen Fin
+y Navidad) pierde ventas; si pide de más, se queda con inventario que en enero
+nadie quiere. La pregunta: \emph{¿cuántas unidades venderemos cada mes del
+próximo año, y con qué margen de error?}
+\end{ejemplo}
+
+Una \termino{serie de tiempo} es una secuencia de mediciones ordenadas en el
+tiempo a intervalos regulares (ventas diarias, demanda mensual). Sus
+componentes típicos son:
+
+\begin{itemize}
+  \item \termino{Tendencia}: la dirección de largo plazo (el negocio crece).
+  \item \termino{Estacionalidad}: patrones que se repiten cada año (picos en
+        noviembre y diciembre, caída en enero y febrero).
+  \item \termino{Ruido} (componente irregular): lo que queda, variaciones que
+        no siguen un patrón.
+\end{itemize}
+
+\subsection{Datos: cinco años de ventas mensuales}
+
+Las ventas del curso solo cubren 2023 y son aleatorias, así que simulamos 5
+años (2021--2025) de unidades vendidas por mes con una tendencia creciente
+(unas 15 unidades más cada mes), una estacionalidad típica del retail mexicano
+(picos de 15\% y 32\% sobre lo normal en noviembre y diciembre) y 3\% de ruido.
+
+\begin{rcode}
+set.seed(123)
+meses <- seq(as.Date("2021-01-01"), as.Date("2025-12-01"), by = "month")
+n_meses <- length(meses)   # 60 meses
+
+# Factor estacional de cada mes (1 = mes normal)
+factor_mes <- c(0.88, 0.85, 0.95, 0.97, 1.04, 0.96,   # ene-jun
+                0.97, 1.00, 0.93, 0.98, 1.15, 1.32)   # jul-dic
+factor_mes <- factor_mes / mean(factor_mes)            # promedio = 1
+
+ventas_mensuales <- tibble(
+  mes = meses,
+  tendencia = 1500 + 15 * (1:n_meses),
+  unidades = round(tendencia * factor_mes[month(meses)] *
+                     (1 + rnorm(n_meses, 0, 0.03)))    # ruido de 3 %
+) %>%
+  select(-tendencia)
+
+# Objeto ts: la estructura de series de tiempo de R
+serie <- ts(ventas_mensuales$unidades, start = c(2021, 1),
+            frequency = 12)   # 12 = datos mensuales
+serie
+\end{rcode}
+
+\begin{rsalida}
+      Jan  Feb  Mar  Apr  May  Jun  Jul  Aug  Sep  Oct  Nov  Dec
+2021 1311 1292 1536 1516 1644 1605 1578 1559 1489 1595 1985 2242
+2022 1510 1458 1611 1778 1852 1599 1768 1774 1634 1782 2056 2402
+2023 1619 1525 1855 1871 1944 1942 1930 1962 1905 2022 2386 2748
+2024 1838 1756 1963 2014 2154 2032 2002 2301 2096 2074 2505 2889
+2025 2013 1908 2168 2210 2384 2309 2240 2446 2088 2363 2753 3189
+\end{rsalida}
+
+El objeto \codigo{ts} guarda los valores junto con su calendario: inicio
+(\codigo{start = c(2021, 1)}, enero de 2021) y frecuencia (12 observaciones por
+año; usa 4 para trimestres, 52 para semanas). Por eso R imprime la serie como
+una tabla año por mes (los nombres de los meses siempre salen en inglés en este
+formato). Ya a simple vista se nota el crecimiento de un año a
+otro y los picos de diciembre.
+
+\begin{rcode}
+grafico_serie <- autoplot(serie, color = color_principal,
+                          linewidth = 0.8) +
+  scale_y_continuous(labels = scales::comma) +
+  labs(title = "Unidades vendidas por mes, electrónica",
+       subtitle = "2021-2025 (datos simulados)",
+       x = NULL, y = "Unidades") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+grafico_serie
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m07-serie}
+\caption{Serie mensual de unidades vendidas: tendencia creciente y picos cada
+fin de año.}
+\label{fig:m07-serie}
+\end{figure}
+
+\codigo{autoplot()} de \paquete{forecast} convierte objetos de series de tiempo
+en gráficas de \paquete{ggplot2}, así que puedes agregarles capas, escalas y
+temas como a cualquier otra.
+
+\subsection{Descomposición: separar tendencia, estacionalidad y ruido}
+
+\begin{rcode}
+descomposicion <- decompose(serie, type = "multiplicative")
+
+# Índices estacionales: cuánto se aleja cada mes de un mes "normal"
+nombres_mes <- c("ene", "feb", "mar", "abr", "may", "jun",
+                 "jul", "ago", "sep", "oct", "nov", "dic")
+tibble(mes = nombres_mes, indice = round(descomposicion$figure, 3)) %>%
+  arrange(desc(indice)) %>%
+  head(4)
+
+grafico_descomp <- autoplot(descomposicion) +
+  labs(title = "Descomposición multiplicativa de la serie",
+       x = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+grafico_descomp
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 4 x 2
+  mes   indice
+  <chr>  <dbl>
+1 dic     1.32
+2 nov     1.16
+3 may     1.03
+4 ago     1   
+\end{rsalida}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m07-descomposicion}
+\caption{Descomposición de la serie: datos originales, tendencia, componente
+estacional y residuo (\emph{remainder}).}
+\label{fig:m07-descomposicion}
+\end{figure}
+
+Usamos el modelo \emph{multiplicativo} porque la estacionalidad es un
+porcentaje (diciembre vende ``32\% más'', no ``400 unidades más''), y ese
+porcentaje se mantiene aunque el negocio crezca. Los índices estacionales recuperan
+casi exactamente lo que simulamos: diciembre vende 32\% más que un mes normal
+(índice 1.32) y noviembre 16\% más (1.16). Esos índices, por sí solos, ya son
+información valiosa para planear personal, inventario y presupuesto de
+publicidad.
+
+\begin{hazlotu}
+Usa \codigo{stl(serie, s.window = "periodic")} en lugar de \codigo{decompose()}
+y grafica el resultado con \codigo{autoplot()}. STL es un método de
+descomposición más robusto ante valores atípicos (trabaja de forma aditiva;
+para una versión multiplicativa aplica \codigo{log()} a la serie).
+\end{hazlotu}
+
+\subsection{Entrenamiento y prueba en series de tiempo}
+
+En series de tiempo \textbf{no} se separan los datos al azar: el pasado entrena
+y el futuro evalúa. Guardamos los últimos 12 meses (todo 2025) como prueba, que
+es exactamente lo que queremos saber hacer: pronosticar un año.
+
+\begin{rcode}
+serie_ent    <- window(serie, end = c(2024, 12))   # 2021-2024: 48 meses
+serie_prueba <- window(serie, start = c(2025, 1))  # 2025: 12 meses
+c(length(serie_ent), length(serie_prueba))
+\end{rcode}
+
+\begin{rsalida}
+[1] 48 12
+\end{rsalida}
+
+\subsection{Cuatro modelos de pronóstico}
+
+\begin{concepto}{Modelos de pronóstico}
+\begin{itemize}
+  \item \textbf{Ingenuo} (\codigo{naive()}): el próximo mes será igual al
+        último. Parece tonto, pero es la línea base obligatoria.
+  \item \textbf{Ingenuo estacional} (\codigo{snaive()}): cada mes será igual
+        al mismo mes del año anterior (diciembre 2025 = diciembre 2024).
+  \item \textbf{ETS} (\codigo{ets()}, \emph{Error, Trend, Seasonal}):
+        suavizamiento exponencial; da más peso a los datos recientes y modela
+        explícitamente nivel, tendencia y estacionalidad. Elige solo la mejor
+        combinación.
+  \item \textbf{ARIMA} (\codigo{auto.arima()}): modela la relación de cada mes
+        con los meses anteriores y con sus propios errores pasados;
+        \codigo{auto.arima()} busca la mejor especificación automáticamente.
+\end{itemize}
+\end{concepto}
+
+\begin{rcode}
+h <- length(serie_prueba)   # horizonte: 12 meses
+
+pron_naive  <- naive(serie_ent, h = h)
+pron_snaive <- snaive(serie_ent, h = h)
+modelo_ets  <- ets(serie_ent)
+pron_ets    <- forecast(modelo_ets, h = h)
+modelo_arima <- auto.arima(serie_ent)
+pron_arima  <- forecast(modelo_arima, h = h)
+
+modelo_ets     # ¿qué combinación eligió ets()?
+modelo_arima
+\end{rcode}
+
+\begin{rsalida}
+ETS(M,A,M) 
+
+Call:
+ ets(y = serie_ent) 
+
+  Smoothing parameters:
+    alpha = 0.0199 
+    beta  = 4e-04 
+    gamma = 1e-04 
+
+  Initial states:
+    l = 1527.3166 
+    b = 14.5543 
+    s = 1.3231 1.1584 0.9739 0.9307 1.0039 0.9739
+           0.9589 1.0257 0.9811 0.9589 0.8368 0.8747
+
+  sigma:  0.0339
+
+     AIC     AICc      BIC 
+597.8241 618.2241 629.6346 
+Series: serie_ent 
+ARIMA(0,0,0)(1,1,0)[12] with drift 
+
+Coefficients:
+         sar1    drift
+      -0.5378  14.9348
+s.e.   0.1418   0.7466
+
+sigma^2 = 5463:  log likelihood = -207
+AIC=420.01   AICc=420.76   BIC=424.76
+\end{rsalida}
+
+\codigo{ets()} eligió un modelo \codigo{ETS(M,A,M)}: error multiplicativo,
+tendencia aditiva (\emph{A}, crece una cantidad fija cada mes: \codigo{b =
+14.55}, muy cerca de las 15 unidades que simulamos) y estacionalidad
+multiplicativa (\emph{M}). \codigo{auto.arima()} eligió un modelo que compara
+cada mes con el mismo mes del año anterior (la parte \codigo{(1,1,0)[12]}) más
+una deriva (\emph{drift}) de 14.9 unidades por mes: otra forma de describir la
+misma tendencia. No necesitas memorizar la notación; lo importante es que
+ambos modelos capturaron tendencia y estacionalidad sin que se las
+indicáramos.
+
+\subsection{Comparar los modelos con \texorpdfstring{\codigo{accuracy()}}{accuracy()}}
+
+\codigo{accuracy()} calcula las métricas de error del pronóstico contra los
+valores reales. Nos interesa la fila \codigo{Test set} (error en 2025, que los
+modelos no vieron):
+
+\begin{rcode}
+accuracy(pron_ets, serie_prueba)   # salida completa de un modelo
+
+comparacion_ts <- list(Ingenuo = pron_naive,
+                       `Ingenuo estacional` = pron_snaive,
+                       ETS = pron_ets, ARIMA = pron_arima) %>%
+  map_dfr(function(p) {
+    acc <- accuracy(p, serie_prueba)["Test set", ]
+    tibble(MAE = acc["MAE"], RMSE = acc["RMSE"], MAPE = acc["MAPE"])
+  }, .id = "modelo") %>%
+  mutate(across(where(is.numeric), ~ round(.x, 1))) %>%
+  arrange(MAPE)
+comparacion_ts
+\end{rcode}
+
+\begin{rsalida}
+                    ME     RMSE      MAE        MPE     MAPE
+Training set -7.685706 52.06332 43.34896 -0.5184226 2.336622
+Test set     27.712908 60.48803 48.44893  1.1527656 2.130479
+                  MASE       ACF1 Theil's U
+Training set 0.2483390  0.1141467        NA
+Test set     0.2775559 -0.5886038 0.2412182
+# A tibble: 4 x 4
+  modelo               MAE  RMSE  MAPE
+  <chr>              <dbl> <dbl> <dbl>
+1 ARIMA               46.8  68.3   2  
+2 ETS                 48.4  60.5   2.1
+3 Ingenuo estacional 205.  219.    8.7
+4 Ingenuo            600.  642    27.3
+\end{rsalida}
+
+La salida completa de \codigo{accuracy()} incluye más métricas (\codigo{ME}
+es el error promedio con signo: 27.7 indica que ETS se quedó ligeramente corto
+en 2025; \codigo{MASE} compara contra el ingenuo). En la tabla resumida, ETS y
+ARIMA prácticamente empatan con errores de apenas 2\% (MAPE) en 2025: ARIMA
+tiene un MAE algo menor (46.8 contra 48.4) y ETS un RMSE menor (60.5 contra
+68.3), es decir, menos errores grandes. El ingenuo estacional se equivoca 8.7\%
+porque ignora el crecimiento, y el ingenuo simple, 27.3\%, porque ignora la
+estacionalidad: diciembre de 2024 no se parece a enero de 2025. Elegimos ETS
+por su menor RMSE: en inventario, los errores grandes son los que duelen.
+
+\begin{rcode}
+grafico_comparacion <- autoplot(window(serie, start = c(2023, 1)),
+                                color = "black", linewidth = 0.6) +
+  autolayer(pron_snaive, series = "Ingenuo estacional", PI = FALSE) +
+  autolayer(pron_ets, series = "ETS", PI = FALSE) +
+  autolayer(pron_arima, series = "ARIMA", PI = FALSE) +
+  scale_color_manual(values = paleta_libro[c(2, 1, 3)]) +
+  scale_y_continuous(labels = scales::comma) +
+  labs(title = "Pronósticos de 2025 contra la realidad",
+       subtitle = "Negro: ventas reales; entrenamiento hasta dic-2024",
+       x = NULL, y = "Unidades", color = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(), legend.position = "top")
+grafico_comparacion
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m07-comparacion-pronosticos}
+\caption{Pronósticos de 2025 de tres modelos contra las ventas reales. ETS y
+ARIMA siguen de cerca la realidad; el ingenuo estacional se queda corto porque
+ignora el crecimiento.}
+\label{fig:m07-comparacion-pronosticos}
+\end{figure}
+
+\subsection{Pronóstico final con intervalos}
+
+Una vez elegido el modelo, se \textbf{reentrena con todos los datos}
+(incluido 2025) para pronosticar 2026:
+
+\begin{rcode}
+modelo_final <- ets(serie)
+pronostico_2026 <- forecast(modelo_final, h = 12, level = c(80, 95))
+pronostico_2026
+\end{rcode}
+
+\begin{rsalida}
+         Point Forecast    Lo 80    Hi 80    Lo 95    Hi 95
+Jan 2026       2125.663 2040.343 2210.984 1995.177 2256.150
+Feb 2026       2037.570 1955.751 2119.389 1912.439 2162.702
+Mar 2026       2333.729 2239.979 2427.480 2190.350 2477.108
+Apr 2026       2400.133 2303.674 2496.591 2252.612 2547.653
+May 2026       2547.002 2444.599 2649.406 2390.390 2703.615
+Jun 2026       2411.232 2314.247 2508.217 2262.906 2559.557
+Jul 2026       2420.791 2323.381 2518.200 2271.816 2569.766
+Aug 2026       2548.945 2446.337 2651.553 2392.020 2705.871
+Sep 2026       2349.700 2255.074 2444.327 2204.982 2494.419
+Oct 2026       2488.212 2387.967 2588.457 2334.901 2641.523
+Nov 2026       2975.194 2855.281 3095.107 2791.803 3158.585
+Dec 2026       3411.931 3274.360 3549.501 3201.535 3622.327
+\end{rsalida}
+
+\begin{concepto}{Intervalos de predicción}
+\codigo{Point Forecast} es la estimación central. \codigo{Lo 80} y \codigo{Hi 80}
+forman el intervalo del 80\%: esperamos que 8 de cada 10 meses la venta real
+caiga dentro de ese rango. El intervalo del 95\% es más ancho porque exige más
+seguridad. Los intervalos se ensanchan a medida que el pronóstico se aleja:
+es más difícil predecir diciembre que enero.
+\end{concepto}
+
+\begin{rcode}
+grafico_pronostico <- autoplot(pronostico_2026, color = color_principal,
+                               fcol = color_resalte, flwd = 0.8) +
+  scale_y_continuous(labels = scales::comma) +
+  labs(title = "Pronóstico de unidades para 2026",
+       subtitle = "Modelo ETS; bandas de 80 % y 95 %",
+       x = NULL, y = "Unidades") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+grafico_pronostico
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m07-pronostico}
+\caption{Pronóstico de 12 meses con intervalos de predicción del 80\% (banda
+oscura) y 95\% (banda clara).}
+\label{fig:m07-pronostico}
+\end{figure}
+
+\subsection{Comunicar la incertidumbre a la dirección}
+
+Un pronóstico sin rango es una promesa que no se va a cumplir exactamente.
+Presenta siempre tres escenarios en lenguaje de negocio:
+
+\begin{rcode}
+tabla_direccion <- tibble(
+  mes         = format(seq(as.Date("2026-01-01"), by = "month",
+                           length.out = 12), "%b %Y"),
+  pesimista   = round(pronostico_2026$lower[, "80%"]),
+  esperado    = round(pronostico_2026$mean),
+  optimista   = round(pronostico_2026$upper[, "80%"])
+)
+tabla_direccion %>% slice(c(1, 6, 11, 12))
+sum(tabla_direccion$esperado)   # unidades esperadas en todo 2026
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 4 x 4
+  mes      pesimista esperado optimista
+  <chr>        <dbl>    <dbl>     <dbl>
+1 ene 2026      2040     2126      2211
+2 jun 2026      2314     2411      2508
+3 nov 2026      2855     2975      3095
+4 dic 2026      3274     3412      3550
+[1] 30051
+\end{rsalida}
+
+Para la dirección: en diciembre de 2026 esperamos vender 3{,}412 unidades; en
+un escenario pesimista (límite inferior del 80\%), 3{,}274, y en uno optimista,
+3{,}550. En todo el año se esperan 30{,}051 unidades. Observa que
+\codigo{format(..., "\%b \%Y")} sí respeta el idioma del sistema (``ene
+2026'').
+
+\begin{negocio}{Cómo presentar un pronóstico}
+\begin{itemize}
+  \item Da un rango y un escenario central: ``esperamos vender 3{,}412 unidades
+        en diciembre; con 80\% de confianza, entre 3{,}274 y 3{,}550''.
+  \item Explica los supuestos: ``suponemos que el crecimiento y la
+        estacionalidad de los últimos cinco años se mantienen''.
+  \item Di qué lo podría romper: una devaluación, un competidor nuevo, una
+        promoción extraordinaria, una pandemia.
+  \item Compara con el pronóstico anterior y con lo que realmente pasó: la
+        credibilidad se gana mostrando el historial de aciertos y errores.
+\end{itemize}
+\end{negocio}
+
+\subsection{Del pronóstico al inventario: stock de seguridad}
+
+El pronóstico central no basta para decidir cuánto pedir: si pides exactamente
+lo esperado, la mitad de los meses te faltará mercancía. El
+\termino{stock de seguridad} es el inventario extra que cubre la
+incertidumbre. Una fórmula sencilla y muy usada es:
+
+\[
+\text{stock de seguridad} = z \times \sigma_{\text{error}} \times \sqrt{L}
+\]
+
+donde $z$ depende del \termino{nivel de servicio} deseado (1.28 para 90\%,
+1.65 para 95\%, 2.33 para 99\%), $\sigma_{\text{error}}$ es la desviación
+estándar del error de pronóstico (usaremos el RMSE del modelo ETS en 2025) y
+$L$ es el tiempo de reabastecimiento en meses.
+
+\begin{rcode}
+nivel_servicio <- 0.95
+z <- qnorm(nivel_servicio)                 # 1.645
+error_tipico <- comparacion_ts %>%
+  filter(modelo == "ETS") %>% pull(RMSE)   # error típico en 2025
+tiempo_entrega <- 2                        # meses de anticipación
+
+stock_seguridad <- z * error_tipico * sqrt(tiempo_entrega)
+
+tabla_direccion %>%
+  slice(11:12) %>%
+  mutate(stock_seguridad = round(stock_seguridad),
+         pedido_sugerido = esperado + stock_seguridad) %>%
+  select(mes, esperado, stock_seguridad, pedido_sugerido)
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 2 x 4
+  mes      esperado stock_seguridad pedido_sugerido
+  <chr>       <dbl>           <dbl>           <dbl>
+1 nov 2026     2975             141            3116
+2 dic 2026     3412             141            3553
+\end{rsalida}
+
+Con un nivel de servicio de 95\% ($z = 1.645$), un error típico de 60.5
+unidades y dos meses de anticipación, el stock de seguridad es de 141
+unidades. El pedido sugerido para diciembre es de 3{,}553 unidades: el
+pronóstico central más el colchón. Subir el nivel de servicio a 99\% aumenta el
+colchón (y el costo de inventario); es otra decisión de negocio que el
+modelo te ayuda a cuantificar.
+
+\begin{advertencia}
+Un modelo de series de tiempo asume que \textbf{el futuro se parece al
+pasado}. No sabe que el próximo año abrirás 20 tiendas, que un proveedor
+quebró o que habrá una promoción extraordinaria. Pronostica a 12 meses; más
+allá, la incertidumbre crece tanto que el número deja de ser útil para
+decisiones operativas. Y revisa el pronóstico cada mes con los datos nuevos.
+\end{advertencia}
+
+% ============================================================================
+\section{Caso 5: análisis de canasta (market basket)}
+\label{sec:m7-canasta}
+
+\begin{ejemplo}{¿Qué le ofrecemos al cliente que compra una laptop?}
+Una tienda de electrónica y papelería quiere diseñar promociones de venta
+cruzada (\emph{cross-selling}): ``lleva el mouse con 20\% de descuento'',
+colocar productos juntos en el anaquel o recomendar productos en la tienda en
+línea. La pregunta: \emph{¿qué productos se compran juntos con más frecuencia
+de la que esperaríamos por casualidad?}
+\end{ejemplo}
+
+El \termino{análisis de canasta} (\emph{market basket analysis}) busca
+\termino{reglas de asociación} del tipo \{Laptop\} $\rightarrow$ \{Mouse\}:
+``quien compra una laptop tiende a comprar un mouse''. Es aprendizaje no
+supervisado: no hay nada que predecir, solo patrones que descubrir en los
+tickets de compra.
+
+\subsection{Soporte, confianza y lift}
+
+Tres medidas describen una regla $X \rightarrow Y$:
+
+\begin{itemize}
+  \item \termino{Soporte}: proporción de tickets que contienen $X$ \emph{y}
+        $Y$. Mide qué tan frecuente es la combinación.
+        \[ \text{soporte}(X \rightarrow Y) = \frac{\text{tickets con } X \text{ y } Y}{\text{total de tickets}} \]
+  \item \termino{Confianza}: de los tickets que tienen $X$, qué proporción
+        también tiene $Y$. Es una probabilidad condicional.
+        \[ \text{confianza}(X \rightarrow Y) = \frac{\text{tickets con } X \text{ y } Y}{\text{tickets con } X} \]
+  \item \termino{Lift}: cuántas veces más probable es comprar $Y$ cuando se
+        compra $X$, comparado con comprar $Y$ en general.
+        \[ \text{lift}(X \rightarrow Y) = \frac{\text{confianza}(X \rightarrow Y)}{\text{soporte}(Y)} \]
+        Lift $= 1$: no hay relación; lift $> 1$: se compran juntos más de lo
+        esperado; lift $< 1$: se ``evitan''.
+\end{itemize}
+
+\textbf{Ejemplo a mano.} En 1{,}000 tickets, 100 tienen laptop, 200 tienen
+mouse y 60 tienen ambos.
+
+\begin{itemize}
+  \item Soporte de \{Laptop, Mouse\}: $60 / 1{,}000 = 0.06$ (6\% de los tickets).
+  \item Confianza de Laptop $\rightarrow$ Mouse: $60 / 100 = 0.60$ (60\% de
+        quienes compran laptop llevan mouse).
+  \item Soporte de Mouse: $200 / 1{,}000 = 0.20$ (20\% de todos los tickets
+        llevan mouse).
+  \item Lift: $0.60 / 0.20 = 3$. Quien compra laptop tiene \textbf{tres veces}
+        más probabilidad de llevar mouse que un cliente cualquiera.
+\end{itemize}
+
+\begin{advertencia}
+La confianza sola engaña. Si el 30\% de todos los tickets lleva papel, una
+regla ``Laptop $\rightarrow$ Papel'' con confianza de 30\% parece buena, pero
+su lift es 1: el papel se vende igual con o sin laptop. Por eso ordenamos las
+reglas por lift y exigimos un soporte mínimo (las reglas con muy pocos tickets
+son casualidades).
+\end{advertencia}
+
+\subsection{¿Sirven los datos del curso?}
+
+Antes de simular, revisemos si \archivo{transacciones.csv} permite formar
+canastas. Consideremos una canasta como todos los productos que un cliente
+compró el mismo día:
+
+\begin{rcode}
+canastas_curso <- transacciones %>%
+  group_by(cliente_id, fecha) %>%
+  summarise(productos = n_distinct(producto_id), .groups = "drop")
+
+canastas_curso %>% count(productos, name = "canastas")
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 2 x 2
+  productos canastas
+      <int>    <int>
+1         1      974
+2         2       13
+\end{rsalida}
+
+De 987 canastas, solo 13 tienen dos productos; ninguna tiene más. Con los datos
+del curso no hay canastas que analizar (cada transacción es prácticamente una
+compra de un solo producto). Otra vez: sin señal no hay modelo. Simulamos, por
+lo tanto, 3{,}000 tickets de una tienda con asociaciones conocidas.
+
+\subsection{Tickets simulados con asociaciones conocidas}
+
+Ocho productos se compran de forma independiente, y cuatro dependen de otro:
+el mouse y la funda son mucho más probables si el ticket incluye una laptop, el
+cable HDMI si incluye un monitor y la tinta si incluye una impresora.
+
+\begin{rcode}
+set.seed(123)
+n_tickets <- 3000
+tickets_ancho <- tibble(
+  ticket_id = 1:n_tickets,
+  Laptop    = rbinom(n_tickets, 1, 0.08),   # 1 = el ticket lo incluye
+  Monitor   = rbinom(n_tickets, 1, 0.07),
+  Impresora = rbinom(n_tickets, 1, 0.05),
+  Audifonos = rbinom(n_tickets, 1, 0.15),
+  USB       = rbinom(n_tickets, 1, 0.18),
+  Papel     = rbinom(n_tickets, 1, 0.20),
+  Teclado   = rbinom(n_tickets, 1, 0.08)
+) %>%
+  mutate(
+    # Asociaciones "reales" que el análisis debe descubrir
+    Mouse = if_else(Laptop == 1, rbinom(n(), 1, 0.60),
+                    rbinom(n(), 1, 0.08)),
+    Funda = if_else(Laptop == 1, rbinom(n(), 1, 0.40),
+                    rbinom(n(), 1, 0.02)),
+    `Cable HDMI` = if_else(Monitor == 1, rbinom(n(), 1, 0.50),
+                           rbinom(n(), 1, 0.04)),
+    Tinta = if_else(Impresora == 1, rbinom(n(), 1, 0.70),
+                    rbinom(n(), 1, 0.06))
+  )
+
+# Formato largo: una fila por ticket y producto (como en un sistema real)
+tickets <- tickets_ancho %>%
+  pivot_longer(-ticket_id, names_to = "producto", values_to = "compro") %>%
+  filter(compro == 1) %>%
+  select(-compro)
+
+head(tickets, 5)
+n_total <- n_distinct(tickets$ticket_id)   # tickets con al menos 1 producto
+n_total
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 5 x 2
+  ticket_id producto 
+      <int> <chr>    
+1         1 Teclado  
+2         2 Monitor  
+3         2 Audifonos
+4         3 USB      
+5         4 USB      
+[1] 1975
+\end{rsalida}
+
+El formato largo (una fila por ticket y producto) es exactamente como vendrían
+los datos de un sistema de punto de venta. Hay 1{,}975 tickets con al menos un
+producto (los tickets vacíos de la simulación se descartan).
+
+\subsection{Calcular reglas de pares con \texorpdfstring{\paquete{dplyr}}{dplyr}}
+
+Primero el soporte de cada producto:
+
+\begin{rcode}
+soporte_producto <- tickets %>%
+  count(producto, name = "tickets_x") %>%
+  mutate(soporte_x = tickets_x / n_total) %>%
+  arrange(desc(soporte_x))
+soporte_producto %>% mutate(soporte_x = round(soporte_x, 3))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 11 x 3
+   producto   tickets_x soporte_x
+   <chr>          <int>     <dbl>
+ 1 Papel            596     0.302
+ 2 USB              557     0.282
+ 3 Audifonos        442     0.224
+ 4 Mouse            386     0.195
+ 5 Tinta            276     0.14 
+ 6 Laptop           225     0.114
+ 7 Cable HDMI       215     0.109
+ 8 Teclado          210     0.106
+ 9 Monitor          205     0.104
+10 Impresora        149     0.075
+11 Funda            144     0.073
+\end{rsalida}
+
+Ahora el truco: un \termino{self-join} (unir la tabla consigo misma por
+\codigo{ticket\_id}) genera todos los pares de productos que aparecen en el
+mismo ticket. Luego contamos cuántos tickets tiene cada par y calculamos las
+tres medidas:
+
+\begin{rcode}
+reglas <- tickets %>%
+  inner_join(tickets, by = "ticket_id", suffix = c("_x", "_y"),
+             relationship = "many-to-many") %>%
+  filter(producto_x != producto_y) %>%          # sin pares consigo mismo
+  count(producto_x, producto_y, name = "tickets_xy") %>%
+  left_join(soporte_producto, by = c("producto_x" = "producto")) %>%
+  left_join(soporte_producto %>%
+              select(producto_y = producto, soporte_y = soporte_x),
+            by = "producto_y") %>%
+  mutate(soporte   = tickets_xy / n_total,
+         confianza = tickets_xy / tickets_x,
+         lift      = confianza / soporte_y)
+
+mejores_reglas <- reglas %>%
+  filter(soporte >= 0.02) %>%                   # soporte mínimo: 2 %
+  arrange(desc(lift)) %>%
+  transmute(regla = paste(producto_x, "->", producto_y),
+            tickets_xy, soporte = round(soporte, 3),
+            confianza = round(confianza, 3), lift = round(lift, 2))
+mejores_reglas %>% head(10)
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 10 x 5
+   regla                 tickets_xy soporte confianza  lift
+   <chr>                      <int>   <dbl>     <dbl> <dbl>
+ 1 Funda -> Laptop               82   0.042     0.569  5   
+ 2 Laptop -> Funda               82   0.042     0.364  5   
+ 3 Impresora -> Tinta           104   0.053     0.698  4.99
+ 4 Tinta -> Impresora           104   0.053     0.377  4.99
+ 5 Cable HDMI -> Monitor        105   0.053     0.488  4.71
+ 6 Monitor -> Cable HDMI        105   0.053     0.512  4.71
+ 7 Laptop -> Mouse              136   0.069     0.604  3.09
+ 8 Mouse -> Laptop              136   0.069     0.352  3.09
+ 9 Funda -> Mouse                61   0.031     0.424  2.17
+10 Mouse -> Funda                61   0.031     0.158  2.17
+\end{rsalida}
+
+El análisis descubrió exactamente las cuatro asociaciones que simulamos, y en
+ambas direcciones:
+
+\begin{itemize}
+  \item \textbf{Impresora $\rightarrow$ Tinta}: confianza de 69.8\% (simulamos
+        70\%) y lift de 4.99. Casi 7 de cada 10 compradores de impresora llevan
+        tinta.
+  \item \textbf{Monitor $\rightarrow$ Cable HDMI}: confianza de 51.2\% (simulamos
+        50\%), lift de 4.71.
+  \item \textbf{Laptop $\rightarrow$ Mouse}: confianza de 60.4\% (simulamos
+        60\%), lift de 3.09, y es la regla con más tickets (136).
+  \item \textbf{Laptop $\rightarrow$ Funda}: lift de 5.0, el más alto.
+\end{itemize}
+
+Observa que el lift es simétrico (Laptop $\rightarrow$ Funda y Funda
+$\rightarrow$ Laptop tienen el mismo), pero la confianza no: 56.9\% de quienes
+compran funda llevan laptop, pero solo 36.4\% de quienes compran laptop llevan
+funda. Y aparece una regla que \emph{no} simulamos directamente: Funda
+$\rightarrow$ Mouse (lift 2.17). No es que la funda ``cause'' el mouse: ambos
+se compran con laptop. Las reglas de asociación describen coocurrencias, no
+causas.
+
+\begin{rcode}
+grafico_lift <- mejores_reglas %>%
+  filter(lift > 1.5) %>%
+  ggplot(aes(x = lift, y = reorder(regla, lift))) +
+  geom_col(fill = color_principal, width = 0.7) +
+  geom_vline(xintercept = 1, color = color_gris, linetype = "dashed") +
+  labs(title = "Reglas de asociación con mayor lift",
+       subtitle = "Soporte mínimo 2 %; la línea punteada es lift = 1",
+       x = "Lift (veces más probable que al azar)", y = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank())
+grafico_lift
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m07-lift}
+\caption{Reglas de asociación ordenadas por lift. Las diez reglas corresponden
+a los cuatro pares que simulamos, en ambas direcciones, más la relación
+indirecta Funda--Mouse.}
+\label{fig:m07-lift}
+\end{figure}
+
+¿Y las reglas con lift menor a 1? También dan información:
+
+\begin{rcode}
+mejores_reglas %>% arrange(lift) %>% head(3)
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 3 x 5
+  regla              tickets_xy soporte confianza  lift
+  <chr>                   <int>   <dbl>     <dbl> <dbl>
+1 Papel -> USB              100   0.051     0.168  0.59
+2 USB -> Papel              100   0.051     0.18   0.59
+3 Audifonos -> Mouse         52   0.026     0.118  0.6 
+\end{rsalida}
+
+Papel y USB aparecen juntos \emph{menos} de lo esperado (lift 0.59), aunque
+los simulamos de forma independiente. Es un efecto de cómo se forman los datos:
+al quedarnos solo con tickets que tienen al menos un producto, los productos
+frecuentes ``compiten'' por aparecer. En datos reales, un lift claramente
+menor a 1 suele indicar \textbf{productos sustitutos} (dos marcas de la misma
+tinta, por ejemplo): no tiene sentido promocionarlos juntos. La lección es que
+ningún número se interpreta sin entender cómo se generaron los datos.
+
+\subsection{Con el paquete arules}
+
+Para canastas con cientos de productos y reglas de más de dos productos
+(\{Laptop, Mouse\} $\rightarrow$ \{Funda\}), el estándar en R es el paquete
+\paquete{arules}, que implementa el algoritmo \termino{Apriori}. No está
+instalado en este entorno, pero así se usaría con los mismos datos:
+
+\begin{rnoejecutar}
+install.packages("arules")
+library(arules)
+
+# Convertir a formato de transacciones: una lista de productos por ticket
+lista_tickets <- split(tickets$producto, tickets$ticket_id)
+trans <- as(lista_tickets, "transactions")
+summary(trans)
+
+reglas_apriori <- apriori(trans,
+                          parameter = list(supp = 0.02, conf = 0.3,
+                                           minlen = 2))
+inspect(head(sort(reglas_apriori, by = "lift"), 10))
+\end{rnoejecutar}
+
+\subsection{De las reglas a las recomendaciones}
+
+\begin{negocio}{Acciones de venta cruzada}
+\begin{itemize}
+  \item \textbf{Paquetes}: ``Kit oficina en casa'' con Impresora + Tinta, o
+        ``Kit estudiante'' con Laptop + Mouse + Funda, con un pequeño descuento
+        sobre la suma.
+  \item \textbf{Ubicación en tienda}: los cables HDMI junto a los monitores;
+        las tintas a la vista desde el pasillo de impresoras.
+  \item \textbf{Recomendaciones en línea}: al agregar una laptop al carrito,
+        mostrar mouse y funda (las reglas con mayor confianza desde Laptop).
+  \item \textbf{No descontar lo que ya se vende junto}: si el 70\% de quienes
+        compran impresora ya lleva tinta, un descuento en tinta regala
+        margen. Mejor ofrecer el descuento al 30\% restante (por ejemplo, en
+        el correo de seguimiento).
+  \item \textbf{Medir}: lanza la promoción en algunas tiendas y compara con
+        otras similares sin promoción antes de extenderla.
+\end{itemize}
+\end{negocio}
+
+\begin{hazlotu}
+Calcula las reglas cuyo antecedente es \codigo{"Laptop"}
+(\codigo{filter(producto\_x == "Laptop")}) y ordénalas por confianza. ¿Qué
+producto recomendarías primero en el carrito de compras? ¿Coincide con el orden
+por lift?
+\end{hazlotu}
+
+% ============================================================================
+\section{Llevar el modelo a producción}
+\label{sec:m7-produccion}
+
+Un modelo que vive solo en tu computadora no genera valor. \termino{Desplegar}
+(o ``poner en producción'') un modelo significa que se ejecuta de forma
+periódica y confiable sobre datos nuevos, y que sus resultados llegan a quien
+toma decisiones. En BI, lo más común es empezar con algo sencillo: un script
+que cada lunes puntúa a los clientes y deja un CSV (o una tabla en la base de
+datos, Módulo~\ref{cap:bases-datos}) que alimenta el tablero y el call center.
+
+\subsection{Guardar y cargar el modelo}
+
+No necesitas reentrenar cada vez: guarda el objeto del modelo en un archivo
+\archivo{.rds} con \codigo{saveRDS()} y cárgalo con \codigo{readRDS()}.
+
+\begin{rcode}
+dir.create("resultados", showWarnings = FALSE)
+
+saveRDS(modelo_log, "resultados/modelo_churn.rds")
+
+# ... días después, en otro script o en otra computadora:
+modelo_cargado <- readRDS("resultados/modelo_churn.rds")
+
+# Comprobamos que predice exactamente lo mismo
+all.equal(predict(modelo_cargado, churn_prueba, type = "response"),
+          predict(modelo_log, churn_prueba, type = "response"))
+\end{rcode}
+
+\begin{rsalida}
+[1] TRUE
+\end{rsalida}
+
+\begin{consejo}
+Guarda junto al modelo la información para reproducirlo: fecha de
+entrenamiento, periodo de datos, métricas en prueba y versión de R y de los
+paquetes. Un nombre como \archivo{modelo\_churn\_2025-06\_v2.rds} y una nota
+en un archivo de texto te ahorrarán muchos dolores de cabeza.
+\end{consejo}
+
+\subsection{Una función para puntuar clientes nuevos}
+
+Encapsula la predicción en una función que \textbf{valide} los datos de
+entrada, calcule la probabilidad y la traduzca a una acción:
+
+\begin{rcode}
+predecir_churn <- function(nuevos_datos, modelo, umbral = 0.15) {
+  # 1. Validar que vengan todas las columnas que el modelo necesita
+  necesarias <- c("antiguedad_meses", "plan", "uso_mensual", "quejas_6m",
+                  "pagos_tardios", "genero", "edad")
+  faltan <- setdiff(necesarias, names(nuevos_datos))
+  if (length(faltan) > 0) {
+    stop("Faltan columnas: ", paste(faltan, collapse = ", "))
+  }
+  # 2. Mismos niveles de factor que en el entrenamiento
+  nuevos_datos <- nuevos_datos %>%
+    mutate(plan = factor(plan, levels = c("Básico", "Estándar",
+                                          "Premium")))
+  # 3. Probabilidad y acción sugerida
+  nuevos_datos %>%
+    mutate(
+      prob_churn = predict(modelo, newdata = nuevos_datos,
+                           type = "response"),
+      nivel_riesgo = cut(prob_churn, breaks = c(0, umbral, 0.5, 1),
+                         labels = c("Bajo", "Medio", "Alto"),
+                         include.lowest = TRUE),
+      accion = if_else(prob_churn >= umbral, "Llamar", "Sin acción")
+    )
+}
+\end{rcode}
+
+Simulamos un lote de 500 clientes activos de esta semana (en la vida real
+vendría de la base de datos) y lo puntuamos:
+
+\begin{rcode}
+set.seed(123)
+lote_semana <- tibble(
+  cliente_id       = sprintf("N%04d", 1:500),
+  antiguedad_meses = sample(1:72, 500, replace = TRUE),
+  plan             = sample(c("Básico", "Estándar", "Premium"), 500,
+                            replace = TRUE, prob = c(0.5, 0.3, 0.2)),
+  uso_mensual      = rpois(500, 8),
+  quejas_6m        = rpois(500, 0.8),
+  pagos_tardios    = rpois(500, 0.4),
+  genero           = sample(c("F", "M"), 500, replace = TRUE),
+  edad             = sample(18:70, 500, replace = TRUE)
+)
+
+puntuados <- predecir_churn(lote_semana, modelo_cargado)
+puntuados %>% count(nivel_riesgo, accion)
+
+# Exportar la lista para el equipo de retención
+puntuados %>%
+  filter(accion == "Llamar") %>%
+  arrange(desc(prob_churn)) %>%
+  mutate(prob_churn = round(prob_churn, 3)) %>%
+  select(cliente_id, plan, quejas_6m, prob_churn, nivel_riesgo) %>%
+  write_csv("resultados/clientes_a_llamar.csv")
+
+file.exists("resultados/clientes_a_llamar.csv")
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 3 x 3
+  nivel_riesgo accion         n
+  <fct>        <chr>      <int>
+1 Bajo         Sin acción   275
+2 Medio        Llamar       142
+3 Alto         Llamar        83
+[1] TRUE
+\end{rsalida}
+
+De los 500 clientes, 225 superan el umbral de 0.15 y se llaman: 83 de riesgo
+alto (probabilidad de 0.5 o más) y 142 de riesgo medio; 275 no requieren
+acción. \codigo{file.exists()} confirma que el archivo quedó en
+\archivo{resultados/}. Si el equipo solo puede hacer 150 llamadas, empieza por
+los de riesgo alto y sigue en orden de probabilidad (o de pérdida esperada).
+
+¿Qué pasa si alguien le pasa a la función un archivo incompleto? En lugar de un
+error críptico de R, recibe un mensaje claro:
+
+\begin{rnoejecutar}
+predecir_churn(select(lote_semana, -quejas_6m), modelo_cargado)
+#> Error in predecir_churn(select(lote_semana, -quejas_6m), modelo_cargado):
+#>   Faltan columnas: quejas_6m
+\end{rnoejecutar}
+
+\subsection{Monitoreo y reentrenamiento}
+
+Los modelos se degradan con el tiempo porque el mundo cambia. Se llama
+\termino{deriva de datos} (\emph{data drift}) a cuando los datos nuevos ya no
+se parecen a los de entrenamiento (por ejemplo, llega una ola de clientes
+nuevos por una campaña) y \termino{deriva de concepto} (\emph{concept drift})
+a cuando cambia la relación entre variables y respuesta (un competidor lanza
+un plan más barato y ahora se van también los clientes antiguos).
+
+Un monitoreo básico compara cada semana las variables del lote con las del
+entrenamiento:
+
+\begin{rcode}
+comparar_distribucion <- function(entrenamiento, nuevo, variables) {
+  map_dfr(variables, function(v) {
+    tibble(variable = v,
+           media_entrenamiento = mean(entrenamiento[[v]]),
+           media_nuevo = mean(nuevo[[v]]))
+  }) %>%
+    mutate(cambio_pct = round(100 * (media_nuevo - media_entrenamiento) /
+                                media_entrenamiento, 1),
+           alerta = if_else(abs(cambio_pct) > 20, "REVISAR", "ok"))
+}
+
+comparar_distribucion(churn_ent, lote_semana,
+                      c("antiguedad_meses", "uso_mensual", "quejas_6m",
+                        "pagos_tardios")) %>%
+  mutate(across(starts_with("media"), ~ round(.x, 2)))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 4 x 5
+  variable         media_entrenamiento media_nuevo cambio_pct alerta
+  <chr>                          <dbl>       <dbl>      <dbl> <chr> 
+1 antiguedad_meses               36.7        36.8         0.3 ok    
+2 uso_mensual                     7.97        8.22        3.2 ok    
+3 quejas_6m                       0.78        0.79        2.4 ok    
+4 pagos_tardios                   0.41        0.39       -4   ok    
+\end{rsalida}
+
+En este lote todas las variables se parecen a las del entrenamiento (cambios
+de 4\% o menos), así que no hay alerta. Si un mes la media de quejas saltara
+de 0.78 a 1.5 (por ejemplo, por una falla en el servicio), el modelo seguiría
+funcionando, pero la tasa de ``Llamar'' se dispararía y convendría revisar
+tanto el modelo como la operación. El umbral de 20\% es arbitrario: ajústalo a
+tu negocio. Existen medidas más formales, como el índice de estabilidad
+poblacional (PSI), pero la idea es la misma.
+
+Buenas prácticas de monitoreo y reentrenamiento:
+
+\begin{itemize}
+  \item \textbf{Mide el desempeño real}: tres meses después, compara las
+        predicciones con quién realmente se fue. Si el AUC cae de 0.86 a 0.70,
+        es hora de reentrenar.
+  \item \textbf{Reentrena con calendario} (por ejemplo, cada trimestre) y
+        \textbf{por alerta} (cuando el monitoreo detecta cambios).
+  \item \textbf{Compara el modelo nuevo contra el actual} en los mismos datos
+        de prueba antes de reemplazarlo.
+  \item \textbf{Automatiza}: programa el script con el Programador de tareas
+        de Windows, \codigo{cron} o RStudio Connect, y envía un reporte
+        automático (Módulo~\ref{cap:reportes}).
+\end{itemize}
+
+\subsection{Ética, sesgos y explicabilidad}
+
+Un modelo toma decisiones que afectan a personas: a quién se le ofrece un
+descuento, a quién se le aprueba un crédito, a quién se contrata. Tienes la
+responsabilidad de que sea justo y explicable.
+
+\begin{itemize}
+  \item \textbf{Variables sensibles}: género, edad, estado civil, origen o
+        código postal (que puede reflejar nivel socioeconómico) pueden llevar
+        a discriminar. En nuestro modelo, género y edad no aportaban nada
+        (odds ratios de 1.02 y 0.997, importancia mínima): lo correcto es
+        \textbf{quitarlas}. En decisiones como crédito o contratación, su uso
+        puede ser además ilegal.
+  \item \textbf{Variables ``proxy''}: aunque quites el género, otra variable
+        muy correlacionada (por ejemplo, la categoría de productos que compra)
+        puede reintroducirlo. Revisa las tasas de predicción por grupo.
+  \item \textbf{Sesgo histórico}: si en el pasado solo se ofrecían créditos a
+        cierto perfil, el modelo aprenderá que ``solo ese perfil paga bien''.
+        El modelo repite los sesgos de los datos.
+  \item \textbf{Explicabilidad}: prefiere modelos interpretables (logística,
+        árboles) cuando la decisión debe justificarse ante un cliente o un
+        regulador. Con modelos de caja negra, usa la importancia de variables
+        y explica los casos individuales.
+  \item \textbf{Privacidad}: usa solo los datos necesarios, respeta los avisos
+        de privacidad y la legislación de protección de datos personales.
+\end{itemize}
+
+Revisemos si el modelo trata distinto a hombres y mujeres del lote:
+
+\begin{rcode}
+puntuados %>%
+  group_by(genero) %>%
+  summarise(clientes = n(),
+            prob_media = round(mean(prob_churn), 3),
+            pct_llamar = round(100 * mean(accion == "Llamar"), 1),
+            .groups = "drop")
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 2 x 4
+  genero clientes prob_media pct_llamar
+  <chr>     <int>      <dbl>      <dbl>
+1 F           258      0.223       40.7
+2 M           242      0.238       49.6
+\end{rsalida}
+
+La probabilidad media es casi igual (0.223 contra 0.238), pero se llamaría a
+49.6\% de los hombres y a 40.7\% de las mujeres. Como el coeficiente de género
+es prácticamente nulo, la diferencia viene de las otras variables de este lote
+en particular (por azar, los hombres tienen algo más de quejas o menos uso) y
+del efecto pequeño pero no nulo que el modelo le asignó a
+\codigo{generoM}. Aun así, este tipo de tabla es la que debes revisar y
+documentar: si la diferencia fuera grande y se debiera a la variable
+sensible, habría que quitarla y volver a evaluar.
+
+\begin{hazlotu}
+Reentrena la regresión logística sin \codigo{genero} ni \codigo{edad} y
+calcula su AUC en \codigo{churn\_prueba}. ¿Perdiste capacidad predictiva? Si la
+respuesta es ``casi nada'', ya tienes un argumento para usar el modelo más
+justo y más simple.
+\end{hazlotu}
+
+% ============================================================================
+\section{Errores comunes}
+\label{sec:m7-errores}
+
+\subsection{Fuga de datos: el modelo demasiado bueno}
+
+Agreguemos a los clientes de churn una variable que el área de atención
+registra: si el cliente llamó al área de cancelaciones. Como la mayoría de los
+que se van llaman para cancelar, parece una variable maravillosa\ldots
+
+\begin{rcode}
+set.seed(123)
+churn_fuga <- clientes_churn %>%
+  mutate(llamo_cancelaciones = if_else(
+    churn == "Si", rbinom(n(), 1, 0.85),   # casi todos los que se van
+    rbinom(n(), 1, 0.03)))                 # muy pocos de los que se quedan
+
+fuga_ent    <- churn_fuga[filas_ent, ]    # misma división que antes
+fuga_prueba <- churn_fuga[-filas_ent, ]
+
+modelo_fuga <- glm(update(formula_churn, . ~ . + llamo_cancelaciones),
+                   data = fuga_ent, family = binomial)
+prob_fuga <- predict(modelo_fuga, fuga_prueba, type = "response")
+round(calcular_auc(prob_fuga, fuga_prueba$churn), 3)
+\end{rcode}
+
+\begin{rsalida}
+[1] 0.964
+\end{rsalida}
+
+El AUC salta de 0.86 a 0.964. En el laboratorio parece un modelo
+extraordinario. Pero en la operación no sirve: cuando sabemos que el cliente
+llamó a cancelaciones, ya decidió irse. La variable es una consecuencia del
+abandono, no una señal anticipada.
+
+\begin{advertencia}
+Pregunta obligatoria para cada variable: \textbf{¿conoceré este dato en el
+momento en que tenga que predecir?} Si un modelo tiene resultados
+``demasiado buenos para ser verdad'' (AUC mayor a 0.95 en un problema de
+comportamiento humano), sospecha primero de fuga de datos.
+\end{advertencia}
+
+\subsection{Evaluar con los datos de entrenamiento}
+
+Evaluar un modelo con los mismos datos con que se entrenó da resultados
+optimistas, sobre todo en modelos flexibles. El random forest es un caso
+extremo:
+
+\begin{rcode}
+prob_rf_ent <- predict(modelo_rf, newdata = churn_ent,
+                       type = "prob")[, "Si"]
+c(auc_entrenamiento = calcular_auc(prob_rf_ent, churn_ent$churn),
+  auc_prueba = calcular_auc(churn_prueba$prob_rf, churn_prueba$churn)) %>%
+  round(3)
+\end{rcode}
+
+\begin{rsalida}
+auc_entrenamiento        auc_prueba 
+            1.000             0.846 
+\end{rsalida}
+
+En entrenamiento, el bosque tiene un AUC perfecto (1.000): cada árbol crece
+hasta memorizar a sus clientes. En prueba baja a 0.846. Si hubieras reportado
+el 1.000, habrías prometido algo imposible. Por eso existen el conjunto de
+prueba, la validación cruzada y el error OOB.
+
+\subsection{Clases desbalanceadas y la exactitud engañosa}
+
+Un banco revisa 2{,}000 transacciones con tarjeta, de las cuales 5\% son
+fraude. Un ``modelo'' que dice \emph{siempre} ``no es fraude'':
+
+\begin{rcode}
+set.seed(123)
+fraude <- tibble(
+  es_fraude = factor(if_else(runif(2000) < 0.05, "Si", "No"),
+                     levels = c("No", "Si"))
+)
+prediccion_perezosa <- factor(rep("No", 2000), levels = c("No", "Si"))
+
+metricas_clasificacion(prediccion_perezosa, fraude$es_fraude) %>%
+  mutate(across(everything(), ~ round(.x, 3)))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 1 x 5
+  exactitud precision sensibilidad especificidad    F1
+      <dbl>     <dbl>        <dbl>         <dbl> <dbl>
+1     0.947       NaN            0             1   NaN
+\end{rsalida}
+
+¡94.7\% de exactitud sin detectar un solo fraude! La sensibilidad es 0 y la
+precisión y F1 son \codigo{NaN} (\emph{Not a Number}: división entre cero,
+porque el modelo nunca predijo ``Si''). Un modelo inútil con una exactitud
+altísima: por eso, con clases desbalanceadas, la exactitud es la métrica menos
+informativa.
+
+Qué hacer con clases desbalanceadas:
+
+\begin{itemize}
+  \item Reporta sensibilidad, precisión, F1 y AUC, no solo exactitud.
+  \item Compara siempre con la línea base ``predecir la clase mayoritaria''.
+  \item Ajusta el umbral según costos (sección~\ref{sec:m7-umbral}).
+  \item Usa divisiones estratificadas (\codigo{createDataPartition()}).
+  \item Si hace falta, rebalancea el entrenamiento: \paquete{caret} lo permite
+        con \codigo{trainControl(sampling = "down")} o \codigo{"up"}.
+\end{itemize}
+
+\subsection{No escalar antes de k-means}
+
+\begin{rcode}
+set.seed(123)
+kmeans_sin_escalar <- kmeans(rfm %>% select(recencia, frecuencia, monto),
+                             centers = 4, nstart = 25)
+
+rfm %>%
+  mutate(grupo = kmeans_sin_escalar$cluster) %>%
+  group_by(grupo) %>%
+  summarise(clientes = n(), recencia = round(mean(recencia)),
+            frecuencia = round(mean(frecuencia), 1),
+            monto = round(mean(monto)), .groups = "drop") %>%
+  arrange(monto)
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 4 x 5
+  grupo clientes recencia frecuencia monto
+  <int>    <int>    <dbl>      <dbl> <dbl>
+1     3       56      106        2.9  1946
+2     4       83       66        5    4491
+3     1       44       39        6.2  7089
+4     2       15       37        9.7 11092
+\end{rsalida}
+
+Sin escalar, los grupos quedan ordenados casi perfectamente por monto (de
+\$1{,}946 a \$11{,}092): el monto, que se mide en miles, domina la distancia.
+La recencia apenas participa: ya no aparece un grupo de Dormidos con 195 días
+de recencia como en la segmentación escalada, y los clientes que dejaron de
+comprar quedan mezclados con los demás según lo que gastaron. Escalar no es un
+detalle técnico: cambia los segmentos y, por lo tanto, las estrategias.
+
+\subsection{Otros errores frecuentes}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Otros errores comunes en proyectos de machine learning.}
+\label{tab:m7-errores}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{4cm}
+                              >{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Error} & \textbf{Cómo evitarlo} \\
+\midrule
+Usar un código como número (\codigo{tienda\_id}, código postal) &
+  \codigo{lm(ventas \textasciitilde{} tienda\_id)} estima un solo coeficiente, como si la
+  tienda 10 fuera ``diez veces'' la tienda 1. Conviértelo con
+  \codigo{factor(tienda\_id)}, como hicimos en la sección~\ref{sec:m7-sin-senal}. \\
+Niveles de factor distintos entre entrenamiento y datos nuevos &
+  Fija los niveles con \codigo{factor(x, levels = ...)} (como en
+  \codigo{predecir\_churn()}). Un nivel nuevo (un plan ``Familiar'')
+  produce el error \codigo{factor plan has new levels Familiar}. \\
+Extrapolar &
+  Un modelo entrenado con tiendas de 150 a 1{,}200 m² no sabe nada de una de
+  5{,}000 m². Un pronóstico a 5 años con 5 años de historia es una apuesta,
+  no una predicción. \\
+Separar series de tiempo al azar &
+  El conjunto de prueba siempre son los periodos más recientes
+  (\codigo{window()}). \\
+Olvidar \codigo{set.seed()} &
+  Sin semilla, k-means, la división de datos y el random forest dan
+  resultados distintos cada vez y nadie puede reproducir tu análisis. \\
+Confundir correlación con causalidad &
+  Un coeficiente dice ``se asocia con'', no ``provoca''. Para medir el
+  efecto de una acción, diseña un experimento (grupo de control). \\
+Nombrar clusters por número &
+  Asigna nombres a partir del perfil calculado (sección~\ref{sec:m7-segmentacion}). \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ============================================================================
+\section{Resumen del módulo}
+
+\begin{resumen}
+\begin{itemize}
+  \item El machine learning aprende patrones de datos históricos. Supervisado:
+        regresión (números) y clasificación (categorías). No supervisado:
+        clustering y reglas de asociación. Las series de tiempo pronostican
+        con la historia de la propia variable.
+  \item Sin señal no hay modelo: primero verifica que exista relación
+        (exploración, línea base).
+  \item Evalúa siempre en datos que el modelo no vio (prueba, validación
+        cruzada); vigila el sobreajuste y la fuga de datos.
+  \item Segmentación: RFM + escalar + k-means (codo, silueta, \codigo{nstart})
+        + perfil + nombres basados en el perfil + estrategia por segmento.
+        Alternativa sencilla: quintiles con \codigo{ntile()}.
+  \item Regresión: \codigo{lm()} explica y predice; mide con MAE, RMSE, MAPE y
+        R²; compara con una línea base y con random forest.
+  \item Clasificación: logística (odds ratios), árbol (reglas), random forest
+        (importancia); matriz de confusión, sensibilidad, precisión, AUC; el
+        umbral se elige con costos de negocio.
+  \item Series de tiempo: \codigo{ts()}, descomposición, prueba con los
+        últimos meses, \codigo{naive}/\codigo{snaive} como línea base,
+        \codigo{ets()} y \codigo{auto.arima()}; comunica rangos y calcula
+        stock de seguridad.
+  \item Canasta: soporte, confianza y lift con un self-join; ordena por lift
+        con soporte mínimo.
+  \item Producción: \codigo{saveRDS()}, función de puntuación con validación,
+        exportar resultados, monitorear deriva, reentrenar y cuidar la ética.
+\end{itemize}
+\end{resumen}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Guía rápida: del problema a la función de R y la métrica.}
+\label{tab:m7-resumen}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.2cm}
+                              >{\raggedright\arraybackslash}p{2.9cm}
+                              >{\raggedright\arraybackslash}p{3.9cm}
+                              >{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Problema} & \textbf{Algoritmo} & \textbf{Función de R} & \textbf{Métrica} \\
+\midrule
+Segmentar clientes & k-means & \codigo{scale()}, \codigo{kmeans()},
+  \codigo{fviz\_nbclust()} & Codo (WSS), silueta \\
+Segmentar con reglas & Quintiles RFM & \codigo{ntile()}, \codigo{case\_when()} &
+  Tamaño y valor de segmentos \\
+Predecir un número & Regresión lineal & \codigo{lm()}, \codigo{predict()} &
+  MAE, RMSE, MAPE, R² \\
+Predecir un número (no lineal) & Random forest & \codigo{randomForest()} &
+  MAE, RMSE, OOB \\
+Predecir una categoría & Regresión logística & \codigo{glm(family = binomial)} &
+  AUC, sensibilidad, precisión, F1 \\
+Reglas explicables & Árbol de decisión & \codigo{rpart()} &
+  AUC, matriz de confusión \\
+Comparar modelos & Validación cruzada & \codigo{trainControl()},
+  \codigo{train()}, \codigo{resamples()} & ROC (AUC) promedio \\
+Pronosticar demanda & Ingenuo, ETS, ARIMA & \codigo{snaive()}, \codigo{ets()},
+  \codigo{auto.arima()}, \codigo{forecast()} & \codigo{accuracy()}: MAE,
+  RMSE, MAPE \\
+Productos que se compran juntos & Reglas de asociación & self-join con
+  \codigo{inner\_join()}; \codigo{arules::apriori()} & Soporte, confianza,
+  lift \\
+Usar el modelo & Despliegue & \codigo{saveRDS()}, \codigo{readRDS()},
+  \codigo{write\_csv()} & Desempeño real y deriva \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ============================================================================
+\section{Ejercicios}
+\label{sec:m7-ejercicios}
+
+Para los ejercicios con datos simulados, copia el código de simulación de la
+sección correspondiente (con la misma semilla) al inicio de tu script. Todos
+los ejercicios suponen que tienes cargados los paquetes de este módulo.
+
+\begin{ejercicio}{m7-1}{Supervisado o no supervisado}
+\nivel{Básico}
+Para cada situación, indica si es un problema de regresión, clasificación,
+clustering, reglas de asociación o series de tiempo, y propón un algoritmo:
+(a) estimar el ticket promedio de un cliente nuevo; (b) detectar si un correo
+de cliente es una queja; (c) agrupar las sucursales por su mezcla de ventas;
+(d) predecir la demanda semanal de pan de muerto; (e) decidir qué producto
+recomendar a quien compra una cafetera. Después, con
+\archivo{ventas\_retail.csv}, ajusta \codigo{lm(total \textasciitilde{} descuento\_pct + dia\_semana)}
+y reporta su R² ajustado. ¿Hay señal?
+\end{ejercicio}
+
+\begin{ejercicio}{m7-2}{Métricas de regresión a mano}
+\nivel{Básico}
+Un gerente pronosticó las ventas (miles de pesos) de 6 sucursales:
+reales \codigo{c(120, 95, 150, 80, 110, 130)} y pronosticadas
+\codigo{c(110, 100, 140, 90, 115, 120)}. Calcula MAE, RMSE, MAPE y R²
+escribiendo las fórmulas en R (sin paquetes). ¿Cuál es el error promedio en
+pesos y en porcentaje?
+\end{ejercicio}
+
+\begin{ejercicio}{m7-3}{Matriz de confusión e interpretación}
+\nivel{Básico}
+Un modelo de fraude se evaluó con 1{,}000 transacciones: detectó 40 de los 50
+fraudes reales y marcó como fraude 60 transacciones legítimas. Construye la
+matriz de confusión como un \codigo{matrix()} de R y calcula exactitud,
+precisión, sensibilidad, especificidad y F1. Si cada fraude no detectado
+cuesta \$5{,}000 y cada revisión innecesaria \$100, ¿cuál es el costo de los
+errores?
+\end{ejercicio}
+
+\begin{ejercicio}{m7-4}{Segmentación RFM por reglas}
+\nivel{Intermedio}
+Con \archivo{transacciones.csv} calcula el RFM de cada cliente (fecha de
+corte 2024-01-01) y asigna calificaciones de 1 a 5 con \codigo{ntile()}.
+Calcula un puntaje total \codigo{r + f + m} y clasifica en ``Oro'' (13 a 15),
+``Plata'' (9 a 12) y ``Bronce'' (3 a 8). Reporta, por nivel, número de
+clientes, monto promedio y porcentaje de los ingresos totales.
+\end{ejercicio}
+
+\begin{ejercicio}{m7-5}{k-means con otras variables}
+\nivel{Intermedio}
+Con \archivo{transacciones.csv}, construye por cliente: monto total, ticket
+promedio (\codigo{mean(total\_transaccion)}), número de tiendas distintas y
+número de productos distintos. Escala las cuatro variables, elige $k$ con la
+silueta (entre 2 y 6), entrena k-means con \codigo{nstart = 25} y nombra los
+grupos a partir de su perfil (sin escribir números de cluster a mano).
+\end{ejercicio}
+
+\begin{ejercicio}{m7-6}{Mejorar el modelo de churn con una variable nueva}
+\nivel{Intermedio}
+Con los datos simulados de churn (misma semilla y misma división de la
+sección~\ref{sec:m7-churn}), crea la variable
+\codigo{cliente\_nuevo = antiguedad\_meses <= 6}, agrégala a la regresión
+logística y compara el AUC en prueba con el del modelo original. Interpreta la
+razón de momios de la nueva variable. Quita también \codigo{genero} y
+\codigo{edad}: ¿cambia el AUC?
+\end{ejercicio}
+
+\begin{ejercicio}{m7-7}{Umbral con otros costos}
+\nivel{Intermedio}
+Con las probabilidades de la regresión logística en \codigo{churn\_prueba},
+encuentra el umbral que minimiza el costo total si el descuento cuesta \$800
+(en lugar de \$300), un cliente perdido cuesta \$3{,}000 y la mitad de los
+clientes contactados que iban a irse se retiene. ¿Cuántos clientes se
+llamarían? Compara con el umbral óptimo del texto (0.15) y explica la
+diferencia.
+\end{ejercicio}
+
+\begin{ejercicio}{m7-8}{Pronóstico trimestral}
+\nivel{Avanzado}
+A partir de la serie mensual simulada de la sección~\ref{sec:m7-series},
+construye una serie \emph{trimestral} (suma de cada trimestre, frecuencia 4).
+Deja como prueba los 4 trimestres de 2025, compara \codigo{snaive()},
+\codigo{ets()} y \codigo{auto.arima()} con \codigo{accuracy()} y pronostica
+los 4 trimestres de 2026 con el mejor modelo, reentrenado con toda la serie.
+\end{ejercicio}
+
+\begin{ejercicio}{m7-9}{Canasta con reglas de tres productos}
+\nivel{Avanzado}
+Con los tickets simulados de la sección~\ref{sec:m7-canasta}, calcula el
+soporte, la confianza y el lift de la regla \{Laptop, Mouse\} $\rightarrow$
+\{Funda\} usando \paquete{dplyr}. Compárala con Laptop $\rightarrow$ Funda.
+¿Saber que el cliente ya lleva mouse cambia la probabilidad de que lleve funda?
+\end{ejercicio}
+
+\begin{ejercicio}{m7-10}{Reto: sistema de puntuación de churn completo}
+\nivel{Reto}
+Simula (con \codigo{set.seed(2024)}) 3{,}000 clientes con las mismas variables
+y reglas de la sección~\ref{sec:m7-churn}. Entrena con \paquete{caret} una
+regresión logística y un random forest (validación cruzada de 5 pliegues, AUC
+como métrica), elige el mejor según el AUC en un 30\% de prueba, guárdalo con
+\codigo{saveRDS()}, escribe una función \codigo{puntuar()} que devuelva los
+100 clientes con mayor pérdida esperada (probabilidad $\times$ cuota anual) de
+un lote nuevo de 1{,}000 clientes y exporta la lista a
+\archivo{resultados/top100\_churn.csv}.
+\end{ejercicio}

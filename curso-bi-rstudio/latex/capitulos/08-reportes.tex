@@ -135,9 +135,9 @@ HTML, un documento de Word o, pasando por LaTeX, un PDF. El paquete
 \centering
 \begin{tikzpicture}[
   archivo/.style={draw=primario, fill=primario!6, rounded corners=3pt,
-                  minimum width=1.9cm, minimum height=1cm, align=center,
+                  minimum width=1.6cm, minimum height=1cm, align=center,
                   font=\sffamily\footnotesize},
-  motor/.style={draw=acento, fill=acento!10, ellipse, minimum width=1.9cm,
+  motor/.style={draw=acento, fill=acento!10, ellipse, minimum width=1.5cm,
                 minimum height=0.9cm, align=center,
                 font=\sffamily\footnotesize\bfseries},
   salida/.style={draw=exito, fill=exito!8, rounded corners=3pt,
@@ -145,13 +145,13 @@ HTML, un documento de Word o, pasando por LaTeX, un PDF. El paquete
                  font=\sffamily\footnotesize},
   flecha/.style={-{Stealth[length=2.5mm]}, thick, color=gristexto}]
   \node[archivo] (rmd) {\textbf{.Rmd}\\texto + código};
-  \node[motor, right=0.7cm of rmd] (knitr) {knitr};
-  \node[archivo, right=0.7cm of knitr] (md) {\textbf{.md}\\texto +\\resultados};
-  \node[motor, right=0.7cm of md] (pandoc) {pandoc};
-  \node[salida, right=1.1cm of pandoc, yshift=1.05cm] (html) {HTML};
-  \node[salida, right=1.1cm of pandoc] (docx) {Word (.docx)};
-  \node[salida, right=1.1cm of pandoc, yshift=-1.05cm] (tex) {LaTeX};
-  \node[salida, right=0.5cm of tex] (pdf) {PDF};
+  \node[motor, right=1.1cm of rmd] (knitr) {knitr};
+  \node[archivo, right=0.6cm of knitr] (md) {\textbf{.md}\\texto +\\resultados};
+  \node[motor, right=1.3cm of md] (pandoc) {pandoc};
+  \node[salida, right=0.8cm of pandoc, yshift=1.05cm] (html) {HTML};
+  \node[salida, right=0.8cm of pandoc] (docx) {Word (.docx)};
+  \node[salida, right=0.8cm of pandoc, yshift=-1.05cm] (tex) {LaTeX};
+  \node[salida, right=0.4cm of tex] (pdf) {PDF};
   \draw[flecha] (rmd) -- node[above, font=\sffamily\scriptsize]{ejecuta} (knitr);
   \draw[flecha] (knitr) -- (md);
   \draw[flecha] (md) -- node[above, font=\sffamily\scriptsize]{convierte} (pandoc);
@@ -1122,8 +1122,9 @@ con el logo de la empresa). Para crear esa plantilla:
   \item Abre el \archivo{.docx} generado y modifica los \emph{estilos}
         (no el texto): clic derecho en ``Título 1'' $\rightarrow$
         \menu{Modificar}, y así con ``Normal'', ``Título 2'', etc.
-  \item Guárdalo como \archivo{plantilla\_corporativa.docx} junto al
-        \archivo{.Rmd} y agrega la opción \codigo{reference\_docx}.
+  \item Guárdalo junto al \archivo{.Rmd} con un nombre como
+        \archivo{plantilla\_corporativa.docx} y agrega la opción
+        \codigo{reference\_docx}.
 \end{enumerate}
 
 \subsection{Varios formatos en un mismo archivo}
@@ -1408,7 +1409,8 @@ fecha_ejecucion <- as.Date("2024-01-05")
 mes_reporte <- "2023-12"
 
 archivos <- sprintf("%s_T%02d_%s_%s.html", mes_reporte,
-                    tiendas$tienda_id, limpiar_nombre(tiendas$nombre_tienda),
+                    tiendas$tienda_id,
+                    limpiar_nombre(tiendas$nombre_tienda),
                     format(fecha_ejecucion, "%Y-%m-%d"))
 head(archivos, 4)
 \end{rcode}
@@ -1666,6 +1668,7 @@ seguidos del comando:
 \begin{textocodigo}
 # min hora dia mes dia_semana  comando
 # Día 1 de cada mes a las 7:00: reportes del mes anterior en PDF
+# (todo el comando va en UNA sola línea del crontab)
 0 7 1 * * cd /home/andrea/curso-bi-rstudio && /usr/bin/Rscript reportes/generar_reportes.R $(date -d "last month" +\%Y-\%m) pdf >> resultados/cron.log 2>&1
 \end{textocodigo}
 
@@ -1693,9 +1696,11 @@ Scheduler}):
   \item Clic en \menu{Crear tarea básica\ldots}, ponle nombre (``Reportes
         mensuales'') y elige \menu{Mensualmente}, día 1, 7:00.
   \item En \menu{Acción} elige \menu{Iniciar un programa}.
-  \item En \menu{Programa o script} escribe la ruta de Rscript, por ejemplo
+  \item En \menu{Programa o script} escribe la ruta completa de
+        \archivo{Rscript.exe}, que está en la carpeta \archivo{bin} de
+        tu instalación de R (por ejemplo, dentro de
         \archivo{C:\textbackslash Program Files\textbackslash
-        R\textbackslash R-4.3.3\textbackslash bin\textbackslash Rscript.exe}.
+        R\textbackslash R-4.3.3}).
   \item En \menu{Agregar argumentos} escribe
         \archivo{reportes\textbackslash generar\_reportes.R} y en
         \menu{Iniciar en} la carpeta del curso (por ejemplo
@@ -1714,7 +1719,8 @@ install.packages("taskscheduleR")
 library(taskscheduleR)
 taskscheduler_create(
   taskname  = "reportes_mensuales",
-  rscript   = "C:/Users/andrea/curso-bi-rstudio/reportes/generar_reportes.R",
+  rscript   = file.path("C:/Users/andrea/curso-bi-rstudio",
+                        "reportes/generar_reportes.R"),
   schedule  = "MONTHLY",
   days      = 1,
   starttime = "07:00"
@@ -1901,7 +1907,8 @@ de los datos) y en Excel aparecerá como celda vacía.
 
 El archivo \archivo{codigo/reportes/reporte\_excel.R} contiene la versión
 completa de este ejemplo, con una hoja adicional de los 15 productos más
-vendidos, lista para ejecutarse con
+vendidos. Para ejecutarlo, copia el archivo a tu carpeta
+\archivo{reportes/} y usa
 \codigo{source("reportes/reporte\_excel.R")}.
 
 \subsection{Formato avanzado con openxlsx}
@@ -1993,9 +2000,9 @@ YAML, bajo \codigo{execute}. Para generarlo usas el botón \menu{Render} (el
 equivalente de Knit) o la terminal:
 
 \begin{textocodigo}
-quarto render reportes/reporte-quarto.qmd                   # todos los formatos
-quarto render reportes/reporte-quarto.qmd --to docx        # solo Word
-quarto render reportes/reporte-quarto.qmd -P tienda:3      # con parámetro
+quarto render reportes/reporte-quarto.qmd              # todos los formatos
+quarto render reportes/reporte-quarto.qmd --to docx   # solo Word
+quarto render reportes/reporte-quarto.qmd -P tienda:3 # con parámetro
 \end{textocodigo}
 
 Desde R, el paquete \paquete{quarto} ofrece \codigo{quarto\_render()},
@@ -2190,38 +2197,12 @@ pct     <- function(x) ifelse(is.na(x), "s/d", percent(x, accuracy = 0.1))
 \subsection{Parte 2: datos, validación y KPIs}
 
 El bloque \codigo{datos} busca la carpeta de datos (como viste en la
-sección~\ref{sec:m8-directorio}), lee y une las tablas, valida los
-parámetros y filtra la tienda y los meses:
-
-\begin{textocodigo}[title=Bloque datos (después de localizar la carpeta)]
-```{r datos}
-# ... (búsqueda de carpeta_datos y lectura de transacciones, tiendas
-#      y productos, como en la sección de parámetros) ...
-ventas <- transacciones %>%
-  left_join(productos %>%
-              select(producto_id, nombre_producto, categoria,
-                     precio_catalogo, costo),
-            by = "producto_id")
-
-# ---- 3. Validar los parámetros ----
-id_tienda  <- as.integer(params$tienda)
-mes_actual <- params$mes
-info_tienda <- tiendas %>% filter(tienda_id == id_tienda)
-if (nrow(info_tienda) == 0) stop("La tienda ", id_tienda, " no existe.")
-if (!mes_actual %in% ventas$mes) stop("No hay datos del mes ", mes_actual)
-
-# Mes anterior: el día 1 del mes menos un día cae en el mes previo
-mes_previo <- format(as.Date(paste0(mes_actual, "-01")) - 1, "%Y-%m")
-
-# ---- 4. Filtrar ----
-ventas_tienda <- ventas %>% filter(tienda_id == id_tienda)
-ventas_mes    <- ventas_tienda %>% filter(mes == mes_actual)
-ventas_previo <- ventas_tienda %>% filter(mes == mes_previo)
-if (nrow(ventas_mes) == 0) {
-  stop("La tienda ", id_tienda, " no tiene ventas en ", mes_actual)
-}
-```
-\end{textocodigo}
+sección~\ref{sec:m8-directorio}), lee y une transacciones y productos, valida
+los parámetros con \codigo{stop()} (tienda inexistente, mes sin datos),
+calcula el mes anterior con el truco del día 1 menos un día y filtra la
+tienda en el mes actual y el anterior (\codigo{ventas\_mes},
+\codigo{ventas\_previo}). Es el mismo código que probaste en la consola en
+la sección~\ref{sec:m8-parametros}.
 
 El bloque \codigo{kpis} calcula los indicadores con una función que se
 aplica igual al mes actual y al anterior (así no hay dos cálculos que puedan
@@ -2301,28 +2282,11 @@ con un ticket promedio de **`r dinero2(kpi$ticket)`**. Las ventas
 ventas de la empresa.
 \end{textocodigo}
 
-\begin{textocodigo}[title=Bloque tabla-kpis]
-```{r tabla-kpis}
-fmt_var <- function(a, b) {
-  v <- variacion(a, b)
-  if (is.na(v)) "s/d" else percent(v, accuracy = 0.1)
-}
-tabla_kpis <- tibble(
-  Indicador = c("Ventas", "Transacciones", "Unidades vendidas",
-                "Ticket promedio"),
-  `Mes actual` = c(dinero(kpi$ventas), kpi$transacciones,
-                   kpi$unidades, dinero2(kpi$ticket)),
-  `Mes anterior` = c(dinero(kpi_ant$ventas), kpi_ant$transacciones,
-                     kpi_ant$unidades, dinero2(kpi_ant$ticket)),
-  `Variación` = c(fmt_var(kpi$ventas, kpi_ant$ventas),
-                  fmt_var(kpi$transacciones, kpi_ant$transacciones),
-                  fmt_var(kpi$unidades, kpi_ant$unidades),
-                  fmt_var(kpi$ticket, kpi_ant$ticket))
-)
-kable(tabla_kpis, format = "pipe", align = c("l", "r", "r", "r"),
-      caption = paste("Indicadores clave de", nombre_mes(mes_actual)))
-```
-\end{textocodigo}
+Debajo, el bloque \codigo{tabla-kpis} arma un tibble con cuatro filas
+(ventas, transacciones, unidades y ticket), las columnas ``Mes actual'',
+``Mes anterior'' y ``Variación'' ya formateadas con \codigo{dinero()} y
+\codigo{pct()}, y lo muestra con \codigo{kable()} y el título
+\codigo{paste("Indicadores clave de", nombre\_mes(mes\_actual))}.
 
 \subsection{Parte 4: las gráficas}
 

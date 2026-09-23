@@ -260,7 +260,8 @@ fecha_ejecucion <- as.Date("2024-01-05")
 mes_reporte <- "2023-12"
 
 archivos <- sprintf("%s_T%02d_%s_%s.html", mes_reporte,
-                    tiendas$tienda_id, limpiar_nombre(tiendas$nombre_tienda),
+                    tiendas$tienda_id,
+                    limpiar_nombre(tiendas$nombre_tienda),
                     format(fecha_ejecucion, "%Y-%m-%d"))
 head(archivos, 4)
 
@@ -417,7 +418,8 @@ registro
 # library(taskscheduleR)
 # taskscheduler_create(
 #   taskname  = "reportes_mensuales",
-#   rscript   = "C:/Users/andrea/curso-bi-rstudio/reportes/generar_reportes.R",
+#   rscript   = file.path("C:/Users/andrea/curso-bi-rstudio",
+#                         "reportes/generar_reportes.R"),
 #   schedule  = "MONTHLY",
 #   days      = 1,
 #   starttime = "07:00"

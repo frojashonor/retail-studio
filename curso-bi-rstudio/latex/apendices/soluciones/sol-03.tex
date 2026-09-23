@@ -1,0 +1,602 @@
+% ============================================================================
+% Soluciones del Módulo 3 - Visualización de datos con ggplot2
+% ============================================================================
+
+\begin{solucion}{m3-1}
+Contamos los tickets por tienda con \codigo{count()} y graficamos con
+\codigo{geom\_col()} en horizontal, ordenando con \codigo{fct\_reorder()}.
+
+\begin{rcode}
+library(tidyverse)
+library(scales)
+color_principal <- "#2a78d6"
+
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+tiendas <- read_csv("datasets/tiendas.csv", show_col_types = FALSE)
+
+tickets_tienda <- transacciones %>%
+  left_join(tiendas, by = "tienda_id") %>%
+  mutate(tienda = str_remove(nombre_tienda, "Sucursal ")) %>%
+  group_by(tienda) %>%
+  summarise(tickets  = n(),
+            ingresos = sum(total_transaccion),
+            .groups  = "drop") %>%
+  arrange(desc(tickets))
+head(tickets_tienda, 4)
+
+s1 <- ggplot(tickets_tienda,
+             aes(x = tickets, y = fct_reorder(tienda, tickets))) +
+  geom_col(fill = color_principal, width = 0.7) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.05))) +
+  labs(title = "Sur y Plaza A atendieron más tickets en 2023",
+       x = "Número de tickets", y = NULL,
+       caption = "Fuente: transacciones.csv") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank())
+s1
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 3
+  tienda  tickets ingresos
+  <chr>     <int>    <dbl>
+1 Plaza A     109  105216.
+2 Sur         109  105305.
+3 Express     108  102791.
+4 Premium     108  101538.
+\end{rsalida}
+
+\textbf{Interpretación.} Sur y Plaza A empatan con 109 tickets, pero la
+tienda con más \emph{ingresos} es Outlet (106 tickets): vende un poco menos
+de tickets pero de mayor importe. Contar tickets e ingresos responde
+preguntas distintas (tráfico contra valor).
+\end{solucion}
+
+\begin{solucion}{m3-2}
+\begin{rcode}
+library(tidyverse)
+color_principal <- "#2a78d6"
+color_resalte   <- "#eb6834"
+
+clientes <- read_csv("datasets/clientes.csv", show_col_types = FALSE)
+mediana_edad <- median(clientes$edad)
+mediana_edad
+
+s2 <- ggplot(clientes, aes(x = edad)) +
+  geom_histogram(binwidth = 5, boundary = 0,
+                 fill = color_principal, color = "white") +
+  geom_vline(xintercept = mediana_edad, linetype = "dashed",
+             color = color_resalte, linewidth = 0.8) +
+  annotate("text", x = mediana_edad, y = Inf, vjust = 1.5,
+           hjust = -0.1, label = paste("Mediana:", mediana_edad),
+           color = color_resalte, size = 3.5) +
+  labs(title = "Edad de los clientes",
+       subtitle = "Barras de 5 años", x = "Edad", y = "Clientes") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+s2
+\end{rcode}
+\begin{rsalida}
+[1] 48.5
+\end{rsalida}
+
+\textbf{Interpretación.} La mediana es de 48.5 años y las barras tienen
+alturas parecidas entre los 18 y los 75 años: la distribución es más o
+menos \emph{pareja} (uniforme), sin una edad dominante. Es lo esperable
+porque las edades se simularon al azar en ese rango; en una empresa real
+casi siempre verías una concentración en algún grupo de edad.
+\end{solucion}
+
+\begin{solucion}{m3-3}
+Los cuatro errores:
+\begin{enumerate}
+  \item \codigo{fill = "\#2a78d6"} dentro de \codigo{aes()}: el color se
+        trata como un dato, sale un color por defecto y una leyenda rara. Va
+        fuera de \codigo{aes()}, en la geometría.
+  \item El \codigo{+} está al inicio de la línea: R termina la instrucción
+        en \codigo{ggplot(...)} y falla con ``Cannot use \codigo{+} with a
+        single argument''.
+  \item \codigo{geom\_bar()} con \codigo{y}: debe ser \codigo{geom\_col()}
+        porque los ingresos ya están calculados.
+  \item \codigo{\%>\%} entre capas y \codigo{labels = percent} en un eje de
+        pesos: debe ser \codigo{+} y \codigo{labels = dollar}.
+\end{enumerate}
+(Además conviene agregar \codigo{.groups = "drop"}, aunque aquí no es
+obligatorio porque se agrupa por una sola columna.)
+
+\begin{rcode}
+library(tidyverse)
+library(scales)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+
+ingresos_pago <- transacciones %>%
+  group_by(metodo_pago) %>%
+  summarise(ingresos = sum(total_transaccion), .groups = "drop")
+
+s3 <- ggplot(ingresos_pago, aes(x = metodo_pago, y = ingresos)) +
+  geom_col(fill = "#2a78d6") +
+  scale_y_continuous(labels = dollar)
+s3
+\end{rcode}
+
+La versión corregida se ejecuta sin errores y muestra cuatro columnas
+azules con el eje en pesos. Para dejarla lista para la dirección faltaría
+ordenarla, ponerla horizontal y agregar títulos (lista de verificación de
+la sección~\ref{sec:m3-antes-despues}).
+\end{solucion}
+
+\begin{solucion}{m3-4}
+\begin{rcode}
+library(tidyverse)
+color_principal <- "#2a78d6"
+color_resalte   <- "#eb6834"
+color_gris      <- "#b5b3ad"
+
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+
+tickets_mes <- transacciones %>%
+  mutate(mes = floor_date(fecha, unit = "month")) %>%
+  count(mes, name = "tickets")
+promedio <- mean(tickets_mes$tickets)
+mes_min  <- tickets_mes %>% slice_min(tickets, n = 1)
+promedio
+mes_min
+
+s4 <- ggplot(tickets_mes, aes(x = mes, y = tickets)) +
+  geom_hline(yintercept = promedio, color = color_gris,
+             linetype = "dashed", linewidth = 0.6) +
+  geom_line(color = color_principal, linewidth = 0.8) +
+  geom_point(color = color_principal, size = 2) +
+  annotate("text", x = mes_min$mes, y = mes_min$tickets,
+           label = paste("Mínimo:", mes_min$tickets, "tickets"),
+           vjust = 1.8, color = color_resalte, size = 3.5) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+  labs(title = "Abril tuvo el menor número de tickets del año",
+       subtitle = "Tickets por mes, 2023 (línea punteada = promedio)",
+       x = NULL, y = "Tickets") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+s4
+\end{rcode}
+\begin{rsalida}
+[1] 83.33333
+# A tibble: 1 x 2
+  mes        tickets
+  <date>       <int>
+1 2023-04-01      71
+\end{rsalida}
+
+\textbf{Interpretación.} El promedio es de 83.3 tickets por mes y abril
+queda muy por debajo con 71. Como abril también fue el peor mes en
+ingresos, la caída de ese mes se explica en buena parte por menos tráfico
+(menos tickets), no solo por tickets más pequeños.
+\end{solucion}
+
+\begin{solucion}{m3-5}
+\codigo{wday(fecha, label = TRUE, week\_start = 1)} devuelve el día como
+factor ordenado de lunes a domingo; así el eje queda en el orden correcto
+sin hacer nada más.
+
+\begin{rcode}
+library(tidyverse)
+library(scales)
+color_resalte <- "#eb6834"
+color_gris    <- "#b5b3ad"
+
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+
+ingresos_dia <- transacciones %>%
+  mutate(dia = wday(fecha, label = TRUE, week_start = 1)) %>%
+  group_by(dia) %>%
+  summarise(ingresos = sum(total_transaccion), .groups = "drop") %>%
+  mutate(destacar = if_else(ingresos == max(ingresos), "Máximo",
+                            "Resto"))
+ingresos_dia
+
+s_dia <- ggplot(ingresos_dia, aes(x = dia, y = ingresos,
+                                  fill = destacar)) +
+  geom_col(width = 0.7) +
+  geom_text(data = filter(ingresos_dia, destacar == "Máximo"),
+            aes(label = dollar(ingresos, accuracy = 1)),
+            vjust = -0.5, size = 3.5, color = color_resalte) +
+  scale_fill_manual(values = c(Máximo = color_resalte,
+                               Resto  = color_gris),
+                    guide = "none") +
+  scale_y_continuous(labels = dollar,
+                     expand = expansion(mult = c(0, 0.1))) +
+  labs(title = "El viernes es el día que más vende",
+       subtitle = "Ingresos por día de la semana, 2023",
+       x = NULL, y = "Ingresos (MXN)") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank())
+s_dia
+\end{rcode}
+\begin{rsalida}
+# A tibble: 7 x 3
+  dia   ingresos destacar
+  <ord>    <dbl> <chr>   
+1 lun    128878. Resto   
+2 mar    119364. Resto   
+3 mié    141329. Resto   
+4 jue    145280. Resto   
+5 vie    161266. Máximo  
+6 sáb    115172. Resto   
+7 dom    148703. Resto
+\end{rsalida}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{m03-sol-dia}
+\caption{Solución del ejercicio m3-5.}
+\label{fig:m03-sol-dia}
+\end{figure}
+
+\textbf{Interpretación.} El viernes suma \$161,266, contra \$115,172 del
+sábado, el día más bajo. Pero recuerda el mapa de calor
+(figura~\ref{fig:m03-calor}): el viernes no es el mejor día \emph{todos}
+los meses. La diferencia anual existe, pero no es tan consistente como para
+basar en ella una estrategia sin más análisis.
+\end{solucion}
+
+\begin{solucion}{m3-6}
+\begin{rcode}
+library(tidyverse)
+library(scales)
+empleados <- read_csv("datasets/empleados.csv", show_col_types = FALSE)
+
+empleados %>%
+  group_by(departamento) %>%
+  summarise(mediana = median(salario_mensual),
+            ric     = IQR(salario_mensual),   # rango intercuartílico
+            n       = n(),
+            .groups = "drop") %>%
+  arrange(desc(mediana))
+
+s6 <- ggplot(empleados,
+             aes(x = salario_mensual,
+                 y = fct_reorder(departamento, salario_mensual,
+                                 .fun = median))) +
+  geom_boxplot(fill = "#cde2fb", color = "#2a78d6", width = 0.6) +
+  scale_x_continuous(labels = dollar) +
+  labs(title = "IT y Operaciones tienen los salarios medianos más altos",
+       x = "Salario mensual (MXN)", y = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank())
+s6
+\end{rcode}
+\begin{rsalida}
+# A tibble: 7 x 4
+  departamento        mediana    ric     n
+  <chr>                 <dbl>  <dbl> <int>
+1 IT                   35044. 20725.     9
+2 Operaciones          34945. 17114.    10
+3 Ventas               32102. 22089.    16
+4 Finanzas             31123. 14796.     9
+5 Atención al Cliente  30663. 17242.    29
+6 Marketing            24193. 11419.    12
+7 RRHH                 18291. 13712.    15
+\end{rsalida}
+
+\textbf{Interpretación.} IT y Operaciones tienen las medianas más altas
+(unos \$35,000) y RRHH la más baja (\$18,291). La mayor dispersión la
+tiene Ventas: su rango intercuartílico (\codigo{ric}, el ancho de la caja)
+es de \$22,089. Cuidado: algunos departamentos tienen
+solo 9 o 10 personas, así que un boxplot con tan pocos datos es
+orientativo; siempre acompáñalo del número de observaciones.
+\end{solucion}
+
+\begin{solucion}{m3-7}
+\begin{rcode}
+library(tidyverse)
+library(scales)
+color_principal <- "#2a78d6"
+color_resalte   <- "#eb6834"
+color_gris      <- "#b5b3ad"
+
+productos <- read_csv("datasets/productos.csv", show_col_types = FALSE)
+
+productos_margen <- productos %>%
+  mutate(situacion = if_else(costo > precio_catalogo,
+                             "Costo mayor al precio",
+                             "Margen positivo"))
+count(productos_margen, situacion)
+
+s_costo <- ggplot(productos_margen,
+                  aes(x = costo, y = precio_catalogo,
+                      color = situacion)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed",
+              color = color_gris) +
+  geom_point(size = 2.5, alpha = 0.8) +
+  annotate("text", x = 380, y = 390, label = "precio = costo",
+           angle = 20, size = 3, color = "#52514e", vjust = -0.5) +
+  scale_color_manual(values = c("Margen positivo" = color_principal,
+                                "Costo mayor al precio" = color_resalte)) +
+  scale_x_continuous(labels = dollar) +
+  scale_y_continuous(labels = dollar) +
+  labs(title = "10 de 50 productos cuestan más de lo que se venden",
+       subtitle = "Cada punto es un producto del catálogo",
+       x = "Costo", y = "Precio de catálogo", color = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        legend.position = "top")
+s_costo
+\end{rcode}
+\begin{rsalida}
+# A tibble: 2 x 2
+  situacion                 n
+  <chr>                 <int>
+1 Costo mayor al precio    10
+2 Margen positivo          40
+\end{rsalida}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{m03-sol-costo}
+\caption{Solución del ejercicio m3-7: los puntos naranjas, debajo de la
+diagonal, tienen margen negativo.}
+\label{fig:m03-sol-costo}
+\end{figure}
+
+\textbf{Interpretación.} Todo punto por debajo de la diagonal tiene un
+costo mayor a su precio: 10 de los 50 productos (20\%). Es un
+\emph{hallazgo de calidad de datos} o de negocio que hay que escalar: o el
+costo está mal capturado, o se están vendiendo productos con pérdida. Al
+área de compras le pedirías revisar primero estos diez productos.
+\end{solucion}
+
+\begin{solucion}{m3-8}
+La clave es dibujar dos capas con datos distintos: primero las siete
+tiendas en gris (con \codigo{group} para que cada una sea su propia línea y
+sin \codigo{color} en \codigo{aes()}, así no entran a la leyenda) y encima
+las tres líderes con \codigo{color = tienda}.
+
+\begin{rcode}
+library(tidyverse)
+library(scales)
+color_gris   <- "#b5b3ad"
+paleta_libro <- c("#2a78d6", "#eb6834", "#1baf7a", "#eda100",
+                  "#e87ba4", "#008300", "#4a3aa7", "#e34948")
+
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+tiendas <- read_csv("datasets/tiendas.csv", show_col_types = FALSE)
+
+acumulado <- transacciones %>%
+  left_join(tiendas, by = "tienda_id") %>%
+  mutate(tienda = str_remove(nombre_tienda, "Sucursal "),
+         mes = floor_date(fecha, unit = "month")) %>%
+  group_by(tienda, mes) %>%
+  summarise(ingresos = sum(total_transaccion), .groups = "drop") %>%
+  group_by(tienda) %>%
+  arrange(mes, .by_group = TRUE) %>%
+  mutate(acumulado = cumsum(ingresos)) %>%
+  ungroup()
+
+# las 3 con más ingresos acumulados en el último mes
+top3 <- acumulado %>%
+  filter(mes == max(mes)) %>%
+  slice_max(acumulado, n = 3) %>%
+  pull(tienda)
+top3
+
+lideres <- acumulado %>%
+  filter(tienda %in% top3) %>%
+  mutate(tienda = factor(tienda, levels = top3))  # orden de la leyenda
+resto <- acumulado %>% filter(!tienda %in% top3)
+
+s_top3 <- ggplot(mapping = aes(x = mes, y = acumulado)) +
+  geom_line(data = resto, aes(group = tienda),
+            color = color_gris, linewidth = 0.5) +
+  geom_line(data = lideres, aes(color = tienda), linewidth = 0.9) +
+  scale_color_manual(values = paleta_libro[1:3]) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+  scale_y_continuous(labels = dollar) +
+  labs(title = "Las tres tiendas líderes al cierre de 2023",
+       subtitle = "Ingresos acumulados; en gris, las otras 7 tiendas",
+       x = NULL, y = "Ingresos acumulados (MXN)", color = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        legend.position = "top")
+s_top3
+\end{rcode}
+\begin{rsalida}
+[1] "Outlet"  "Sur"     "Plaza A"
+\end{rsalida}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{m03-sol-top3}
+\caption{Solución del ejercicio m3-8.}
+\label{fig:m03-sol-top3}
+\end{figure}
+
+\textbf{Interpretación.} Outlet, Sur y Plaza A terminan arriba. Sur y
+Plaza A cierran prácticamente empatadas (\$105,305 y \$105,216). El
+primer lugar cambió de manos varias veces durante el año y Outlet lo tomó
+en noviembre. Como \codigo{top3} se calcula con código, la gráfica se
+actualiza sola si cambian los datos.
+\end{solucion}
+
+\begin{solucion}{m3-9}
+Dentro de una función, \codigo{\{\{ categoria \}\}} (se lee
+``\emph{curly-curly}'') le dice a \paquete{ggplot2} y a \paquete{dplyr} que
+use la columna cuyo nombre recibió el argumento.
+
+\begin{rcode}
+library(tidyverse)
+library(scales)
+color_principal <- "#2a78d6"
+
+tema_empresa <- function(base_size = 11) {
+  theme_minimal(base_size = base_size) +
+    theme(plot.title = element_text(face = "bold", color = "#0b0b0b"),
+          plot.title.position = "plot",
+          axis.text = element_text(color = "#52514e"),
+          panel.grid.minor = element_blank(),
+          panel.grid.major.y = element_blank(),
+          plot.margin = margin(10, 15, 10, 10))
+}
+
+grafica_ranking <- function(datos, categoria, valor, titulo) {
+  ggplot(datos, aes(x = {{ valor }},
+                    y = fct_reorder({{ categoria }}, {{ valor }}))) +
+    geom_col(fill = color_principal, width = 0.7) +
+    scale_x_continuous(labels = dollar,
+                       expand = expansion(mult = c(0, 0.05))) +
+    labs(title = titulo, x = NULL, y = NULL) +
+    tema_empresa()
+}
+
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+tiendas <- read_csv("datasets/tiendas.csv", show_col_types = FALSE)
+
+por_pago <- transacciones %>%
+  group_by(metodo_pago) %>%
+  summarise(ingresos = sum(total_transaccion), .groups = "drop")
+
+por_tienda <- transacciones %>%
+  left_join(tiendas, by = "tienda_id") %>%
+  group_by(nombre_tienda) %>%
+  summarise(ingresos = sum(total_transaccion), .groups = "drop")
+
+g_pago <- grafica_ranking(por_pago, metodo_pago, ingresos,
+                          "Tarjeta de crédito, el método más usado")
+g_tienda <- grafica_ranking(por_tienda, nombre_tienda, ingresos,
+                            "Sucursal Outlet lidera en ingresos")
+
+dir.create("resultados", showWarnings = FALSE)
+ggsave("resultados/ranking_pago.png", g_pago, width = 7, height = 4,
+       dpi = 300, bg = "white")
+ggsave("resultados/ranking_tienda.png", g_tienda, width = 7, height = 4,
+       dpi = 300, bg = "white")
+file.exists(c("resultados/ranking_pago.png",
+              "resultados/ranking_tienda.png"))
+\end{rcode}
+\begin{rsalida}
+[1] TRUE TRUE
+\end{rsalida}
+
+\textbf{Interpretación.} Con una sola función produces gráficas idénticas
+en estilo para cualquier tabla con una columna de categoría y otra de
+valor. Es el primer paso hacia un ``kit'' de gráficas del área de BI.
+\end{solucion}
+
+\begin{solucion}{m3-10}
+\begin{rcode}
+library(tidyverse)
+library(scales)
+color_principal <- "#2a78d6"
+color_resalte   <- "#eb6834"
+color_gris      <- "#b5b3ad"
+
+clientes <- read_csv("datasets/clientes.csv", show_col_types = FALSE)
+
+# (a) KPIs en consola
+cat("Clientes totales:", comma(nrow(clientes)), "\n")
+cat("% premium:", percent(mean(clientes$es_premium), accuracy = 0.1),
+    "\n")
+cat("Edad mediana:", median(clientes$edad), "años\n")
+
+# (b) clientes por ciudad, resaltando la mayor
+clientes_ciudad <- clientes %>%
+  count(ciudad, name = "clientes") %>%
+  mutate(destacar = if_else(clientes == max(clientes), "Mayor",
+                            "Resto"))
+
+s_ciudades <- ggplot(clientes_ciudad,
+                     aes(x = clientes,
+                         y = fct_reorder(ciudad, clientes),
+                         fill = destacar)) +
+  geom_col(width = 0.7) +
+  geom_text(aes(label = clientes), hjust = -0.3, size = 3.2,
+            color = "#52514e") +
+  scale_fill_manual(values = c(Mayor = color_resalte,
+                               Resto = color_gris),
+                    guide = "none") +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.1))) +
+  labs(title = "Puebla encabeza por poco: 28 clientes contra 27 de CDMX",
+       subtitle = "Clientes registrados por ciudad",
+       x = "Clientes", y = NULL,
+       caption = "Fuente: clientes.csv") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank())
+s_ciudades
+\end{rcode}
+\begin{rsalida}
+Clientes totales: 200 
+% premium: 36.5% 
+Edad mediana: 48.5 años
+\end{rsalida}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{m03-sol-ciudades}
+\caption{Solución del ejercicio m3-10, inciso (b).}
+\label{fig:m03-sol-ciudades}
+\end{figure}
+
+Para el inciso (c), el porcentaje de premium por segmento es el promedio
+de la columna lógica \codigo{es\_premium} (\codigo{TRUE} cuenta como 1).
+Ordenamos los segmentos por edad, no por valor, porque tienen un orden
+natural.
+
+\begin{rcode}
+premium_segmento <- clientes %>%
+  mutate(segmento = factor(segmento,
+                           levels = c("Joven", "Adulto", "Maduro",
+                                      "Senior"))) %>%
+  group_by(segmento) %>%
+  summarise(clientes = n(), pct_premium = mean(es_premium),
+            .groups = "drop")
+premium_segmento
+
+s_premium <- ggplot(premium_segmento,
+                    aes(x = segmento, y = pct_premium)) +
+  geom_col(fill = color_principal, width = 0.6) +
+  geom_text(aes(label = percent(pct_premium, accuracy = 1)),
+            vjust = -0.5, size = 3.5, color = "#52514e") +
+  scale_y_continuous(labels = percent, limits = c(0, 0.5),
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(title = "El segmento Maduro tiene más clientes premium",
+       subtitle = "% de clientes premium por segmento de edad",
+       x = NULL, y = NULL, caption = "Fuente: clientes.csv") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank())
+
+dir.create("resultados", showWarnings = FALSE)
+ggsave("resultados/clientes_ciudad.png", s_ciudades, width = 7,
+       height = 4, dpi = 300, bg = "white")
+ggsave("resultados/premium_segmento.png", s_premium, width = 7,
+       height = 4, dpi = 300, bg = "white")
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 3
+  segmento clientes pct_premium
+  <fct>       <int>       <dbl>
+1 Joven          21       0.333
+2 Adulto         48       0.312
+3 Maduro         70       0.414
+4 Senior         61       0.361
+\end{rsalida}
+
+\textbf{Conclusiones para marketing.}
+\begin{enumerate}
+  \item Tenemos 200 clientes, 36.5\% premium, con edad mediana de 48.5
+        años: la base es madura.
+  \item Puebla (28) y CDMX (27) concentran el 27.5\% de los clientes;
+        Monterrey es la ciudad con menos (14), una posible oportunidad de
+        crecimiento.
+  \item El segmento Maduro (41--60 años) es el más grande (70 clientes) y el
+        de mayor proporción premium (41\%); los Jóvenes son pocos (21), así
+        que su 33\% premium se basa en muy pocos casos.
+\end{enumerate}
+\end{solucion}
