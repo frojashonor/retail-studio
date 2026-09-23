@@ -1003,9 +1003,9 @@ Cuando los datos vienen de un sistema o de un Excel mal exportado, los
 montos a veces llegan como texto con separador de miles o con signo de
 pesos. R no sabe interpretarlos:
 
-\begin{rcode}
+\begin{rnoejecutar}
 as.numeric("1,234")            # La coma de miles confunde a R
-\end{rcode}
+\end{rnoejecutar}
 \begin{rsalida}
 [1] NA
 Warning message:
@@ -1359,10 +1359,18 @@ lo repite hasta completar el largo del otro. Esto se llama
 
 \begin{rcode}
 c(1000, 2000, 3000, 4000) * c(1, 0.5)   # 1, 0.5, 1, 0.5
-c(1000, 2000, 3000) * c(1, 0.5)         # No es múltiplo: advertencia
 \end{rcode}
 \begin{rsalida}
 [1] 1000 1000 3000 2000
+\end{rsalida}
+
+Si el largo del vector mayor no es múltiplo del menor, R hace el cálculo
+de todos modos, pero te lanza una advertencia:
+
+\begin{rnoejecutar}
+c(1000, 2000, 3000) * c(1, 0.5)         # No es múltiplo: advertencia
+\end{rnoejecutar}
+\begin{rsalida}
 [1] 1000 1000 3000
 Warning message:
 In c(1000, 2000, 3000) * c(1, 0.5) :
@@ -1681,7 +1689,11 @@ paste("ventas", c("enero", "febrero"), "2023", sep = "_")
 paste(c("CDMX", "Monterrey", "Puebla"), collapse = ", ")
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+[1] "Sucursal Norte"
+[1] "Q1" "Q2" "Q3" "Q4"
+[1] "SKU-1" "SKU-2" "SKU-3"
+[1] "ventas_enero_2023"   "ventas_febrero_2023"
+[1] "CDMX, Monterrey, Puebla"
 \end{rsalida}
 
 \codigo{paste()} también es vectorizada: con \codigo{1:4} produce cuatro
@@ -1707,7 +1719,10 @@ sprintf("%s: %d tickets", c("Centro", "Norte"), c(1520L, 1204L))
 sprintf("SKU-%04d", c(7, 42, 315))       # Rellena con ceros a 4 dígitos
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+[1] "La sucursal Norte vendió $468900.50"
+[1] "Cumplimiento de meta: 97.7%"
+[1] "Centro: 1520 tickets" "Norte: 1204 tickets" 
+[1] "SKU-0007" "SKU-0042" "SKU-0315"
 \end{rsalida}
 
 El último ejemplo es muy práctico para construir códigos de producto o de
@@ -1726,7 +1741,10 @@ format(montos, big.mark = ",", nsmall = 2)     # Rellena con espacios
 format(montos, big.mark = ",", nsmall = 2, trim = TRUE)
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+[1] "1,234,568"
+[1] "1,234,567.89"
+[1] "513,916.60" "  1,407.99" " 54,056.19"
+[1] "513,916.60" "1,407.99"   "54,056.19" 
 \end{rsalida}
 
 El argumento \codigo{big.mark} pone la coma de miles y \codigo{nsmall}
@@ -1746,7 +1764,8 @@ paste0("$", format(round(montos, 2), big.mark = ",", nsmall = 2,
                    trim = TRUE))
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+[1] "$1,234,567.89"
+[1] "$513,916.60" "$1,407.99"   "$54,056.19" 
 \end{rsalida}
 
 Funciona, pero es largo. El \paquete{scales} es un \termino{paquete}: un
@@ -1764,7 +1783,12 @@ scales::percent(0.9327, accuracy = 0.1)      # Proporción -> porcentaje
 scales::comma(1234567)                       # Solo separador de miles
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+[1] "$1,234,568"
+[1] "$1,234,567.89"
+[1] "$513,917" "$1,408"   "$54,056" 
+[1] "$15,000 MXN"
+[1] "93.3%"
+[1] "1,234,567"
 \end{rsalida}
 
 Observa que \codigo{dollar()} decide solo si muestra centavos: cuando hay
@@ -1798,7 +1822,15 @@ gsub("Sucursal ", "", c("Sucursal Centro", "Sucursal Norte"))
 grepl("Premium", c("Sucursal Premium", "Sucursal Outlet"))
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+[1] "  LAPTOP HP PAVILION 15  "
+[1] "sucursal centro"
+[1] "Laptop HP Pavilion 15"
+[1] 21
+[1] "ELEC"
+[1] "2023"
+[1] "ELEC20230153"
+[1] "Centro" "Norte" 
+[1]  TRUE FALSE
 \end{rsalida}
 
 \begin{itemize}
@@ -1826,7 +1858,12 @@ ciudades_limpias <- toupper(trimws(ciudades))
 table(ciudades_limpias)                      # Tres ciudades reales
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+ciudades
+      cdmx       CDMX      Cdmx   Monterrey monterrey      Puebla 
+         1          1          1          1          1          1 
+ciudades_limpias
+     CDMX MONTERREY    PUEBLA 
+        3         2         1 
 \end{rsalida}
 
 Con dos funciones anidadas, \codigo{trimws()} para quitar espacios y
@@ -1876,7 +1913,15 @@ productos <- data.frame(
 productos
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+             nombre   categoria precio costo unidades
+1     Laptop Pro 14 Electrónica  18999 14250       12
+2 Mouse inalámbrico Electrónica    349   120       85
+3        Monitor 27 Electrónica   5499  4100       20
+4  Silla ergonómica       Hogar   3899  2300       15
+5        Escritorio       Hogar   4299  2950        9
+6    Playera básica        Ropa    199    85      240
+7          Chamarra        Ropa   1299   690       38
+8     Tenis running        Ropa   1899  1050       44
 \end{rsalida}
 
 Cada argumento de \codigo{data.frame()} es una columna: primero el nombre
@@ -1896,7 +1941,14 @@ dim(productos)            # Filas y columnas
 names(productos)          # Nombres de las columnas
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+             nombre   categoria precio costo unidades
+1     Laptop Pro 14 Electrónica  18999 14250       12
+2 Mouse inalámbrico Electrónica    349   120       85
+3        Monitor 27 Electrónica   5499  4100       20
+[1] 8
+[1] 5
+[1] 8 5
+[1] "nombre"    "categoria" "precio"    "costo"     "unidades" 
 \end{rsalida}
 
 \begin{rcode}
@@ -1904,7 +1956,19 @@ str(productos)            # Estructura: tipo de cada columna
 summary(productos[, c("precio", "costo", "unidades")])
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+'data.frame':   8 obs. of  5 variables:
+ $ nombre   : chr  "Laptop Pro 14" "Mouse inalámbrico" "Monitor 27" "Silla ergonómica" ...
+ $ categoria: chr  "Electrónica" "Electrónica" "Electrónica" "Hogar" ...
+ $ precio   : num  18999 349 5499 3899 4299 ...
+ $ costo    : num  14250 120 4100 2300 2950 ...
+ $ unidades : num  12 85 20 15 9 240 38 44
+     precio          costo            unidades     
+ Min.   :  199   Min.   :   85.0   Min.   :  9.00  
+ 1st Qu.: 1062   1st Qu.:  547.5   1st Qu.: 14.25  
+ Median : 2899   Median : 1675.0   Median : 29.00  
+ Mean   : 4555   Mean   : 3193.1   Mean   : 57.88  
+ 3rd Qu.: 4599   3rd Qu.: 3237.5   3rd Qu.: 54.25  
+ Max.   :18999   Max.   :14250.0   Max.   :240.00  
 \end{rsalida}
 
 \codigo{str()} (de \emph{structure}) es probablemente la función que más
@@ -1939,7 +2003,15 @@ productos[2, "precio"]                  # Una celda: fila 2, col. precio
 productos[1:3, c("nombre", "precio")]   # Filas 1 a 3, dos columnas
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+[1] 18999   349  5499  3899  4299   199  1299  1899
+[1] 4555.25
+             nombre   categoria precio costo unidades
+2 Mouse inalámbrico Electrónica    349   120       85
+[1] 349
+             nombre precio
+1     Laptop Pro 14  18999
+2 Mouse inalámbrico    349
+3        Monitor 27   5499
 \end{rsalida}
 
 \subsection{Filtrar filas}
@@ -1959,7 +2031,20 @@ productos[productos$categoria %in% c("Hogar", "Ropa"),
           c("nombre", "precio")]
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+            nombre   categoria precio costo unidades
+1    Laptop Pro 14 Electrónica  18999 14250       12
+3       Monitor 27 Electrónica   5499  4100       20
+4 Silla ergonómica       Hogar   3899  2300       15
+5       Escritorio       Hogar   4299  2950        9
+          nombre categoria precio costo unidades
+6 Playera básica      Ropa    199    85      240
+8  Tenis running      Ropa   1899  1050       44
+            nombre precio
+4 Silla ergonómica   3899
+5       Escritorio   4299
+6   Playera básica    199
+7         Chamarra   1299
+8    Tenis running   1899
 \end{rsalida}
 
 \begin{advertencia}
@@ -1976,7 +2061,9 @@ los nombres de las columnas sin repetir \codigo{productos\$}:
 subset(productos, precio < 1000, select = c(nombre, precio, unidades))
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+             nombre precio unidades
+2 Mouse inalámbrico    349       85
+6    Playera básica    199      240
 \end{rsalida}
 
 En el Módulo~\ref{cap:manipulacion} aprenderás \codigo{filter()} del
@@ -1997,7 +2084,19 @@ caros <- productos[order(productos$precio, decreasing = TRUE), ]
 caros[1:3, c("nombre", "categoria", "precio")]
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+             nombre precio
+6    Playera básica    199
+2 Mouse inalámbrico    349
+7          Chamarra   1299
+8     Tenis running   1899
+4  Silla ergonómica   3899
+5        Escritorio   4299
+3        Monitor 27   5499
+1     Laptop Pro 14  18999
+         nombre   categoria precio
+1 Laptop Pro 14 Electrónica  18999
+3    Monitor 27 Electrónica   5499
+5    Escritorio       Hogar   4299
 \end{rsalida}
 
 \subsection{Crear columnas calculadas}
@@ -2015,7 +2114,15 @@ productos$margen_pct <- round((productos$precio - productos$costo) /
 productos[, c("nombre", "ingreso", "utilidad", "margen_pct")]
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+             nombre ingreso utilidad margen_pct
+1     Laptop Pro 14  227988    56988       25.0
+2 Mouse inalámbrico   29665    19465       65.6
+3        Monitor 27  109980    27980       25.4
+4  Silla ergonómica   58485    23985       41.0
+5        Escritorio   38691    12141       31.4
+6    Playera básica   47760    27360       57.3
+7          Chamarra   49362    23142       46.9
+8     Tenis running   83556    37356       44.7
 \end{rsalida}
 
 \textbf{¿Qué nos dice esto?} La laptop es el producto que más ingreso
@@ -2037,7 +2144,15 @@ tapply(productos$ingreso, productos$categoria, sum)   # Suma por grupo
 aggregate(ingreso ~ categoria, data = productos, FUN = sum)
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+
+Electrónica       Hogar        Ropa 
+          3           2           3 
+Electrónica       Hogar        Ropa 
+     367633       97176      180678 
+    categoria ingreso
+1 Electrónica  367633
+2       Hogar   97176
+3        Ropa  180678
 \end{rsalida}
 
 \begin{itemize}
@@ -2063,7 +2178,10 @@ resumen_categoria[order(resumen_categoria$margen_pct,
                         decreasing = TRUE), ]
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+    categoria ingreso utilidad margen_pct
+3        Ropa  180678    87858       48.6
+2       Hogar   97176    36126       37.2
+1 Electrónica  367633   104433       28.4
 \end{rsalida}
 
 \textbf{¿Qué nos dice esto?} Electrónica vende más del doble que Ropa
@@ -2090,7 +2208,23 @@ productos_tb
 tibble::as_tibble(productos)      # Convertir un data frame a tibble
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+# A tibble: 3 x 4
+  nombre            precio unidades ingreso
+  <chr>              <dbl>    <dbl>   <dbl>
+1 Laptop Pro 14      18999       12  227988
+2 Mouse inalámbrico    349       85   29665
+3 Monitor 27          5499       20  109980
+# A tibble: 8 x 8
+  nombre   categoria precio costo unidades ingreso utilidad margen_pct
+  <chr>    <chr>      <dbl> <dbl>    <dbl>   <dbl>    <dbl>      <dbl>
+1 Laptop ~ Electrón~  18999 14250       12  227988    56988       25  
+2 Mouse i~ Electrón~    349   120       85   29665    19465       65.6
+3 Monitor~ Electrón~   5499  4100       20  109980    27980       25.4
+4 Silla e~ Hogar       3899  2300       15   58485    23985       41  
+5 Escrito~ Hogar       4299  2950        9   38691    12141       31.4
+6 Playera~ Ropa         199    85      240   47760    27360       57.3
+7 Chamarra Ropa        1299   690       38   49362    23142       46.9
+8 Tenis r~ Ropa        1899  1050       44   83556    37356       44.7
 \end{rsalida}
 
 Las diferencias más visibles son:
@@ -2236,7 +2370,23 @@ round(rowMeans(ventas_mat), 1)  # Promedio mensual por producto
 ventas_mat * 1.10               # Pronóstico: +10% en todas las celdas
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+        ene feb mar abr
+Laptop  150 200 180 220
+Mouse   430 390 510 480
+Monitor 210 240 190 260
+[1] 510
+ Laptop   Mouse Monitor 
+    220     480     260 
+ Laptop   Mouse Monitor 
+    750    1810     900 
+ene feb mar abr 
+790 830 880 960 
+ Laptop   Mouse Monitor 
+  187.5   452.5   225.0 
+        ene feb mar abr
+Laptop  165 220 198 242
+Mouse   473 429 561 528
+Monitor 231 264 209 286
 \end{rsalida}
 
 El mouse es el producto de mayor volumen (1,810 unidades en cuatro meses)
@@ -2271,7 +2421,19 @@ cliente$canal <- "Tienda en línea"   # Agregar un elemento nuevo
 names(cliente)
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+List of 6
+ $ id        : num 1045
+ $ nombre    : chr "María González"
+ $ ciudad    : chr "Guadalajara"
+ $ premium   : logi TRUE
+ $ fecha_alta: Date[1:1], format: "2021-06-14"
+ $ compras   : num [1:4] 1250 830 2410 675
+[1] "María González"
+[1] 1250.00  830.50 2410.00  675.25
+[1] 5165.75
+[1] 1291.438
+[1] "id"         "nombre"     "ciudad"     "premium"    "fecha_alta"
+[6] "compras"    "canal"     
 \end{rsalida}
 
 María ha comprado \$5,165.75 en cuatro visitas, con un ticket promedio de

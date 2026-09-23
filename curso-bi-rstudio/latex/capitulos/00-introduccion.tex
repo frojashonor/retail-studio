@@ -1560,7 +1560,8 @@ problemas <- 0                         # contador de problemas
 
 cat("Paquetes:\n")
 for (p in paquetes_curso) {            # revisa los paquetes uno por uno
-  if (requireNamespace(p, quietly = TRUE)) {        # ¿carga bien?
+  # ¿carga bien? (suppressMessages oculta avisos técnicos de carga)
+  if (suppressMessages(requireNamespace(p, quietly = TRUE))) {
     version <- as.character(packageVersion(p))
     cat(sprintf("  OK     %-15s %s\n", p, version))
   } else {
