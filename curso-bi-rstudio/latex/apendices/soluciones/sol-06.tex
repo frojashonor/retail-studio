@@ -1,0 +1,663 @@
+% ============================================================================
+% SOLUCIONES DEL MÓDULO 6
+% ============================================================================
+% Nota: las soluciones que son apps muestran shinyApp() en un bloque que no se
+% ejecuta; la lógica se comprueba con testServer(), que sí se ejecuta.
+
+\begin{solucion}{m6-1}
+Agregamos dos entradas a la \codigo{ui} y ampliamos el cálculo del
+\codigo{renderText()}. El IVA se aplica después del descuento.
+
+\begin{rcode}
+library(shiny)
+
+ui <- fluidPage(
+  titlePanel("Calculadora de precio con descuento"),
+  numericInput("precio", "Precio de lista ($):", value = 500,
+               min = 0, step = 10),
+  numericInput("cantidad", "Cantidad de piezas:", value = 1, min = 1),
+  sliderInput("descuento", "Descuento (%):", min = 0, max = 50,
+              value = 10, step = 5),
+  checkboxInput("iva", "Incluir IVA (16%)", value = FALSE),
+  h3(textOutput("total"))
+)
+
+server <- function(input, output, session) {
+  output$total <- renderText({
+    req(input$precio, input$cantidad)       # sin valores, en blanco
+    subtotal <- input$precio * input$cantidad * (1 - input$descuento / 100)
+    total <- if (input$iva) subtotal * 1.16 else subtotal
+    paste0("Total a pagar: ", scales::dollar(total))
+  })
+}
+
+testServer(server, {
+  session$setInputs(precio = 500, cantidad = 3, descuento = 10,
+                    iva = FALSE)
+  print(output$total)
+  session$setInputs(iva = TRUE)
+  print(output$total)
+})
+\end{rcode}
+\begin{rsalida}
+[1] "Total a pagar: $1,350"
+[1] "Total a pagar: $1,566"
+\end{rsalida}
+
+Sin IVA, 3 piezas de \$500 con 10\% de descuento cuestan \$1,350; con IVA,
+\$1,566, como pedía el enunciado. Para abrir la app:
+
+\begin{rnoejecutar}
+shinyApp(ui, server)
+\end{rnoejecutar}
+\end{solucion}
+
+\begin{solucion}{m6-2}
+Hay tres cambios en \archivo{app.R} de la app 02: (1) un argumento nuevo en
+\codigo{filtrar\_ventas()}, (2) la entrada en la barra lateral y (3) pasar
+la entrada al filtrar. Primero probamos la función modificada, de forma
+autocontenida:
+
+\begin{rcode}
+library(tidyverse)
+library(scales)
+ventas <- read_csv("datasets/transacciones.csv", show_col_types = FALSE)
+
+# (1) filtrar_ventas() con el argumento nuevo 'pagos' (resto igual)
+filtrar_pagos <- function(datos, pagos = NULL) {
+  if (length(pagos) > 0) {                 # vacío = todos los métodos
+    datos <- filter(datos, metodo_pago %in% pagos)
+  }
+  datos
+}
+solo_efectivo <- filtrar_pagos(ventas, pagos = "Efectivo")
+nrow(solo_efectivo)
+dollar(sum(solo_efectivo$total_transaccion), accuracy = 1)
+\end{rcode}
+\begin{rsalida}
+[1] 315
+[1] "$303,735"
+\end{rsalida}
+
+Con solo ``Efectivo'' quedan 315 transacciones por \$303,735. Los cambios en
+la app (la app completa modificada se probó arrancándola y con
+\codigo{testServer()}):
+
+\begin{rnoejecutar}
+# (1) En filtrar_ventas(): nuevo argumento y nuevo if
+filtrar_ventas <- function(datos, tienda = "Todas", categorias = NULL,
+                           fechas = range(datos$fecha), pagos = NULL) {
+  # ... filtros de fecha, tienda y categoría como antes ...
+  if (length(pagos) > 0) {
+    resultado <- filter(resultado, metodo_pago %in% pagos)
+  }
+  resultado
+}
+
+# (2) En sidebarPanel(), después del selectizeInput de categorías:
+checkboxGroupInput("pagos", "Método de pago:",
+                   choices = sort(unique(ventas$metodo_pago)),
+                   selected = sort(unique(ventas$metodo_pago))),
+
+# (3) En el server:
+datos_filtrados <- reactive({
+  req(input$fechas)
+  filtrar_ventas(ventas, input$tienda, input$categorias, input$fechas,
+                 input$pagos)
+})
+\end{rnoejecutar}
+
+Si el usuario desmarca todas las casillas, \codigo{input\$pagos} vale
+\codigo{NULL} y, por nuestra convención, se muestran todos los métodos.
+\end{solucion}
+
+\begin{solucion}{m6-3}
+Primero la lógica. El margen bruto de cada transacción es lo cobrado menos
+el costo de las piezas vendidas (\codigo{costo * cantidad}):
+
+\begin{rcode}
+library(tidyverse)
+library(scales)
+productos <- read_csv("datasets/productos.csv", show_col_types = FALSE)
+datos <- read_csv("datasets/transacciones.csv", show_col_types = FALSE) %>%
+  left_join(select(productos, producto_id, categoria, costo),
+            by = "producto_id")
+
+calcular_margen <- function(datos) {
+  datos %>%
+    summarise(ventas = sum(total_transaccion),
+              margen = sum(total_transaccion - costo * cantidad),
+              pct_margen = margen / ventas)
+}
+
+calcular_margen(datos)
+datos %>%
+  group_by(categoria) %>%
+  calcular_margen() %>%
+  arrange(pct_margen) %>%
+  head(3)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 1 x 3
+   ventas  margen pct_margen
+    <dbl>   <dbl>      <dbl>
+1 959993. 444637.      0.463
+# A tibble: 3 x 4
+  categoria  ventas margen pct_margen
+  <chr>       <dbl>  <dbl>      <dbl>
+1 Ropa       30048.  5835.      0.194
+2 Hogar      63407. 13079.      0.206
+3 Belleza   182143. 56054.      0.308
+\end{rsalida}
+
+En total la empresa obtiene un margen bruto de 46.3\% (\$444,637). Las
+categorías con menor margen son Ropa (19.4\%), Hogar (20.6\%) y Belleza
+(30.8\%): Belleza es la tercera más baja porque varios de sus productos tienen
+un costo superior a su precio de catálogo (el hallazgo de calidad de datos
+que ya conoces), aunque sus precios de venta reales lo compensan en parte. Justo para eso sirve el color condicional. En la
+app, agregamos \codigo{calcular\_margen()} a
+\archivo{R/funciones\_dashboard.R} y estas piezas a \archivo{app.R}:
+
+\begin{rnoejecutar}
+# ui: nueva fila dentro de tabItem(tabName = "resumen")
+fluidRow(
+  valueBoxOutput("kpi_margen", width = 6),
+  valueBoxOutput("kpi_pct_margen", width = 6)
+)
+
+# server
+margen <- reactive(calcular_margen(datos_filtrados()))
+
+output$kpi_margen <- renderValueBox({
+  m <- margen()$margen
+  valueBox(formato_pesos(m), "Margen bruto",
+           icon = icon("sack-dollar"),
+           color = if (isTRUE(m >= 0)) "green" else "red")
+})
+output$kpi_pct_margen <- renderValueBox({
+  valueBox(formato_pct(margen()$pct_margen), "% de margen",
+           icon = icon("percent"), color = "blue")
+})
+\end{rnoejecutar}
+
+\codigo{isTRUE()} evita un error cuando el filtro no deja ventas (el margen
+sería 0 y el porcentaje \codigo{NaN}). Con la categoría Belleza y la tienda
+correspondiente puedes llegar a ver la caja en rojo.
+\end{solucion}
+
+\begin{solucion}{m6-4}
+El truco es que \emph{todas} las salidas dependan de un
+\codigo{eventReactive()} ligado al botón, y no directamente de los filtros.
+
+\begin{rcode}
+library(shiny)
+library(tidyverse)
+library(scales)
+tiendas <- read_csv("datasets/tiendas.csv", show_col_types = FALSE)
+ventas <- read_csv("datasets/transacciones.csv", show_col_types = FALSE) %>%
+  left_join(select(tiendas, tienda_id, nombre_tienda), by = "tienda_id")
+
+ui <- fluidPage(
+  titlePanel("Ventas con botón Aplicar"),
+  sidebarLayout(
+    sidebarPanel(
+      selectizeInput("tiendas", "Tiendas:",
+                     choices = sort(unique(ventas$nombre_tienda)),
+                     multiple = TRUE, options = list(placeholder = "Todas")),
+      dateRangeInput("fechas", "Periodo:", start = "2023-01-01",
+                     end = "2023-12-31", language = "es",
+                     separator = " a "),
+      actionButton("aplicar", "Aplicar", icon = icon("filter"))
+    ),
+    mainPanel(h3(textOutput("ventas")), h4(textOutput("transacciones")))
+  )
+)
+
+server <- function(input, output, session) {
+  # ignoreNULL = FALSE: calcula también al abrir la app (con el valor 0
+  # del botón), para no empezar con la pantalla vacía
+  datos <- eventReactive(input$aplicar, {
+    d <- filter(ventas, fecha >= input$fechas[1], fecha <= input$fechas[2])
+    if (length(input$tiendas) > 0) {
+      d <- filter(d, nombre_tienda %in% input$tiendas)
+    }
+    d
+  }, ignoreNULL = FALSE)
+
+  output$ventas <- renderText(
+    paste("Ventas:", dollar(sum(datos()$total_transaccion), accuracy = 1)))
+  output$transacciones <- renderText(
+    paste("Transacciones:", nrow(datos())))
+}
+
+testServer(server, {
+  session$setInputs(tiendas = NULL, aplicar = 0,
+                    fechas = as.Date(c("2023-01-01", "2023-12-31")))
+  print(output$ventas)
+  session$setInputs(tiendas = "Sucursal Norte")      # sin pulsar
+  print(output$ventas)
+  session$setInputs(aplicar = 1)                     # pulsa Aplicar
+  print(output$ventas)
+  print(output$transacciones)
+})
+\end{rcode}
+\begin{rsalida}
+[1] "Ventas: $959,993"
+[1] "Ventas: $959,993"
+[1] "Ventas: $89,024"
+[1] "Transacciones: 99"
+\end{rsalida}
+
+La prueba lo demuestra: al elegir ``Sucursal Norte'' sin pulsar, las ventas
+siguen en \$959,993; al pulsar ``Aplicar'' cambian a las de la Sucursal
+Norte (\$89,024 en 99 transacciones).
+
+\begin{rnoejecutar}
+shinyApp(ui, server)
+\end{rnoejecutar}
+\end{solucion}
+
+\begin{solucion}{m6-5}
+Primero la función de la gráfica. Con \codigo{wday(fecha, label = TRUE,
+week\_start = 1)} obtenemos el día como factor ordenado de lunes a domingo
+(en español, porque trabajamos con locale es\_MX):
+
+\begin{rcode}
+library(tidyverse)
+library(lubridate)
+library(scales)
+datos <- read_csv("datasets/transacciones.csv", show_col_types = FALSE)
+
+ventas_por_dia <- function(datos) {
+  datos %>%
+    mutate(dia = wday(fecha, label = TRUE, abbr = FALSE,
+                      week_start = 1)) %>%
+    group_by(dia) %>%
+    summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
+    mutate(es_mejor = ventas == max(ventas))
+}
+
+grafica_dias <- function(datos) {
+  ggplot(ventas_por_dia(datos), aes(x = dia, y = ventas, fill = es_mejor)) +
+    geom_col(width = 0.7) +
+    scale_fill_manual(values = c(`TRUE` = "#eb6834", `FALSE` = "#b5b3ad"),
+                      guide = "none") +
+    scale_y_continuous(labels = label_dollar(),
+                       expand = expansion(mult = c(0, 0.05))) +
+    labs(x = NULL, y = "Ventas") +
+    theme_minimal(base_size = 12) +
+    theme(panel.grid.minor = element_blank())
+}
+
+ventas_por_dia(datos)
+p_dias <- grafica_dias(datos)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 7 x 3
+  dia        ventas es_mejor
+  <ord>       <dbl> <lgl>   
+1 lunes     128878. FALSE   
+2 martes    119364. FALSE   
+3 miércoles 141329. FALSE   
+4 jueves    145280. FALSE   
+5 viernes   161266. TRUE    
+6 sábado    115172. FALSE   
+7 domingo   148703. FALSE   
+\end{rsalida}
+
+En todo 2023 el mejor día es el viernes (\$161,266) y el más flojo el
+sábado (\$115,172). Como la función recibe los datos, en la app basta con pasarle
+\codigo{datos\_validos()} para que respete los filtros globales. Cambios en
+la app 03:
+
+\begin{rnoejecutar}
+# En sidebarMenu(), después de "Clientes":
+menuItem("Días", tabName = "dias", icon = icon("calendar-week")),
+
+# En tabItems(), una pestaña nueva:
+tabItem(tabName = "dias",
+  fluidRow(
+    box(title = "Ventas por día de la semana", width = 12,
+        status = "primary", plotOutput("graf_dias", height = 380))
+  )
+),
+
+# En el server:
+output$graf_dias <- renderPlot({
+  grafica_dias(datos_validos())
+}, res = 96)
+\end{rnoejecutar}
+
+La función \codigo{grafica\_dias()} (con \codigo{ventas\_por\_dia()}) va en
+\archivo{R/funciones\_dashboard.R}, junto a las demás gráficas.
+\end{solucion}
+
+\begin{solucion}{m6-6}
+Para que la descarga contenga ``exactamente la tabla que se ve'', guardamos
+la tabla en un reactivo que usan \emph{tanto} la tabla como los dos botones.
+Así no hay forma de que diverjan. Probemos primero, autocontenido, lo que
+escribirá cada botón:
+
+\begin{rcode}
+library(tidyverse)
+library(scales)
+library(writexl)
+productos <- read_csv("datasets/productos.csv", show_col_types = FALSE)
+ventas <- read_csv("datasets/transacciones.csv", show_col_types = FALSE) %>%
+  left_join(select(productos, producto_id, nombre_producto, categoria),
+            by = "producto_id")
+
+top_productos <- function(datos, n = 10) {
+  datos %>%
+    group_by(Producto = nombre_producto, `Categoría` = categoria) %>%
+    summarise(Unidades = sum(cantidad),
+              Ventas   = sum(total_transaccion), .groups = "drop") %>%
+    slice_max(Ventas, n = n, with_ties = FALSE) %>%
+    mutate(Ventas = dollar(Ventas))
+}
+
+dir.create("resultados", showWarnings = FALSE)
+nombre <- paste0("top_productos_", Sys.Date())
+top5 <- top_productos(ventas, n = 5)
+write_excel_csv(top5, file.path("resultados", paste0(nombre, ".csv")))
+write_xlsx(top5, file.path("resultados", paste0(nombre, ".xlsx")))
+read_csv(file.path("resultados", paste0(nombre, ".csv")),
+         show_col_types = FALSE)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 5 x 4
+  Producto    Categoría  Unidades Ventas    
+  <chr>       <chr>         <dbl> <chr>     
+1 Producto 06 Juguetes         82 $34,028.04
+2 Producto 19 Deportes         85 $28,367.95
+3 Producto 31 Alimentos        74 $25,429.70
+4 Producto 47 Automotriz       82 $24,527.21
+5 Producto 46 Automotriz       74 $24,470.29
+\end{rsalida}
+
+Los cambios en la app 02:
+
+\begin{rnoejecutar}
+# ui: la pestaña "Top productos" ahora tiene los botones arriba
+tabPanel("Top productos",
+         br(),
+         downloadButton("bajar_csv", "Descargar CSV"),
+         downloadButton("bajar_excel", "Descargar Excel"),
+         br(), br(),
+         tableOutput("tabla_top"))
+
+# server: un reactivo con la tabla visible
+tabla_visible <- reactive(top_productos(datos_filtrados(), n = input$n_top))
+
+output$tabla_top <- renderTable(tabla_visible(), align = "llrr",
+                                digits = 0)
+
+output$bajar_csv <- downloadHandler(
+  filename = function() paste0("top_productos_", Sys.Date(), ".csv"),
+  content  = function(file) write_excel_csv(tabla_visible(), file)
+)
+output$bajar_excel <- downloadHandler(
+  filename = function() paste0("top_productos_", Sys.Date(), ".xlsx"),
+  content  = function(file) writexl::write_xlsx(tabla_visible(), file)
+)
+\end{rnoejecutar}
+
+Para probarlo con \codigo{testServer()} sobre la app modificada, basta con
+leer la salida del botón, que devuelve la ruta del archivo generado:
+
+\begin{rnoejecutar}
+testServer(shinyAppDir("mis-apps/02-mi-explorador"), {
+  session$setInputs(tienda = "Todas", categorias = NULL, n_top = 5,
+                    fechas = as.Date(c("2023-01-01", "2023-12-31")),
+                    metrica = "ventas")
+  read_csv(output$bajar_csv, show_col_types = FALSE)   # 5 filas
+})
+\end{rnoejecutar}
+\end{solucion}
+
+\begin{solucion}{m6-7}
+El módulo recibe los datos como \emph{reactivo} (sin paréntesis al
+pasarlo) y el nombre de la columna como texto. Dentro, cada id pasa por
+\codigo{ns()}, así que las dos copias no chocan aunque ambas tengan un
+deslizador llamado \codigo{"n"}.
+
+\begin{rcode}
+library(shiny)
+library(shinydashboard)
+library(tidyverse)
+library(scales)
+tiendas <- read_csv("datasets/tiendas.csv", show_col_types = FALSE)
+productos <- read_csv("datasets/productos.csv", show_col_types = FALSE)
+ventas <- read_csv("datasets/transacciones.csv", show_col_types = FALSE) %>%
+  left_join(select(tiendas, tienda_id, ciudad), by = "tienda_id") %>%
+  left_join(select(productos, producto_id, nombre_producto),
+            by = "producto_id")
+
+# ---- Módulo ------------------------------------------------------------
+ranking_ui <- function(id, titulo) {
+  ns <- NS(id)
+  box(title = titulo, width = 6, status = "primary",
+      sliderInput(ns("n"), "Mostrar top:", min = 3, max = 10, value = 5),
+      plotOutput(ns("grafica"), height = 300))
+}
+
+ranking_server <- function(id, datos, columna) {
+  moduleServer(id, function(input, output, session) {
+    resumen <- reactive({
+      datos() %>%
+        group_by(nombre = .data[[columna]]) %>%
+        summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
+        slice_max(ventas, n = input$n, with_ties = FALSE)
+    })
+    output$grafica <- renderPlot({
+      ggplot(resumen(), aes(x = ventas, y = reorder(nombre, ventas))) +
+        geom_col(fill = "#2a78d6", width = 0.7) +
+        scale_x_continuous(labels = label_dollar()) +
+        labs(x = "Ventas", y = NULL) +
+        theme_minimal(base_size = 12)
+    }, res = 96)
+    resumen                    # el módulo devuelve su tabla (reactivo)
+  })
+}
+
+# ---- App que usa el módulo dos veces -----------------------------------
+ui <- dashboardPage(
+  dashboardHeader(title = "Rankings"),
+  dashboardSidebar(disable = TRUE),
+  dashboardBody(fluidRow(
+    ranking_ui("productos", "Top productos"),
+    ranking_ui("ciudades", "Top ciudades")
+  ))
+)
+server <- function(input, output, session) {
+  datos <- reactive(ventas)
+  ranking_server("productos", datos, "nombre_producto")
+  ranking_server("ciudades", datos, "ciudad")
+}
+
+# Cada copia del módulo se prueba por separado con su propio 'n'
+testServer(ranking_server,
+           args = list(datos = reactive(ventas), columna = "ciudad"), {
+  session$setInputs(n = 3)
+  print(resumen())
+})
+testServer(ranking_server,
+           args = list(datos = reactive(ventas),
+                       columna = "nombre_producto"), {
+  session$setInputs(n = 4)
+  print(nrow(resumen()))
+})
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 2
+  nombre       ventas
+  <chr>         <dbl>
+1 CDMX        383588.
+2 Guadalajara 169260.
+3 Tijuana     114377.
+[1] 4
+\end{rsalida}
+
+La copia de ciudades con \codigo{n = 3} devuelve las tres ciudades con más
+ventas (la CDMX, con cuatro tiendas, domina con \$383,588) y la de productos
+con \codigo{n = 4} devuelve 4 filas: cada módulo responde a su propio
+deslizador. En la \codigo{ui} completa los ids reales son
+\codigo{productos-n} y \codigo{ciudades-n}.
+
+\begin{rnoejecutar}
+shinyApp(ui, server)
+\end{rnoejecutar}
+\end{solucion}
+
+\begin{solucion}{m6-8}
+Seguimos la receta del módulo: datos fuera del \codigo{server}, funciones
+de lógica probadas por separado y un servidor corto.
+
+\begin{rcode}
+library(shiny)
+library(shinydashboard)
+library(tidyverse)
+library(scales)
+library(DT)
+library(writexl)
+
+empleados <- read_csv("datasets/empleados.csv", show_col_types = FALSE)
+
+# ---- Lógica --------------------------------------------------------------
+filtrar_empleados <- function(datos, deptos = NULL, sucursales = NULL) {
+  if (length(deptos) > 0) datos <- filter(datos, departamento %in% deptos)
+  if (length(sucursales) > 0) {
+    datos <- filter(datos, sucursal %in% sucursales)
+  }
+  datos
+}
+
+kpis_rrhh <- function(datos) {
+  datos %>%
+    summarise(plantilla = n(),
+              salario_prom = mean(salario_mensual),
+              antiguedad_prom = mean(antiguedad_anos),
+              pct_posgrado = mean(nivel_educacion %in%
+                                    c("Maestría", "Doctorado")))
+}
+
+grafica_salario_puesto <- function(datos) {
+  datos %>%
+    group_by(puesto) %>%
+    summarise(salario = mean(salario_mensual), .groups = "drop") %>%
+    ggplot(aes(x = salario, y = reorder(puesto, salario))) +
+    geom_col(fill = "#2a78d6", width = 0.7) +
+    scale_x_continuous(labels = label_dollar(),
+                       expand = expansion(mult = c(0, 0.05))) +
+    labs(x = "Salario mensual promedio", y = NULL) +
+    theme_minimal(base_size = 12) +
+    theme(panel.grid.minor = element_blank())
+}
+
+tabla_empleados <- function(datos) {
+  datos %>%
+    select(Nombre = nombre, Departamento = departamento, Puesto = puesto,
+           Sucursal = sucursal, Salario = salario_mensual,
+           `Antigüedad` = antiguedad_anos) %>%
+    arrange(desc(Salario))
+}
+
+kpis_rrhh(empleados)
+kpis_rrhh(filtrar_empleados(empleados, deptos = "Ventas"))
+\end{rcode}
+\begin{rsalida}
+# A tibble: 1 x 4
+  plantilla salario_prom antiguedad_prom pct_posgrado
+      <int>        <dbl>           <dbl>        <dbl>
+1       100       27481.            3.96         0.35
+# A tibble: 1 x 4
+  plantilla salario_prom antiguedad_prom pct_posgrado
+      <int>        <dbl>           <dbl>        <dbl>
+1        16       29032.            4.14        0.312
+\end{rsalida}
+
+La empresa tiene 100 empleados con salario mensual promedio de \$27,481 y
+casi 4 años de antigüedad promedio; el 35\% tiene maestría o doctorado. El
+departamento de Ventas tiene 16 personas, con salario promedio de \$29,032. Ahora la interfaz y el servidor:
+
+\begin{rcode}
+ui <- dashboardPage(
+  dashboardHeader(title = "Recursos Humanos"),
+  dashboardSidebar(
+    selectizeInput("deptos", "Departamentos:",
+                   choices = sort(unique(empleados$departamento)),
+                   multiple = TRUE, options = list(placeholder = "Todos")),
+    selectizeInput("sucursales", "Sucursales:",
+                   choices = sort(unique(empleados$sucursal)),
+                   multiple = TRUE, options = list(placeholder = "Todas"))
+  ),
+  dashboardBody(
+    fluidRow(
+      valueBoxOutput("plantilla", width = 3),
+      valueBoxOutput("salario", width = 3),
+      valueBoxOutput("antiguedad", width = 3),
+      valueBoxOutput("posgrado", width = 3)
+    ),
+    fluidRow(
+      box(title = "Salario promedio por puesto", width = 5,
+          status = "primary", plotOutput("graf_puesto", height = 320)),
+      box(title = "Empleados", width = 7, status = "primary",
+          downloadButton("bajar", "Descargar Excel"), br(), br(),
+          DTOutput("tabla"))
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  datos <- reactive(filtrar_empleados(empleados, input$deptos,
+                                      input$sucursales))
+  kpis <- reactive(kpis_rrhh(datos()))
+
+  output$plantilla <- renderValueBox(
+    valueBox(kpis()$plantilla, "Plantilla", icon = icon("users")))
+  output$salario <- renderValueBox(
+    valueBox(dollar(kpis()$salario_prom, accuracy = 1),
+             "Salario mensual promedio", icon = icon("money-bill")))
+  output$antiguedad <- renderValueBox(
+    valueBox(paste(round(kpis()$antiguedad_prom, 1), "años"),
+             "Antigüedad promedio", icon = icon("clock")))
+  output$posgrado <- renderValueBox(
+    valueBox(percent(kpis()$pct_posgrado, accuracy = 1),
+             "Con maestría o doctorado", icon = icon("graduation-cap")))
+
+  output$graf_puesto <- renderPlot({
+    validate(need(nrow(datos()) > 0, "No hay empleados con esos filtros."))
+    grafica_salario_puesto(datos())
+  }, res = 96)
+
+  output$tabla <- renderDT(
+    datatable(tabla_empleados(datos()), rownames = FALSE,
+              options = list(pageLength = 8)) %>%
+      formatCurrency("Salario", currency = "$", digits = 0))
+
+  output$bajar <- downloadHandler(
+    filename = function() paste0("empleados_", Sys.Date(), ".xlsx"),
+    content  = function(file) write_xlsx(tabla_empleados(datos()), file)
+  )
+}
+
+testServer(server, {
+  session$setInputs(deptos = c("IT", "Finanzas"), sucursales = NULL)
+  cat("Plantilla IT + Finanzas:", kpis()$plantilla, "\n")
+  cat("Filas en el Excel:",
+      nrow(readxl::read_excel(output$bajar)), "\n")
+})
+\end{rcode}
+\begin{rsalida}
+Plantilla IT + Finanzas: 18 
+Filas en el Excel: 18 
+\end{rsalida}
+
+La prueba confirma que los filtros múltiples funcionan y que el Excel
+descargado contiene exactamente a los empleados filtrados. Para abrir el
+dashboard:
+
+\begin{rnoejecutar}
+shinyApp(ui, server)
+\end{rnoejecutar}
+\end{solucion}

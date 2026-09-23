@@ -113,7 +113,7 @@ sección~\ref{sec:m6-shinydashboard}.
         anchor=north west] at (0.2,6.2)
         {Filtros: \ periodo \quad tienda \quad categoría \quad [Quitar filtros]};
   % kpis
-  \foreach \i/\t/\v in {0/Ventas/\$959,993, 1/Transacciones/1{,}000,
+  \foreach \i/\t/\v in {0/Ventas/\$959{,}993, 1/Transacciones/1{,}000,
                         2/Ticket promedio/\$960, 3/Clientes/198} {
     \node[kpi, anchor=north west] at ({0.2+\i*2.72},5.35)
       {\textbf{\v}\\[-1pt]{\footnotesize \t}};
@@ -270,7 +270,7 @@ mueves un control, el navegador envía el nuevo valor; R recalcula
   \node[mini, font=\ttfamily\footnotesize, fill=primario!8] (calc) at (8.2,-1.05)
        {output\$precio\_final <-\\renderText(\{...\})};
   \draw[->, thick, acento] (in1.east) to[out=10, in=170]
-       node[above, font=\sffamily\scriptsize, text=acento] {1. el usuario cambia un valor} (inr.west);
+       node[above, yshift=8pt, font=\sffamily\scriptsize, text=acento] {1. el usuario cambia un valor} (inr.west);
   \draw[->, thick, primario] (inr.south) -- node[right, font=\sffamily\scriptsize] {2. R recalcula} (calc.north);
   \draw[->, thick, exito] (calc.west) --
        node[below, font=\sffamily\scriptsize, text=exito, align=center] {3. envía el resultado\\(texto, imagen, HTML)} (out1.east);
@@ -295,7 +295,7 @@ en \archivo{latex/codigo/apps/01-primera-app/app.R}.
 Este es el archivo completo. Léelo con calma: son apenas 30 líneas de código
 útil y contienen todo lo esencial de Shiny.
 
-\begin{rnoejecutar}[title=latex/codigo/apps/01-primera-app/app.R]
+\begin{rnoejecutar}[title={latex/codigo/apps/01-primera-app/app.R}]
 # 1. Paquete -------------------------------------------------------------
 library(shiny)          # el motor de las apps web con R
 
@@ -407,9 +407,9 @@ plotOutput(outputId = "grafica", height = "300px")
   \node[font=\sffamily\scriptsize, text=gristexto] at (4.2,0.9) {50};
   \node[font=\sffamily\scriptsize, text=secundario] at (1.16,1.5) {10};
   \node[anchor=west, font=\sffamily\large\bfseries] at (0.3,0.4) {Precio final: \$450};
-  \draw[<-, acento, thick] (4.4,2.35) -- (5.6,2.35) node[right, font=\sffamily\footnotesize] {\codigo{numericInput("precio")}};
-  \draw[<-, acento, thick] (4.4,1.2) -- (5.6,1.2) node[right, font=\sffamily\footnotesize] {\codigo{sliderInput("descuento")}};
-  \draw[<-, exito, thick] (3.6,0.4) -- (5.6,0.4) node[right, font=\sffamily\footnotesize] {\codigo{textOutput("precio\_final")}};
+  \draw[<-, acento, thick] (4.4,2.35) -- (9.4,2.35) node[right, font=\sffamily\footnotesize] {\codigo{numericInput("precio")}};
+  \draw[<-, acento, thick] (4.4,1.2) -- (9.4,1.2) node[right, font=\sffamily\footnotesize] {\codigo{sliderInput("descuento")}};
+  \draw[<-, exito, thick] (3.6,0.4) -- (9.4,0.4) node[right, font=\sffamily\footnotesize] {\codigo{textOutput("precio\_final")}};
 \end{tikzpicture}
 \caption{Maqueta de la app 01 tal como se ve en el navegador.}
 \label{fig:m6-maqueta-app01}
@@ -443,7 +443,7 @@ shiny::runApp("latex/codigo/apps/03-dashboard-ejecutivo")
 \end{enumerate}
 
 Mientras la app está abierta, la consola de R queda \emph{ocupada} (verás
-\codigo{Listening on http://127.0.0.1:XXXX}) y no acepta otros comandos. Para
+\codigo{Listening on} \path{http://127.0.0.1:XXXX}) y no acepta otros comandos. Para
 detenerla pulsa \tecla{Esc} en la consola, el botón rojo \menu{Stop} del
 panel de consola, o cierra la ventana de la app.
 
@@ -458,8 +458,8 @@ consola mientras mueves el control.
 \subsection{El truco para que las apps encuentren \texorpdfstring{\archivo{datasets/}}{datasets/}}
 \label{sec:m6-rutas}
 
-Aquí hay una trampa en la que cae casi todo el mundo. Cuando ejecutas
-\codigo{runApp("latex/codigo/apps/02-explorador-ventas")}, Shiny
+Aquí hay una trampa en la que cae casi todo el mundo. Cuando ejecutas \codigo{runApp()} con la carpeta
+\path{latex/codigo/apps/02-explorador-ventas}, Shiny
 \textbf{cambia el directorio de trabajo a la carpeta de la app} mientras
 esta corre. Por eso, dentro de la app, la ruta relativa
 \archivo{datasets/transacciones.csv} ya no existe y \codigo{read\_csv()}
@@ -698,7 +698,7 @@ la consola (\codigo{summary()}, \codigo{str()}) \\
 \codigo{valueBoxOutput()} & \codigo{renderValueBox()} & Un
 \codigo{valueBox()} de \paquete{shinydashboard} \\
 \codigo{infoBoxOutput()} & \codigo{renderInfoBox()} & Un \codigo{infoBox()} \\
-\codigo{plotly::plotlyOutput()} & \codigo{plotly::renderPlotly()} & Una
+\codigo{plotlyOutput()} & \codigo{renderPlotly()} & Una
 gráfica \paquete{plotly} (por ejemplo, \codigo{ggplotly(p)}) \\
 \codigo{uiOutput()} & \codigo{renderUI()} & Elementos de interfaz creados
 al vuelo \\
@@ -1073,9 +1073,9 @@ Can't access reactive value 'n' outside of reactive consumer.
 i Do you need to wrap inside reactive() or observe()? 
 \end{rsalida}
 
-En una app real ese error aparece al abrirla, con la línea culpable, por
-ejemplo \codigo{server <- function(input, output, session) \{ doble <-
-input\$n * 2 ... \}}. La consola muestra
+En una app real ese error aparece al abrirla. Por ejemplo, si en el cuerpo
+del \codigo{server} escribes \codigo{doble <- input\$n * 2}, la consola
+muestra
 \codigo{Error in input\$n: Can't access reactive value 'n' outside of reactive
 consumer} y la app se cierra. La solución es la que sugiere el propio
 mensaje: envolver el cálculo en \codigo{reactive()} (\codigo{doble <-
@@ -1457,7 +1457,7 @@ las opciones salen de los datos (\codigo{opciones\_tienda},
 \codigo{placeholder = "Todas"} para que el cuadro vacío se lea como ``todas
 las categorías''.
 
-\begin{rnoejecutar}[title=app.R (parte 5): interfaz]
+\begin{rnoejecutar}[title={app.R (parte 5): interfaz}]
 ui <- fluidPage(
   titlePanel("Explorador de ventas 2023"),
   sidebarLayout(
@@ -1500,7 +1500,7 @@ Gracias a las funciones, el \codigo{server} cabe en una pantalla. Tiene un
 único reactivo, \codigo{datos\_filtrados()}, que alimenta las tres salidas
 (el grafo de la figura~\ref{fig:m6-grafo}):
 
-\begin{rnoejecutar}[title=app.R (partes 6 y 7): servidor y lanzamiento]
+\begin{rnoejecutar}[title={app.R (partes 6 y 7): servidor y lanzamiento}]
 server <- function(input, output, session) {
 
   # Expresión reactiva: filtra UNA vez y la reutilizan las tres salidas
@@ -1688,7 +1688,7 @@ aparece en la figura~\ref{fig:m6-maqueta-app03}.
   \node[anchor=west, zona, fill=white] at (0.25,1.0) {Quitar filtros};
   % body
   \fill[gray!8] (3.2,0) rectangle (13.4,7);
-  \foreach \i/\v/\t in {0/\$959,993/Ventas totales, 1/1{,}000/Transacciones,
+  \foreach \i/\v/\t in {0/\$959{,}993/Ventas totales, 1/1{,}000/Transacciones,
                         2/\$960/Ticket promedio, 3/198/Clientes activos} {
     \node[kpi, anchor=north west, align=left] at ({3.4+\i*2.5},6.8)
       {\textbf{\normalsize\v}\\ \t};
@@ -1937,20 +1937,6 @@ etiqueta (diciembre, con \$96,394): el ojo va directo a lo importante. Como
 el eje Y empieza en cero, la caída de abril se ve en su verdadera magnitud.
 
 \begin{rcode}
-grafica_metodo_pago <- function(datos) {
-  datos %>%
-    group_by(metodo_pago) %>%
-    summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
-    mutate(participacion = ventas / sum(ventas)) %>%
-    ggplot(aes(x = participacion,
-               y = reorder(metodo_pago, participacion))) +
-    geom_col(fill = color_principal, width = 0.7) +
-    scale_x_continuous(labels = label_percent(),
-                       expand = expansion(mult = c(0, 0.05))) +
-    labs(x = "% de las ventas", y = NULL) +
-    tema_dashboard()
-}
-
 grafica_barras <- function(resumen, etiqueta_y = NULL) {
   # resumen: columnas 'nombre' y 'ventas'; barras horizontales ordenadas
   ggplot(resumen, aes(x = ventas, y = reorder(nombre, ventas))) +
@@ -1969,19 +1955,14 @@ grafica_top_productos <- function(datos, n = 10) {
     grafica_barras()
 }
 
-grafica_categorias <- function(datos) {
-  datos %>%
-    group_by(nombre = categoria) %>%
-    summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
-    grafica_barras()
-}
-
 p_top <- grafica_top_productos(datos)
 p_top
 \end{rcode}
 
 \codigo{grafica\_barras()} es una función ``genérica'' que reutilizan la
-gráfica de productos y la de categorías: ambas resumen a dos columnas,
+gráfica de productos y la de categorías (\codigo{grafica\_categorias()},
+en el archivo, junto con \codigo{grafica\_metodo\_pago()} de la pestaña
+Resumen): ambas resumen a dos columnas,
 \codigo{nombre} y \codigo{ventas}, y le pasan el resultado. Escribir la
 gráfica una sola vez garantiza que las dos pestañas se vean iguales
 (figura~\ref{fig:m06-top-productos}).
@@ -2128,7 +2109,7 @@ Con la lógica probada, pasamos a \archivo{app.R}. Primero paquetes y datos
 (fuera del \codigo{server}, una sola vez) y luego encabezado y barra
 lateral:
 
-\begin{rnoejecutar}[title=app.R (partes 1 a 3)]
+\begin{rnoejecutar}[title={app.R (partes 1 a 3)}]
 # 1. Paquetes ------------------------------------------------------------
 library(shiny)
 library(shinydashboard)   # dashboardPage(), box(), valueBox()...
@@ -2180,7 +2161,7 @@ usan el marcador ``Todas'' para indicar que vacío significa sin filtro.
 El cuerpo tiene un \codigo{tabItem()} por cada \codigo{menuItem()}. Cada
 fila es un \codigo{fluidRow()} y cada gráfica vive en una \codigo{box()}:
 
-\begin{rnoejecutar}[title=app.R (parte 4): cuerpo]
+\begin{rnoejecutar}[title={app.R (parte 4): cuerpo (extracto)}]
 # 4. Interfaz: cuerpo con una tabItem por pestaña del menú ---------------
 cuerpo <- dashboardBody(
   tabItems(
@@ -2199,35 +2180,8 @@ cuerpo <- dashboardBody(
             plotOutput("graf_pago", height = 300))
       )
     ),
-    tabItem(tabName = "productos",
-      fluidRow(
-        box(title = "Top 10 productos", width = 6, status = "primary",
-            plotOutput("graf_top_productos", height = 380)),
-        box(title = "Ventas por categoría", width = 6, status = "primary",
-            plotOutput("graf_categorias", height = 380))
-      )
-    ),
-    tabItem(tabName = "tiendas",
-      fluidRow(
-        box(title = "Ventas por tienda", width = 7, status = "primary",
-            plotOutput("graf_tiendas", height = 380)),
-        box(title = "Indicadores por tienda", width = 5,
-            status = "primary", tableOutput("tabla_tiendas"))
-      )
-    ),
-    tabItem(tabName = "clientes",
-      fluidRow(
-        infoBoxOutput("info_clientes"),
-        infoBoxOutput("info_premium"),
-        infoBoxOutput("info_frecuencia")
-      ),
-      fluidRow(
-        box(title = "Ventas por segmento", width = 6, status = "primary",
-            plotOutput("graf_segmentos", height = 320)),
-        box(title = "Top 10 clientes", width = 6, status = "primary",
-            tableOutput("tabla_clientes"))
-      )
-    ),
+    # ... pestañas "productos", "tiendas" y "clientes": misma idea,
+    # ... una fluidRow() con dos box() cada una (ver app.R)
     tabItem(tabName = "datos",
       fluidRow(
         box(title = "Detalle de transacciones", width = 12,
@@ -2250,7 +2204,7 @@ tienen el ancho por defecto (4), así que caben tres por fila.
 
 \subsection{El servidor del dashboard}
 
-\begin{rnoejecutar}[title=app.R (parte 5): reactivos, botón y KPIs]
+\begin{rnoejecutar}[title={app.R (parte 5): reactivos, botón y KPIs}]
 # 5. Servidor: datos filtrados, KPIs y botón para limpiar filtros --------
 server <- function(input, output, session) {
 
@@ -2304,7 +2258,7 @@ muestra un mensaje si no hay ventas). El botón ``Quitar filtros'' es un
 funciones \codigo{update...()}. Sobre \codigo{bindCache()} hablaremos en la
 sección~\ref{sec:m6-buenas-practicas}.
 
-\begin{rnoejecutar}[title=app.R (partes 6 a 8): salidas, descargas y lanzamiento]
+\begin{rnoejecutar}[title={app.R (partes 6 a 8): salidas, descargas y lanzamiento (extracto)}]
   # 6. Servidor: gráficas y tablas de cada pestaña -----------------------
   output$graf_evolucion <- renderPlot({
     grafica_evolucion(datos_validos())
@@ -2312,36 +2266,13 @@ sección~\ref{sec:m6-buenas-practicas}.
   output$graf_pago <- renderPlot({
     grafica_metodo_pago(datos_validos())
   }, res = 96)
-  output$graf_top_productos <- renderPlot({
-    grafica_top_productos(datos_validos())
-  }, res = 96)
-  output$graf_categorias <- renderPlot({
-    grafica_categorias(datos_validos())
-  }, res = 96)
-  output$graf_tiendas <- renderPlot({
-    grafica_tiendas(datos_validos())
-  }, res = 96)
+  # ... las demás gráficas siguen el mismo patrón de una línea ...
   output$tabla_tiendas <- renderTable(tabla_tiendas(datos_filtrados()))
-
-  output$info_clientes <- renderInfoBox({
-    infoBox("Clientes activos", formato_numero(kpis()$clientes),
-            icon = icon("users"), color = "blue")
-  })
   output$info_premium <- renderInfoBox({
     infoBox("Clientes premium", formato_pct(kpis()$pct_premium),
             icon = icon("star"), color = "blue")
   })
-  output$info_frecuencia <- renderInfoBox({
-    infoBox("Compras por cliente",
-            formato_numero(kpis()$compras_cliente, decimales = 1),
-            icon = icon("repeat"), color = "blue")
-  })
-  output$graf_segmentos <- renderPlot({
-    grafica_segmentos(datos_validos())
-  }, res = 96)
-  output$tabla_clientes <- renderTable(
-    tabla_top_clientes(datos_filtrados()))
-
+  # ... infoBox de clientes y frecuencia, gráfica de segmentos ...
   output$tabla_detalle <- renderDT(tabla_detalle_dt(datos_filtrados()))
 
   # 7. Servidor: descargas (respetan los filtros activos) ----------------
@@ -2954,8 +2885,8 @@ te deja inspeccionar \codigo{input\$...} y los objetos en ese momento. Escribe
 \label{sec:m6-ejercicios}
 
 Para los ejercicios que modifican una app, copia primero su carpeta (por
-ejemplo, \archivo{latex/codigo/apps/02-explorador-ventas} a
-\archivo{mis-apps/02-mi-explorador}) y trabaja sobre la copia. Además de
+ejemplo, \path{latex/codigo/apps/02-explorador-ventas} a
+\path{mis-apps/02-mi-explorador}) y trabaja sobre la copia. Además de
 abrirla en el navegador, comprueba la lógica con \codigo{testServer()}.
 
 \begin{ejercicio}{m6-1}{Calculadora con cantidad e IVA}

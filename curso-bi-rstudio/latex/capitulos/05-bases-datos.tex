@@ -65,7 +65,7 @@ Server, PostgreSQL o MySQL; al final verás cómo conectarte a ellos.
 Excel y los CSV son excelentes para intercambiar datos pequeños, pero se
 quedan cortos en cuanto una empresa crece:
 
-\begin{itemize}
+\begin{itemize}\sloppy
   \item \textbf{Volumen.} Una hoja de Excel admite 1\,048\,576 filas. Una
         cadena de 10 tiendas con 2\,000 tickets diarios por tienda llena ese
         límite en menos de dos meses. Un CSV no tiene límite formal, pero
@@ -452,23 +452,9 @@ valores lógicos (\codigo{TRUE}/\codigo{FALSE}, como \codigo{es\_premium} en
 clientes) se guardan como enteros \codigo{1}/\codigo{0}, porque SQLite no
 tiene tipo lógico.
 
-Para traer una tabla \emph{completa} a R usa \codigo{dbReadTable()}. Devuelve
-un data frame normal:
-
-\begin{rcode}
-tiendas_bd <- dbReadTable(con, "tiendas")
-class(tiendas_bd)
-tiendas_bd %>% select(tienda_id, nombre_tienda, ciudad, zona) %>% head(4)
-\end{rcode}
-
-\begin{rsalida}
-[1] "data.frame"
-  tienda_id   nombre_tienda      ciudad   zona
-1         1 Sucursal Centro        CDMX Centro
-2         2  Sucursal Norte Guadalajara  Norte
-3         3    Sucursal Sur   Monterrey  Norte
-4         4   Sucursal Este        CDMX   Este
-\end{rsalida}
+{\sloppy Para traer una tabla \emph{completa} a R usa \codigo{dbReadTable()}:
+\codigo{tiendas\_bd <- dbReadTable(con, "tiendas")} devuelve un data frame
+normal con las 10 tiendas, listo para \paquete{dplyr} o \paquete{ggplot2}.\par}
 
 \begin{advertencia}
 \codigo{dbReadTable()} trae \emph{todas} las filas y columnas. Con la tabla
@@ -627,31 +613,9 @@ dbGetQuery(con, "
 10 Sucursal Express   Querétaro Centro
 \end{rsalida}
 
-\codigo{SELECT *} trae todas las columnas; es cómodo para explorar, pero en
-reportes conviene listar solo las que necesitas. \codigo{LIMIT} restringe el
-número de filas, ideal para ``echar un vistazo'' a una tabla grande:
-
-\begin{rcode}
-dbGetQuery(con, "SELECT * FROM transacciones LIMIT 3")
-\end{rcode}
-
-\begin{rsalida}
-  transaccion_id      fecha     hora cliente_id producto_id cantidad
-1              1 2023-01-13 13:15:00        155           3        4
-2              2 2023-01-09 10:45:00        155          47        4
-3              3 2023-02-20 10:30:00         75           6        3
-  precio_venta     metodo_pago tienda_id vendedor_id
-1       303.97 Tarjeta Crédito        10           4
-2        58.07  Tarjeta Débito         2          22
-3       275.46  Tarjeta Débito         7          14
-  total_transaccion     mes trimestre dia_semana
-1           1215.88 2023-01        Q1    viernes
-2            232.28 2023-01        Q1      lunes
-3            826.38 2023-02        Q1      lunes
-\end{rsalida}
-
-Como la tabla tiene muchas columnas, R la imprime en varios renglones. Nota
-que la fecha y la hora se ven como texto, justo como las guardamos.
+{\sloppy \codigo{SELECT *} trae todas las columnas; es cómodo para explorar (por
+ejemplo, \codigo{SELECT * FROM transacciones LIMIT 5} para ver cinco filas),
+pero en reportes conviene listar solo las columnas que necesitas.\par}
 
 \subsection{WHERE: filtrar filas}
 
@@ -681,7 +645,7 @@ dbGetQuery(con, "
   WHERE es_premium = 1
     AND ciudad IN ('Monterrey', 'Guadalajara')
   ORDER BY ciudad, nombre
-  LIMIT 6
+  LIMIT 3
 ")
 \end{rcode}
 
@@ -692,14 +656,11 @@ dbGetQuery(con, "
 1       Carmen Reyes Guadalajara   33
 2 Fernando Hernández Guadalajara   26
 3     Marta González Guadalajara   38
-4      Marta Morales Guadalajara   55
-5        Miguel Díaz Guadalajara   62
-6     Ricardo Torres Guadalajara   72
 \end{rsalida}
 
 Recuerda que los lógicos se guardaron como \codigo{1}/\codigo{0}, por eso
 filtramos con \codigo{es\_premium = 1}. La primera consulta cuenta, la
-segunda muestra los primeros seis ordenados por ciudad y nombre.
+segunda muestra los primeros tres ordenados por ciudad y nombre.
 
 \begin{ejemplo}{Ventas navideñas y tickets grandes}
 Queremos ver las transacciones entre el 22 y el 24 de diciembre y saber
@@ -1106,75 +1067,16 @@ ventas_mes_sql
 \end{rsalida}
 
 Diciembre es el mejor mes (\$96\,394) y abril el más flojo (\$57\,038, con
-solo 71 tickets). Guardamos el resultado en \codigo{ventas\_mes\_sql} porque
-más adelante lo compararemos con el cálculo equivalente en \paquete{dplyr}. Aunque la tabla ya trae una columna \codigo{mes}, es
+solo 71 tickets). Aunque la tabla ya trae una columna \codigo{mes}, es
 buena práctica saber calcularla desde la fecha: muchas tablas reales solo
 tienen la fecha.
 
-\begin{ejemplo}{¿Qué día de la semana vendemos más?}
-Operaciones quiere ajustar los turnos del personal según el día de la
-semana.
-\end{ejemplo}
-
-\begin{rcode}
-dbGetQuery(con, "
-  SELECT strftime('%w', fecha) AS num_dia,   -- 0 = domingo
-         CASE strftime('%w', fecha)
-           WHEN '0' THEN 'domingo'   WHEN '1' THEN 'lunes'
-           WHEN '2' THEN 'martes'    WHEN '3' THEN 'miércoles'
-           WHEN '4' THEN 'jueves'    WHEN '5' THEN 'viernes'
-           ELSE 'sábado'
-         END AS dia,
-         COUNT(*) AS tickets,
-         ROUND(AVG(total_transaccion), 2) AS ticket_promedio
-  FROM transacciones
-  GROUP BY num_dia
-  ORDER BY num_dia
-")
-\end{rcode}
-
-\begin{rsalida}
-  num_dia       dia tickets ticket_promedio
-1       0   domingo     146         1018.51
-2       1     lunes     136          947.63
-3       2    martes     129          925.31
-4       3 miércoles     155          911.80
-5       4    jueves     146          995.07
-6       5   viernes     158         1020.67
-7       6    sábado     130          885.94
-\end{rsalida}
-
-Viernes y miércoles tienen más tickets (158 y 155); el viernes y el domingo
-tienen además los tickets promedio más altos (alrededor de \$1\,020). El
-sábado es el día más flojo en ticket promedio (\$886). Observa que \codigo{CASE} tiene una forma abreviada
-(\codigo{CASE expresión WHEN valor THEN \ldots}) cuando comparas siempre la
-misma expresión contra varios valores.
-
-\begin{rcode}
-# Antigüedad de los clientes al 31 de diciembre de 2023
-dbGetQuery(con, "
-  SELECT nombre, fecha_registro,
-         CAST(julianday('2023-12-31') - julianday(fecha_registro)
-              AS INTEGER)                    AS dias_antiguedad,
-         date(fecha_registro, '+1 year')     AS primer_aniversario
-  FROM clientes
-  ORDER BY fecha_registro
-  LIMIT 4
-")
-\end{rcode}
-
-\begin{rsalida}
-            nombre fecha_registro dias_antiguedad primer_aniversario
-1  Carlos González     2020-01-03            1458         2021-01-03
-2    Luis Martínez     2020-01-10            1451         2021-01-10
-3 Patricia Ramírez     2020-01-15            1446         2021-01-15
-4      Luis Flores     2020-01-17            1444         2021-01-17
-\end{rsalida}
-
-\codigo{julianday()} convierte la fecha a un número de días, así que la
-resta da la diferencia en días; \codigo{CAST(\ldots{} AS INTEGER)} quita los
-decimales. \codigo{date(fecha, '+1 year')} suma un año (también acepta
-\codigo{'+7 days'}, \codigo{'-1 month'}, \codigo{'start of month'}, etc.).
+Para calcular con fechas, \codigo{date(fecha, '+1 year')} suma un intervalo
+(también acepta \codigo{'+7 days'}, \codigo{'-1 month'} o
+\codigo{'start of month'}) y la resta de dos \codigo{julianday()} da la
+diferencia en días; por ejemplo,
+\codigo{julianday('2023-12-31') - julianday(fecha\_registro)} es la
+antigüedad de cada cliente al cierre del año.
 
 \begin{hazlotu}
 Calcula las ventas por trimestre usando la fecha. Pista: el mes se obtiene
@@ -1269,14 +1171,14 @@ dbGetQuery(con, "
 10        Ropa      38      106  30048
 \end{rsalida}
 
-Fíjate en los alias de tabla: \codigo{transacciones AS t} permite escribir
+{\sloppy Fíjate en los alias de tabla: \codigo{transacciones AS t} permite escribir
 \codigo{t.cantidad} en lugar de \codigo{transacciones.cantidad}. Cuando dos
 tablas tienen una columna con el mismo nombre (aquí,
 \codigo{producto\_id}), \emph{debes} indicar de qué tabla viene; si no, la
 base responde con un error de columna ambigua. Belleza es por mucho la categoría líder
 (\$182\,143, 187 tickets), seguida de Electrónica; Ropa queda al final con
 \$30\,048. Parte de la explicación está en el catálogo: Belleza tiene 9
-productos y Ropa solo 2.
+productos y Ropa solo 2.\par}
 
 \begin{ejemplo}{Clientes que nunca han comprado}
 El CRM tiene 200 clientes registrados, pero solo 198 compraron. ¿Quiénes
@@ -1307,45 +1209,6 @@ Hernández, de Puebla. Este último se registró en septiembre de 2023, así que
 quizá solo necesita tiempo; Rosa lleva más de un año registrada sin
 comprar.
 
-Puedes encadenar varios JOIN en la misma consulta:
-
-\begin{ejemplo}{Precio de venta contra precio de catálogo por zona}
-Auditoría sospecha que en algunas zonas se vende muy por debajo del precio
-de catálogo. Compara, por zona de la tienda, el precio promedio de venta
-con el de catálogo.
-\end{ejemplo}
-
-\begin{rcode}
-dbGetQuery(con, "
-  SELECT ti.zona,
-         COUNT(*)                         AS tickets,
-         ROUND(AVG(t.precio_venta), 2)    AS precio_venta_prom,
-         ROUND(AVG(p.precio_catalogo), 2) AS precio_catalogo_prom
-  FROM transacciones AS t
-  INNER JOIN productos AS p  ON t.producto_id = p.producto_id
-  INNER JOIN tiendas   AS ti ON t.tienda_id   = ti.tienda_id
-  GROUP BY ti.zona
-  ORDER BY tickets DESC
-")
-\end{rcode}
-
-\begin{rsalida}
-    zona tickets precio_venta_prom precio_catalogo_prom
-1  Norte     399            326.93               422.66
-2 Centro     290            311.12               414.57
-3  Oeste     109            306.93               394.45
-4    Sur     108            303.23               425.21
-5   Este      94            334.45               399.15
-\end{rsalida}
-
-En todas las zonas el precio promedio de venta (alrededor de \$300 a \$335)
-está muy por debajo del precio promedio de catálogo (\$395 a \$425). Es un
-\emph{hallazgo de calidad de datos} que ya conoces: en los datos del curso,
-\codigo{precio\_venta} se generó sin relación con
-\codigo{precio\_catalogo}. En una empresa real, una diferencia así
-merecería una investigación con el área comercial antes de publicar
-cualquier análisis de márgenes.
-
 \begin{advertencia}
 Un JOIN mal planteado puede \emph{multiplicar} filas. Si unes por una
 columna que se repite en ambas tablas (por ejemplo, \codigo{ciudad} entre
@@ -1374,15 +1237,6 @@ dbGetQuery(con, "
   ORDER BY precio_catalogo DESC
   LIMIT 5
 ")
-
-# ¿Cuál es ese promedio y cuántos productos lo superan?
-dbGetQuery(con, "
-  SELECT ROUND(AVG(precio_catalogo), 2) AS promedio,
-         (SELECT COUNT(*) FROM productos
-          WHERE precio_catalogo > (SELECT AVG(precio_catalogo)
-                                   FROM productos)) AS arriba
-  FROM productos
-")
 \end{rcode}
 
 \begin{rsalida}
@@ -1392,13 +1246,13 @@ dbGetQuery(con, "
 3     Producto 41 Electrónica          756.54      48.47
 4     Producto 04    Juguetes          743.84      72.42
 5     Producto 20     Belleza          741.63      81.42
-  promedio arriba
-1   416.92     25
 \end{rsalida}
 
-El precio promedio del catálogo es \$416.92 y 25 de los 50 productos lo
-superan. Fíjate en la última consulta: una subconsulta puede ir incluso en
-el \codigo{SELECT}, siempre que devuelva un solo valor.
+La subconsulta \codigo{(SELECT AVG(precio\_catalogo) FROM productos)} se
+calcula primero (da \$416.92) y la consulta externa compara cada producto
+contra ese valor. Una subconsulta puede ir en el \codigo{WHERE}, en el
+\codigo{FROM} o incluso en el \codigo{SELECT}, siempre que en este último
+caso devuelva un solo valor.
 
 Una subconsulta también puede ir en el \codigo{FROM}, como si fuera una
 tabla temporal. Es útil para agregar en dos pasos:
@@ -1763,23 +1617,6 @@ para cualquier combinación sin tocar el SQL. Observa que convertimos las fechas
 \codigo{format(as.Date(\ldots))}: así la función acepta tanto texto como
 objetos \codigo{Date} y siempre manda a la base el texto ISO que espera.
 
-Si pasas en \codigo{params} un vector con varios valores, la consulta se
-ejecuta una vez por valor y los resultados se apilan:
-
-\begin{rcode}
-dbGetQuery(con,
-  "SELECT ciudad, COUNT(*) AS clientes, ROUND(AVG(edad), 1) AS edad_prom
-   FROM clientes WHERE ciudad = ?",
-  params = list(c("CDMX", "Puebla", "Mérida")))
-\end{rcode}
-
-\begin{rsalida}
-  ciudad clientes edad_prom
-1   CDMX       27      56.2
-2 Puebla       28      51.3
-3 Mérida       17      47.6
-\end{rsalida}
-
 \subsection{Alternativas: \texorpdfstring{\codigo{glue\_sql()}}{glue\_sql()} y \texorpdfstring{\codigo{sqlInterpolate()}}{sqlInterpolate()}}
 
 A veces necesitas construir el texto SQL de forma dinámica (por ejemplo, una
@@ -1988,34 +1825,14 @@ lidera con \$182\,143.
 
 \subsection{Límites de la traducción}
 
-dbplyr traduce muchas funciones de R (aritmética, \codigo{if\_else()},
+{\sloppy dbplyr traduce muchas funciones de R (aritmética, \codigo{if\_else()},
 \codigo{case\_when()}, \codigo{substr()}, \codigo{paste0()},
 \codigo{min\_rank()}, \codigo{lag()}, \codigo{cumsum()}, las funciones de
-agregación\ldots), pero no todas. Algunas reglas prácticas:
+agregación\ldots), pero no todas. Por ejemplo, \codigo{month(fecha)} de \paquete{lubridate}
+se traduce a \codigo{strftime('\%m', fecha)} en SQLite. Algunas reglas
+prácticas:\par}
 
-\begin{rcode}
-# Funciona: month() de lubridate se traduce a strftime() en SQLite
-transacciones_bd %>%
-  mutate(num_mes = month(fecha)) %>%
-  count(num_mes) %>%
-  head(3) %>%
-  show_query()
-\end{rcode}
-
-\begin{rsalida}
-<SQL>
-SELECT `num_mes`, COUNT(*) AS `n`
-FROM (
-  SELECT
-    `transacciones`.*,
-    CAST(STRFTIME('%m', `fecha`) AS NUMERIC) AS `num_mes`
-  FROM `transacciones`
-) AS `q01`
-GROUP BY `num_mes`
-LIMIT 3
-\end{rsalida}
-
-\begin{itemize}
+\begin{itemize}\sloppy
   \item Si una función no tiene traducción, dbplyr la pasa \emph{tal cual}
         a la base, y la base marca error de función inexistente. Por
         ejemplo, \codigo{floor\_date()} no se traduce en SQLite.
@@ -2421,26 +2238,10 @@ caja). En una empresa lo reportarías a Recursos Humanos antes de publicar
 un ranking de ``vendedores''. Lo importante es que un buen modelo de datos
 hace visibles estas inconsistencias.
 
-La base ya aplica las reglas que diseñamos. Si alguien intenta cargar un
-producto con un identificador que ya existe, la llave primaria lo impide:
-
-\begin{rcode}
-resultado <- tryCatch(
-  dbExecute(con, "INSERT INTO dim_producto (producto_id, nombre_producto)
-                  VALUES (1, 'Producto repetido')"),
-  error = function(e) conditionMessage(e)
-)
-resultado
-\end{rcode}
-
-\begin{rsalida}
-[1] "UNIQUE constraint failed: dim_producto.producto_id"
-\end{rsalida}
-
-Usamos \codigo{tryCatch()} para \emph{atrapar} el error y mostrar su
-mensaje sin detener el script: la base respondió que la restricción de
-unicidad de \codigo{dim\_producto.producto\_id} falló. Es exactamente lo que
-queremos.
+La base ya aplica las reglas que diseñamos: si alguien intenta cargar un
+producto con un \codigo{producto\_id} que ya existe, la llave primaria lo
+impide con el error \codigo{UNIQUE constraint failed}. Lo comprobarás en la
+sección de ETL y en la de errores comunes.
 
 \begin{hazlotu}
 Intenta insertar en \codigo{dim\_cliente} una fila sin nombre
@@ -2937,7 +2738,7 @@ vistas <- c(
 )
 for (sql in vistas) dbExecute(con, sql)
 
-dbGetQuery(con, "SELECT * FROM vw_kpi_mensual") %>% head(6)
+dbGetQuery(con, "SELECT * FROM vw_kpi_mensual") %>% head(3)
 \end{rcode}
 
 \begin{rsalida}
@@ -2945,50 +2746,18 @@ dbGetQuery(con, "SELECT * FROM vw_kpi_mensual") %>% head(6)
 1 2023   1      enero      98       80 82559.66 34415.12
 2 2023   2    febrero      79       67 65899.34 29212.36
 3 2023   3      marzo      91       72 90930.61 46572.20
-4 2023   4      abril      71       57 57037.74 19817.86
-5 2023   5       mayo      88       73 93910.21 49550.60
-6 2023   6      junio      84       68 88509.12 42049.19
   ticket_promedio
 1          842.45
 2          834.17
 3          999.24
-4          803.35
-5         1067.16
-6         1053.68
 \end{rsalida}
 
 La vista entrega, mes por mes, tickets, clientes distintos, ventas, margen
-y ticket promedio. Marzo y mayo destacan por su margen (\$46\,572 y
-\$49\,551), mientras que abril es el mes más débil también en margen
-(\$19\,818). La vista ancha \codigo{vw\_ventas\_detalle} es
+y ticket promedio (mostramos los tres primeros meses; en el caso práctico
+la usaremos completa). La vista ancha \codigo{vw\_ventas\_detalle} es
 útil para analistas que no quieren escribir \emph{joins}: consultan una sola
-``tabla'' con todo.
-
-\begin{rcode}
-dbGetQuery(con, "
-  SELECT zona, ROUND(SUM(total), 0) AS ventas,
-         ROUND(SUM(margen), 0) AS margen,
-         ROUND(100.0 * SUM(margen) / SUM(total), 1) AS margen_pct
-  FROM vw_ventas_detalle
-  GROUP BY zona
-  ORDER BY ventas DESC
-")
-\end{rcode}
-
-\begin{rsalida}
-    zona ventas margen margen_pct
-1  Norte 388941 174227       44.8
-2 Centro 275878 126667       45.9
-3  Oeste 105216  48086       45.7
-4    Sur 101538  49097       48.4
-5   Este  88420  46559       52.7
-\end{rsalida}
-
-La zona Norte concentra las ventas (\$388\,941, con cuatro tiendas), pero su
-margen porcentual (44.8\%) es el más bajo; la zona Este, con una sola
-tienda, tiene el margen más alto (52.7\%). Con una sola consulta a la vista
-respondiste una pregunta que cruza hechos, productos (costo) y tiendas
-(zona).
+``tabla'' con todo, por ejemplo
+\codigo{SELECT zona, SUM(total) FROM vw\_ventas\_detalle GROUP BY zona}.
 
 \subsection{Índices y planes de ejecución}
 
@@ -3283,9 +3052,9 @@ PG_USER=lector_bi
 PG_PASS=otra-clave-ficticia
 \end{textocodigo}
 
-Reinicia R (\menu{Session > Restart R}) para que lea el archivo. A partir de
+{\sloppy Reinicia R (\menu{Session > Restart R}) para que lea el archivo. A partir de
 ahí, \codigo{Sys.getenv("SQLSERVER\_USER")} devuelve
-\codigo{"analista\_bi"} y tu script no contiene ningún secreto:
+\codigo{"analista\_bi"} y tu script no contiene ningún secreto:\par}
 
 \begin{rnoejecutar}
 usethis::edit_r_environ()          # abre ~/.Renviron para editarlo
@@ -3327,14 +3096,14 @@ nchar(Sys.getenv("SQLSERVER_PASS")) > 0   # comprobar sin imprimirla
 
 \begin{ejemplo}{Del CSV al tablero, pasando por el data warehouse}
 La dirección te pide dejar lista una base analítica que cualquiera pueda
-consultar, y responder con ella siete preguntas para la junta mensual:
+consultar, y responder con ella seis preguntas para la junta mensual:
 \begin{enumerate}
-  \item ¿Cómo evolucionaron las ventas y el margen mes a mes?
+  \item ¿Cómo evolucionaron las ventas y el margen mes a mes, y cuánto
+        crecimos contra el mes anterior?
   \item ¿Cuáles son los productos que más venden y cuánto margen dejan?
   \item ¿Quiénes son los clientes más valiosos?
   \item ¿Qué tiendas son más productivas por metro cuadrado?
   \item ¿Quiénes son los dos mejores vendedores de cada zona?
-  \item ¿Cuánto crecemos mes contra mes?
   \item ¿Se compra distinto en fin de semana?
 \end{enumerate}
 \end{ejemplo}
@@ -3383,12 +3152,14 @@ nuevo, solo hay que llamar a \codigo{ejecutar\_etl()}.
 
 \subsection{Paso 2: responder las preguntas con SQL}
 
-\subsubsection{Pregunta 1. Ventas y margen por mes}
+\subsubsection{Pregunta 1. Ventas, margen y crecimiento por mes}
 
 \begin{rcode}
 kpi_mensual <- dbGetQuery(con, "
-  SELECT mes, nombre_mes, tickets, ventas, margen,
-         ROUND(100.0 * margen / ventas, 1) AS margen_pct
+  SELECT mes, nombre_mes, tickets, ventas,
+         ROUND(100.0 * margen / ventas, 1) AS margen_pct,
+         ROUND(100.0 * (ventas - LAG(ventas) OVER (ORDER BY mes)) /
+               LAG(ventas) OVER (ORDER BY mes), 1) AS crec_pct
   FROM vw_kpi_mensual
   ORDER BY anio, mes
 ")
@@ -3396,24 +3167,27 @@ kpi_mensual
 \end{rcode}
 
 \begin{rsalida}
-   mes nombre_mes tickets   ventas   margen margen_pct
-1    1      enero      98 82559.66 34415.12       41.7
-2    2    febrero      79 65899.34 29212.36       44.3
-3    3      marzo      91 90930.61 46572.20       51.2
-4    4      abril      71 57037.74 19817.86       34.7
-5    5       mayo      88 93910.21 49550.60       52.8
-6    6      junio      84 88509.12 42049.19       47.5
-7    7      julio      83 86456.05 41120.26       47.6
-8    8     agosto      75 78929.49 33268.92       42.2
-9    9 septiembre      86 68855.87 29467.75       42.8
-10  10    octubre      74 70004.10 31690.67       45.3
-11  11  noviembre      80 80506.89 36578.96       45.4
-12  12  diciembre      91 96393.61 50893.04       52.8
+   mes nombre_mes tickets   ventas margen_pct crec_pct
+1    1      enero      98 82559.66       41.7       NA
+2    2    febrero      79 65899.34       44.3    -20.2
+3    3      marzo      91 90930.61       51.2     38.0
+4    4      abril      71 57037.74       34.7    -37.3
+5    5       mayo      88 93910.21       52.8     64.6
+6    6      junio      84 88509.12       47.5     -5.8
+7    7      julio      83 86456.05       47.6     -2.3
+8    8     agosto      75 78929.49       42.2     -8.7
+9    9 septiembre      86 68855.87       42.8    -12.8
+10  10    octubre      74 70004.10       45.3      1.7
+11  11  noviembre      80 80506.89       45.4     15.0
+12  12  diciembre      91 96393.61       52.8     19.7
 \end{rsalida}
 
 Las ventas oscilan entre \$57\,038 (abril) y \$96\,394 (diciembre), y el
 margen porcentual va de 34.7\% en abril a 52.8\% en mayo y diciembre. Abril
-fue malo por partida doble: vendió menos \emph{y} con menor margen. ¿Podemos confiar en estas cifras? Una buena práctica es
+fue malo por partida doble: vendió 37.3\% menos que marzo \emph{y} con menor
+margen; mayo rebotó 64.6\% y el año cerró con dos meses de crecimiento
+(15.0\% en noviembre y 19.7\% en diciembre). La vista con los KPIs más una
+función de ventana resolvieron la pregunta en una sola consulta. ¿Podemos confiar en estas cifras? Una buena práctica es
 \emph{reconciliar}: calcular lo mismo por otro camino y comprobar que
 coincide. Hagámoslo con \paquete{dplyr} directamente sobre el CSV original,
 sin pasar por la base:
@@ -3646,43 +3420,7 @@ atiende en varias sucursales. En la zona Este, con una sola tienda, las
 cifras son mucho menores. Recuerda el hallazgo anterior: varios de estos
 ``vendedores'' no pertenecen al departamento de Ventas.
 
-\subsubsection{Pregunta 6. Crecimiento mes contra mes}
-
-\begin{rcode}
-dbGetQuery(con, "
-  SELECT nombre_mes, ventas,
-         ROUND(100.0 * (ventas - LAG(ventas) OVER (ORDER BY mes)) /
-               LAG(ventas) OVER (ORDER BY mes), 1) AS crec_ventas_pct,
-         ROUND(100.0 * (margen - LAG(margen) OVER (ORDER BY mes)) /
-               LAG(margen) OVER (ORDER BY mes), 1) AS crec_margen_pct
-  FROM vw_kpi_mensual
-  ORDER BY mes
-")
-\end{rcode}
-
-\begin{rsalida}
-   nombre_mes   ventas crec_ventas_pct crec_margen_pct
-1       enero 82559.66              NA              NA
-2     febrero 65899.34           -20.2           -15.1
-3       marzo 90930.61            38.0            59.4
-4       abril 57037.74           -37.3           -57.4
-5        mayo 93910.21            64.6           150.0
-6       junio 88509.12            -5.8           -15.1
-7       julio 86456.05            -2.3            -2.2
-8      agosto 78929.49            -8.7           -19.1
-9  septiembre 68855.87           -12.8           -11.4
-10    octubre 70004.10             1.7             7.5
-11  noviembre 80506.89            15.0            15.4
-12  diciembre 96393.61            19.7            39.1
-\end{rsalida}
-
-El margen se mueve mucho más que las ventas: en mayo las ventas crecieron
-64.6\% pero el margen 150\%, y en abril las ventas cayeron 37.3\% y el
-margen 57.4\%. Es decir, la mezcla de productos vendidos cambia de un mes a
-otro, y los meses buenos lo son también por vender productos más
-rentables.
-
-\subsubsection{Pregunta 7. Fin de semana contra entre semana}
+\subsubsection{Pregunta 6. Fin de semana contra entre semana}
 
 \begin{rcode}
 dbGetQuery(con, "
@@ -3714,7 +3452,7 @@ fechas: el atributo \codigo{es\_fin\_semana} ya está calculado y cualquier
 analista puede usarlo sin saber manipular fechas.
 
 \begin{negocio}{Qué entregarías en la junta}
-Con estas siete consultas tienes el material de un reporte ejecutivo
+Con estas consultas tienes el material de un reporte ejecutivo
 completo, y la base \archivo{bi\_retail.sqlite} queda como la fuente única
 de la verdad: el Módulo~\ref{cap:shiny} construirá un tablero que lee de
 ella y el Módulo~\ref{cap:reportes} un reporte automático. Lo más valioso
@@ -3724,7 +3462,7 @@ consultas.
 \end{negocio}
 
 \begin{hazlotu}
-Agrega una octava pregunta: ¿qué método de pago predomina en cada zona?
+Agrega una séptima pregunta: ¿qué método de pago predomina en cada zona?
 Usa \codigo{vw\_ventas\_detalle} y \codigo{ROW\_NUMBER()} particionado por
 zona.
 \end{hazlotu}
@@ -3745,53 +3483,38 @@ mostrar_error <- function(expr) {
 }
 \end{rcode}
 
-\subsubsection{``no such table'' y ``no such column''}
+\subsubsection{Tablas, columnas y llaves}
 
 \begin{rcode}
 mostrar_error(dbGetQuery(con, "SELECT * FROM ventas_2024"))
 mostrar_error(dbGetQuery(con, "SELECT totl FROM fact_ventas"))
+mostrar_error(dbWriteTable(con, "dim_tienda", dimensiones$dim_tienda))
+mostrar_error(dbAppendTable(con, "dim_tienda", dimensiones$dim_tienda))
 \end{rcode}
 
 \begin{rsalida}
 Error: no such table: ventas_2024 
 Error: no such column: totl 
-\end{rsalida}
-
-La tabla o la columna no existe, casi siempre por un error de dedo o
-porque estás conectado a otra base. Revisa con \codigo{dbListTables(con)} y
-\codigo{dbListFields(con, "tabla")}. Recuerda también que, tras reconstruir
-la base, las tablas crudas (\codigo{transacciones}, \codigo{clientes}\ldots)
-ya no existen: solo el esquema en estrella.
-
-\subsubsection{La tabla ya existe}
-
-\begin{rcode}
-mostrar_error(dbWriteTable(con, "dim_tienda", dimensiones$dim_tienda))
-\end{rcode}
-
-\begin{rsalida}
 Error: Table dim_tienda exists in database, and both overwrite and append are FALSE 
-\end{rsalida}
-
-\codigo{dbWriteTable()} se niega a pisar una tabla existente. Decide qué
-quieres: \codigo{overwrite = TRUE} la reemplaza (¡perdiendo llaves y
-reglas si la habías creado con \codigo{CREATE TABLE}!) y
-\codigo{append = TRUE} agrega filas. Para tablas diseñadas por ti, usa
-\codigo{dbAppendTable()}.
-
-\subsubsection{Llaves duplicadas al volver a cargar}
-
-\begin{rcode}
-mostrar_error(dbAppendTable(con, "dim_tienda", dimensiones$dim_tienda))
-\end{rcode}
-
-\begin{rsalida}
 Error: UNIQUE constraint failed: dim_tienda.tienda_id 
 \end{rsalida}
 
-Intentaste cargar filas cuya llave primaria ya existe (típico al correr dos
-veces un script). Usa carga incremental (\codigo{anti\_join()} o
-\codigo{INSERT OR IGNORE}) o borra primero lo que vas a recargar.
+\begin{itemize}
+  \item \textbf{no such table / no such column}: la tabla o la columna no
+        existe, casi siempre por un error de dedo o porque estás conectado
+        a otra base. Revisa con \codigo{dbListTables(con)} y
+        \codigo{dbListFields(con, "tabla")}. Recuerda que, tras reconstruir
+        la base, las tablas crudas (\codigo{transacciones},
+        \codigo{clientes}\ldots) ya no existen.
+  \item \textbf{La tabla ya existe}: \codigo{dbWriteTable()} se niega a
+        pisarla. \codigo{overwrite = TRUE} la reemplaza (¡perdiendo llaves y
+        reglas si la creaste con \codigo{CREATE TABLE}!) y
+        \codigo{append = TRUE} agrega filas. Para tablas diseñadas por ti,
+        usa \codigo{dbAppendTable()}.
+  \item \textbf{UNIQUE constraint failed}: intentaste cargar filas cuya
+        llave primaria ya existe (típico al correr dos veces un script).
+        Usa carga incremental o borra primero lo que vas a recargar.
+\end{itemize}
 
 \subsubsection{Fechas convertidas en números}
 

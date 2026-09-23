@@ -67,11 +67,6 @@ dbGetQuery(con, "PRAGMA table_info(tiendas)") %>%
   select(name, type)
 
 # ---- Bloque 6 --------------------------------------------------------
-tiendas_bd <- dbReadTable(con, "tiendas")
-class(tiendas_bd)
-tiendas_bd %>% select(tienda_id, nombre_tienda, ciudad, zona) %>% head(4)
-
-# ---- Bloque 7 --------------------------------------------------------
 # Una consulta: ¿cuántas transacciones hay?
 dbGetQuery(con, "SELECT COUNT(*) AS num_transacciones
                  FROM transacciones")
@@ -85,7 +80,7 @@ dbGetQuery(con, "SELECT * FROM metas")
 # Borrar la tabla de prueba
 dbExecute(con, "DROP TABLE metas")
 
-# ---- Bloque 8 --------------------------------------------------------
+# ---- Bloque 7 --------------------------------------------------------
 # Función que abre su propia conexión y SIEMPRE la cierra
 contar_filas <- function(ruta, tabla) {
   con_local <- dbConnect(RSQLite::SQLite(), ruta)
@@ -97,16 +92,13 @@ contar_filas <- function(ruta, tabla) {
 contar_filas(ruta_bd, "clientes")
 contar_filas(ruta_bd, "productos")
 
-# ---- Bloque 9 --------------------------------------------------------
+# ---- Bloque 8 --------------------------------------------------------
 dbGetQuery(con, "
   SELECT nombre_tienda, ciudad, zona   -- columnas que quiero
   FROM tiendas                         -- tabla de origen
 ")
 
-# ---- Bloque 10 --------------------------------------------------------
-dbGetQuery(con, "SELECT * FROM transacciones LIMIT 3")
-
-# ---- Bloque 11 --------------------------------------------------------
+# ---- Bloque 9 --------------------------------------------------------
 # IN (...) equivale a varias condiciones unidas con OR
 dbGetQuery(con, "
   SELECT COUNT(*) AS clientes
@@ -121,10 +113,10 @@ dbGetQuery(con, "
   WHERE es_premium = 1
     AND ciudad IN ('Monterrey', 'Guadalajara')
   ORDER BY ciudad, nombre
-  LIMIT 6
+  LIMIT 3
 ")
 
-# ---- Bloque 12 --------------------------------------------------------
+# ---- Bloque 10 --------------------------------------------------------
 # BETWEEN incluye ambos extremos; las fechas son texto ISO
 dbGetQuery(con, "
   SELECT transaccion_id, fecha, producto_id, total_transaccion
@@ -139,7 +131,7 @@ dbGetQuery(con, "
   WHERE total_transaccion > 2800
 ")
 
-# ---- Bloque 13 --------------------------------------------------------
+# ---- Bloque 11 --------------------------------------------------------
 # Clientes cuyo apellido es García y cuyo nombre empieza con "Laura"
 dbGetQuery(con, "
   SELECT
@@ -148,7 +140,7 @@ dbGetQuery(con, "
   FROM clientes
 ")
 
-# ---- Bloque 14 --------------------------------------------------------
+# ---- Bloque 12 --------------------------------------------------------
 dbGetQuery(con, "
   SELECT transaccion_id, fecha, cantidad, precio_venta,
          total_transaccion
@@ -157,7 +149,7 @@ dbGetQuery(con, "
   LIMIT 5
 ")
 
-# ---- Bloque 15 --------------------------------------------------------
+# ---- Bloque 13 --------------------------------------------------------
 dbGetQuery(con, "
   SELECT COUNT(*)                         AS tickets,
          COUNT(DISTINCT cliente_id)       AS clientes,
@@ -167,7 +159,7 @@ dbGetQuery(con, "
   FROM transacciones
 ")
 
-# ---- Bloque 16 --------------------------------------------------------
+# ---- Bloque 14 --------------------------------------------------------
 dbGetQuery(con, "
   SELECT metodo_pago,
          COUNT(*)                         AS tickets,
@@ -178,7 +170,7 @@ dbGetQuery(con, "
   ORDER BY ventas DESC
 ")
 
-# ---- Bloque 17 --------------------------------------------------------
+# ---- Bloque 15 --------------------------------------------------------
 dbGetQuery(con, "
   SELECT cliente_id,
          COUNT(*)                         AS compras,
@@ -189,7 +181,7 @@ dbGetQuery(con, "
   ORDER BY compras DESC, gasto_total DESC
 ")
 
-# ---- Bloque 18 --------------------------------------------------------
+# ---- Bloque 16 --------------------------------------------------------
 dbGetQuery(con, "
   SELECT CASE
            WHEN total_transaccion < 500  THEN '1. Menos de 500'
@@ -203,7 +195,7 @@ dbGetQuery(con, "
   ORDER BY rango_ticket
 ")
 
-# ---- Bloque 19 --------------------------------------------------------
+# ---- Bloque 17 --------------------------------------------------------
 # Base temporal para experimentar (no toca bi_retail.sqlite)
 con_prueba <- dbConnect(RSQLite::SQLite(), ":memory:")
 
@@ -219,7 +211,7 @@ dbGetQuery(con_prueba, "
   LIMIT 3
 ")
 
-# ---- Bloque 20 --------------------------------------------------------
+# ---- Bloque 18 --------------------------------------------------------
 tiendas_ok <- tiendas_r %>%
   mutate(fecha_apertura = format(fecha_apertura, "%Y-%m-%d"))
 
@@ -240,7 +232,7 @@ dbReadTable(con_prueba, "tiendas") %>%
 
 dbDisconnect(con_prueba)
 
-# ---- Bloque 21 --------------------------------------------------------
+# ---- Bloque 19 --------------------------------------------------------
 ventas_mes_sql <- dbGetQuery(con, "
   SELECT strftime('%Y-%m', fecha)         AS mes,
          COUNT(*)                         AS tickets,
@@ -251,35 +243,7 @@ ventas_mes_sql <- dbGetQuery(con, "
 ")
 ventas_mes_sql
 
-# ---- Bloque 22 --------------------------------------------------------
-dbGetQuery(con, "
-  SELECT strftime('%w', fecha) AS num_dia,   -- 0 = domingo
-         CASE strftime('%w', fecha)
-           WHEN '0' THEN 'domingo'   WHEN '1' THEN 'lunes'
-           WHEN '2' THEN 'martes'    WHEN '3' THEN 'miércoles'
-           WHEN '4' THEN 'jueves'    WHEN '5' THEN 'viernes'
-           ELSE 'sábado'
-         END AS dia,
-         COUNT(*) AS tickets,
-         ROUND(AVG(total_transaccion), 2) AS ticket_promedio
-  FROM transacciones
-  GROUP BY num_dia
-  ORDER BY num_dia
-")
-
-# ---- Bloque 23 --------------------------------------------------------
-# Antigüedad de los clientes al 31 de diciembre de 2023
-dbGetQuery(con, "
-  SELECT nombre, fecha_registro,
-         CAST(julianday('2023-12-31') - julianday(fecha_registro)
-              AS INTEGER)                    AS dias_antiguedad,
-         date(fecha_registro, '+1 year')     AS primer_aniversario
-  FROM clientes
-  ORDER BY fecha_registro
-  LIMIT 4
-")
-
-# ---- Bloque 24 --------------------------------------------------------
+# ---- Bloque 20 --------------------------------------------------------
 dbGetQuery(con, "
   SELECT p.categoria,
          COUNT(*)                           AS tickets,
@@ -292,7 +256,7 @@ dbGetQuery(con, "
   ORDER BY ventas DESC
 ")
 
-# ---- Bloque 25 --------------------------------------------------------
+# ---- Bloque 21 --------------------------------------------------------
 dbGetQuery(con, "
   SELECT c.cliente_id, c.nombre, c.ciudad, c.fecha_registro
   FROM clientes AS c
@@ -301,20 +265,7 @@ dbGetQuery(con, "
   WHERE t.transaccion_id IS NULL   -- sin pareja en transacciones
 ")
 
-# ---- Bloque 26 --------------------------------------------------------
-dbGetQuery(con, "
-  SELECT ti.zona,
-         COUNT(*)                         AS tickets,
-         ROUND(AVG(t.precio_venta), 2)    AS precio_venta_prom,
-         ROUND(AVG(p.precio_catalogo), 2) AS precio_catalogo_prom
-  FROM transacciones AS t
-  INNER JOIN productos AS p  ON t.producto_id = p.producto_id
-  INNER JOIN tiendas   AS ti ON t.tienda_id   = ti.tienda_id
-  GROUP BY ti.zona
-  ORDER BY tickets DESC
-")
-
-# ---- Bloque 27 --------------------------------------------------------
+# ---- Bloque 22 --------------------------------------------------------
 dbGetQuery(con, "
   SELECT nombre_producto, categoria, precio_catalogo, margen_pct
   FROM productos
@@ -324,16 +275,7 @@ dbGetQuery(con, "
   LIMIT 5
 ")
 
-# ¿Cuál es ese promedio y cuántos productos lo superan?
-dbGetQuery(con, "
-  SELECT ROUND(AVG(precio_catalogo), 2) AS promedio,
-         (SELECT COUNT(*) FROM productos
-          WHERE precio_catalogo > (SELECT AVG(precio_catalogo)
-                                   FROM productos)) AS arriba
-  FROM productos
-")
-
-# ---- Bloque 28 --------------------------------------------------------
+# ---- Bloque 23 --------------------------------------------------------
 # Paso 1 (subconsulta): gasto total de cada cliente
 # Paso 2: estadísticas sobre esos totales
 dbGetQuery(con, "
@@ -346,7 +288,7 @@ dbGetQuery(con, "
         GROUP BY cliente_id) AS gasto_cliente
 ")
 
-# ---- Bloque 29 --------------------------------------------------------
+# ---- Bloque 24 --------------------------------------------------------
 dbGetQuery(con, "
   WITH ventas_tienda AS (          -- paso 1: ventas por tienda
     SELECT tienda_id, SUM(total_transaccion) AS ventas
@@ -365,7 +307,7 @@ dbGetQuery(con, "
   ORDER BY v.ventas DESC
 ")
 
-# ---- Bloque 30 --------------------------------------------------------
+# ---- Bloque 25 --------------------------------------------------------
 dbGetQuery(con, "
   WITH ventas_producto AS (
     SELECT p.categoria, p.nombre_producto,
@@ -385,7 +327,7 @@ dbGetQuery(con, "
   ORDER BY ventas DESC
 ")
 
-# ---- Bloque 31 --------------------------------------------------------
+# ---- Bloque 26 --------------------------------------------------------
 dbGetQuery(con, "
   WITH mensual AS (
     SELECT strftime('%Y-%m', fecha) AS mes,
@@ -403,7 +345,7 @@ dbGetQuery(con, "
   ORDER BY mes
 ")
 
-# ---- Bloque 32 --------------------------------------------------------
+# ---- Bloque 27 --------------------------------------------------------
 dbGetQuery(con, "
   SELECT tienda_id,
          COUNT(*)                                   AS tickets,
@@ -415,7 +357,7 @@ dbGetQuery(con, "
   ORDER BY tickets DESC
 ")
 
-# ---- Bloque 33 --------------------------------------------------------
+# ---- Bloque 28 --------------------------------------------------------
 # Lo que escribió el usuario en la caja de texto
 ciudad_usuario <- "Mérida' OR '1'='1"
 
@@ -427,7 +369,7 @@ sql_peligroso <- paste0(
 cat(sql_peligroso, "\n")
 dbGetQuery(con, sql_peligroso)
 
-# ---- Bloque 34 --------------------------------------------------------
+# ---- Bloque 29 --------------------------------------------------------
 sql_seguro <- "SELECT COUNT(*) AS clientes FROM clientes WHERE ciudad = ?"
 
 # Con el texto malicioso: busca literalmente esa "ciudad" y no la halla
@@ -436,7 +378,7 @@ dbGetQuery(con, sql_seguro, params = list(ciudad_usuario))
 # Con un valor legítimo funciona normalmente
 dbGetQuery(con, sql_seguro, params = list("Mérida"))
 
-# ---- Bloque 35 --------------------------------------------------------
+# ---- Bloque 30 --------------------------------------------------------
 reporte_pago <- function(con, metodo, desde, hasta) {
   dbGetQuery(con, "
     SELECT metodo_pago,
@@ -454,13 +396,7 @@ reporte_pago <- function(con, metodo, desde, hasta) {
 reporte_pago(con, "Transferencia", "2023-01-01", "2023-03-31")
 reporte_pago(con, "Efectivo", "2023-12-01", "2023-12-31")
 
-# ---- Bloque 36 --------------------------------------------------------
-dbGetQuery(con,
-  "SELECT ciudad, COUNT(*) AS clientes, ROUND(AVG(edad), 1) AS edad_prom
-   FROM clientes WHERE ciudad = ?",
-  params = list(c("CDMX", "Puebla", "Mérida")))
-
-# ---- Bloque 37 --------------------------------------------------------
+# ---- Bloque 31 --------------------------------------------------------
 library(glue)
 
 ciudades <- c("Monterrey", "Guadalajara", "Tijuana")
@@ -479,7 +415,7 @@ glue_sql("SELECT * FROM clientes WHERE ciudad = {ciudad_usuario}",
 sqlInterpolate(con, "SELECT * FROM clientes WHERE ciudad = ?ciudad",
                ciudad = ciudad_usuario)
 
-# ---- Bloque 38 --------------------------------------------------------
+# ---- Bloque 32 --------------------------------------------------------
 transacciones_bd <- tbl(con, "transacciones")
 productos_bd     <- tbl(con, "productos")
 
@@ -487,7 +423,7 @@ transacciones_bd %>%
   select(transaccion_id, fecha, producto_id, total_transaccion) %>%
   head(3)
 
-# ---- Bloque 39 --------------------------------------------------------
+# ---- Bloque 33 --------------------------------------------------------
 consulta_pago <- transacciones_bd %>%
   group_by(metodo_pago) %>%
   summarise(tickets = n(),
@@ -497,12 +433,12 @@ consulta_pago <- transacciones_bd %>%
 # ¿Qué SQL generó dbplyr?
 show_query(consulta_pago)
 
-# ---- Bloque 40 --------------------------------------------------------
+# ---- Bloque 34 --------------------------------------------------------
 resultado_pago <- collect(consulta_pago)
 resultado_pago
 class(resultado_pago)
 
-# ---- Bloque 41 --------------------------------------------------------
+# ---- Bloque 35 --------------------------------------------------------
 ventas_categoria_dbplyr <- transacciones_bd %>%
   inner_join(productos_bd, by = "producto_id") %>%
   group_by(categoria) %>%
@@ -513,15 +449,7 @@ ventas_categoria_dbplyr <- transacciones_bd %>%
 
 head(ventas_categoria_dbplyr, 4)
 
-# ---- Bloque 42 --------------------------------------------------------
-# Funciona: month() de lubridate se traduce a strftime() en SQLite
-transacciones_bd %>%
-  mutate(num_mes = month(fecha)) %>%
-  count(num_mes) %>%
-  head(3) %>%
-  show_query()
-
-# ---- Bloque 43 --------------------------------------------------------
+# ---- Bloque 36 --------------------------------------------------------
 ddl_estrella <- c(
   dim_fecha = "
     CREATE TABLE dim_fecha (
@@ -587,7 +515,7 @@ crear_esquema <- function(con) {
 crear_esquema(con)
 dbListTables(con)
 
-# ---- Bloque 44 --------------------------------------------------------
+# ---- Bloque 37 --------------------------------------------------------
 construir_dim_fecha <- function(desde, hasta) {
   tibble(fecha = seq(as.Date(desde), as.Date(hasta), by = "day")) %>%
     mutate(
@@ -610,7 +538,7 @@ dim_fecha <- construir_dim_fecha("2023-01-01", "2023-12-31")
 nrow(dim_fecha)
 dim_fecha %>% filter(fecha >= "2023-12-29") %>% select(-dia)
 
-# ---- Bloque 45 --------------------------------------------------------
+# ---- Bloque 38 --------------------------------------------------------
 preparar_dimensiones <- function(carpeta = "datasets") {
   leer <- function(archivo) {
     read_csv(file.path(carpeta, archivo), show_col_types = FALSE)
@@ -649,7 +577,7 @@ preparar_dimensiones <- function(carpeta = "datasets") {
 dimensiones <- preparar_dimensiones()
 map_int(dimensiones, nrow)
 
-# ---- Bloque 46 --------------------------------------------------------
+# ---- Bloque 39 --------------------------------------------------------
 cargar_dimensiones <- function(con, dimensiones) {
   dbBegin(con)                          # todo o nada (ver más adelante)
   for (tabla in names(dimensiones)) {
@@ -664,7 +592,7 @@ cargar_dimensiones <- function(con, dimensiones) {
 
 cargar_dimensiones(con, dimensiones)
 
-# ---- Bloque 47 --------------------------------------------------------
+# ---- Bloque 40 --------------------------------------------------------
 dbGetQuery(con, "
   SELECT departamento, COUNT(*) AS vendedores
   FROM dim_vendedor
@@ -672,15 +600,7 @@ dbGetQuery(con, "
   ORDER BY vendedores DESC
 ")
 
-# ---- Bloque 48 --------------------------------------------------------
-resultado <- tryCatch(
-  dbExecute(con, "INSERT INTO dim_producto (producto_id, nombre_producto)
-                  VALUES (1, 'Producto repetido')"),
-  error = function(e) conditionMessage(e)
-)
-resultado
-
-# ---- Bloque 49 --------------------------------------------------------
+# ---- Bloque 41 --------------------------------------------------------
 con_pedidos <- dbConnect(RSQLite::SQLite(), ":memory:")
 dbExecute(con_pedidos, "PRAGMA foreign_keys = ON")
 dbExecute(con_pedidos, "CREATE TABLE productos (id INTEGER PRIMARY KEY)")
@@ -701,7 +621,7 @@ guardar_pedido <- function(con, id, cliente, productos) {
 try(guardar_pedido(con_pedidos, 1, "Ana", c(1, 99)), silent = TRUE)
 dbGetQuery(con_pedidos, "SELECT * FROM pedidos")   # ¡encabezado huérfano!
 
-# ---- Bloque 50 --------------------------------------------------------
+# ---- Bloque 42 --------------------------------------------------------
 # 2) CON transacción: si algo falla, se deshace todo
 dbBegin(con_pedidos)
 tryCatch({
@@ -714,7 +634,7 @@ tryCatch({
 dbGetQuery(con_pedidos, "SELECT * FROM pedidos")   # el 2 no quedó
 dbDisconnect(con_pedidos)
 
-# ---- Bloque 51 --------------------------------------------------------
+# ---- Bloque 43 --------------------------------------------------------
 extraer_transacciones <- function(ruta) {
   read_csv(ruta, show_col_types = FALSE,
            col_types = cols(hora = col_character()))
@@ -725,7 +645,7 @@ extraer_excel <- function(ruta, hoja) {
   readxl::read_excel(ruta, sheet = hoja)
 }
 
-# ---- Bloque 52 --------------------------------------------------------
+# ---- Bloque 44 --------------------------------------------------------
 dir.create("datos/entrada", showWarnings = FALSE)
 trans_origen <- extraer_transacciones("datasets/transacciones.csv")
 
@@ -736,7 +656,7 @@ trans_origen %>% filter(fecha >= as.Date("2023-05-01")) %>%
 
 list.files("datos/entrada")
 
-# ---- Bloque 53 --------------------------------------------------------
+# ---- Bloque 45 --------------------------------------------------------
 transformar_transacciones <- function(datos, costos) {
   datos %>%
     # 1. Calidad: quitar filas sin llave, imposibles o repetidas
@@ -766,7 +686,7 @@ costos <- dbGetQuery(con, "SELECT producto_id, costo FROM dim_producto")
 trans_origen %>% head(3) %>% transformar_transacciones(costos) %>%
   select(venta_id, fecha_id, cantidad, total, costo_total, margen)
 
-# ---- Bloque 54 --------------------------------------------------------
+# ---- Bloque 46 --------------------------------------------------------
 # Opción 1: evitar duplicados en R con anti_join()
 cargar_hechos <- function(con, datos) {
   existentes <- dbGetQuery(con, "SELECT venta_id FROM fact_ventas")
@@ -785,7 +705,7 @@ cargar_hechos_sql <- function(con, datos) {
   n
 }
 
-# ---- Bloque 55 --------------------------------------------------------
+# ---- Bloque 47 --------------------------------------------------------
 registrar_log <- function(con, archivo, leidas, validas, nuevas,
                           estado, mensaje = NA_character_) {
   dbAppendTable(con, "log_etl", tibble(
@@ -821,7 +741,7 @@ ejecutar_etl <- function(con, ruta, cargar = cargar_hechos) {
   invisible(estado)
 }
 
-# ---- Bloque 56 --------------------------------------------------------
+# ---- Bloque 48 --------------------------------------------------------
 ejecutar_etl(con, "datos/entrada/ventas_2023_s1.csv")
 ejecutar_etl(con, "datos/entrada/ventas_2023_s2.csv")
 
@@ -834,7 +754,7 @@ ejecutar_etl(con, "datos/entrada/ventas_2023_s2.csv",
 
 dbGetQuery(con, "SELECT COUNT(*) AS filas FROM fact_ventas")
 
-# ---- Bloque 57 --------------------------------------------------------
+# ---- Bloque 49 --------------------------------------------------------
 lote_malo <- trans_origen %>%
   slice(1:3) %>%
   mutate(transaccion_id = 1001:1003, fecha = as.Date("2023-12-31"),
@@ -844,7 +764,7 @@ write_csv(lote_malo, "datos/entrada/ventas_2023_12_31.csv")
 ejecutar_etl(con, "datos/entrada/ventas_2023_12_31.csv")
 dbGetQuery(con, "SELECT COUNT(*) AS filas FROM fact_ventas")
 
-# ---- Bloque 58 --------------------------------------------------------
+# ---- Bloque 50 --------------------------------------------------------
 dbGetQuery(con, "
   SELECT ejecucion_id AS id, archivo, filas_leidas AS leidas,
          filas_validas AS validas, filas_nuevas AS nuevas, estado
@@ -852,7 +772,7 @@ dbGetQuery(con, "
 ")
 dbGetQuery(con, "SELECT mensaje FROM log_etl WHERE estado = 'ERROR'")
 
-# ---- Bloque 59 --------------------------------------------------------
+# ---- Bloque 51 --------------------------------------------------------
 tiendas_excel <- extraer_excel("datasets/datos_empresa.xlsx", "Tiendas")
 class(tiendas_excel$fecha_apertura)
 
@@ -865,7 +785,7 @@ tiendas_excel_t %>%
   anti_join(dbReadTable(con, "dim_tienda"),
             by = c("tienda_id", "nombre_tienda", "fecha_apertura"))
 
-# ---- Bloque 60 --------------------------------------------------------
+# ---- Bloque 52 --------------------------------------------------------
 vistas <- c(
   # Vista "ancha": cada venta con todos sus atributos descriptivos
   "CREATE VIEW vw_ventas_detalle AS
@@ -894,19 +814,9 @@ vistas <- c(
 )
 for (sql in vistas) dbExecute(con, sql)
 
-dbGetQuery(con, "SELECT * FROM vw_kpi_mensual") %>% head(6)
+dbGetQuery(con, "SELECT * FROM vw_kpi_mensual") %>% head(3)
 
-# ---- Bloque 61 --------------------------------------------------------
-dbGetQuery(con, "
-  SELECT zona, ROUND(SUM(total), 0) AS ventas,
-         ROUND(SUM(margen), 0) AS margen,
-         ROUND(100.0 * SUM(margen) / SUM(total), 1) AS margen_pct
-  FROM vw_ventas_detalle
-  GROUP BY zona
-  ORDER BY ventas DESC
-")
-
-# ---- Bloque 62 --------------------------------------------------------
+# ---- Bloque 53 --------------------------------------------------------
 consulta_cliente <- "SELECT SUM(total) FROM fact_ventas
                      WHERE cliente_id = 5"
 
@@ -919,7 +829,7 @@ dbExecute(con, "CREATE INDEX idx_fact_cliente
 # Después del índice
 dbGetQuery(con, paste("EXPLAIN QUERY PLAN", consulta_cliente))$detail
 
-# ---- Bloque 63 --------------------------------------------------------
+# ---- Bloque 54 --------------------------------------------------------
 indices <- c(
   "CREATE INDEX IF NOT EXISTS idx_fact_cliente ON fact_ventas(cliente_id)",
   "CREATE INDEX IF NOT EXISTS idx_fact_fecha ON fact_ventas(fecha_id)",
@@ -939,7 +849,7 @@ for (sql in indices) dbExecute(con, sql)
 dbGetQuery(con, "SELECT type, name FROM sqlite_master
                  WHERE type IN ('index', 'view') ORDER BY type, name")
 
-# ---- Bloque 64 --------------------------------------------------------
+# ---- Bloque 55 --------------------------------------------------------
 # a) Todo el detalle, todas las columnas
 todo <- dbGetQuery(con, "SELECT * FROM fact_ventas")
 # b) Solo las columnas necesarias
@@ -954,7 +864,7 @@ tibble(forma = c("a) todo", "b) dos columnas", "c) agregado"),
        kb    = round(c(object.size(todo), object.size(dos_columnas),
                        object.size(agregado)) / 1024, 1))
 
-# ---- Bloque 65 --------------------------------------------------------
+# ---- Bloque 56 --------------------------------------------------------
 resultado <- dbSendQuery(con, "SELECT venta_id, metodo_pago, total
                                FROM fact_ventas")
 bloque <- 0
@@ -1031,7 +941,7 @@ dbClearResult(resultado)   # liberar el resultado en la base
 # Sys.getenv("SQLSERVER_USER")       # "analista_bi"
 # nchar(Sys.getenv("SQLSERVER_PASS")) > 0   # comprobar sin imprimirla
 
-# ---- Bloque 66 --------------------------------------------------------
+# ---- Bloque 57 --------------------------------------------------------
 dbDisconnect(con)
 
 reconstruir_dw <- function(ruta_bd, archivos_ventas) {
@@ -1051,16 +961,18 @@ con <- reconstruir_dw("datos/bi_retail.sqlite",
                         "datos/entrada/ventas_2023_s2.csv"))
 dbListTables(con)
 
-# ---- Bloque 67 --------------------------------------------------------
+# ---- Bloque 58 --------------------------------------------------------
 kpi_mensual <- dbGetQuery(con, "
-  SELECT mes, nombre_mes, tickets, ventas, margen,
-         ROUND(100.0 * margen / ventas, 1) AS margen_pct
+  SELECT mes, nombre_mes, tickets, ventas,
+         ROUND(100.0 * margen / ventas, 1) AS margen_pct,
+         ROUND(100.0 * (ventas - LAG(ventas) OVER (ORDER BY mes)) /
+               LAG(ventas) OVER (ORDER BY mes), 1) AS crec_pct
   FROM vw_kpi_mensual
   ORDER BY anio, mes
 ")
 kpi_mensual
 
-# ---- Bloque 68 --------------------------------------------------------
+# ---- Bloque 59 --------------------------------------------------------
 kpi_dplyr <- read_csv("datasets/transacciones.csv",
                       show_col_types = FALSE) %>%
   group_by(mes = month(fecha)) %>%
@@ -1075,7 +987,7 @@ comparacion <- kpi_mensual %>%
 all.equal(comparacion$ventas_sql, comparacion$ventas_dplyr)
 all(comparacion$tickets_sql == comparacion$tickets_dplyr)
 
-# ---- Bloque 69 --------------------------------------------------------
+# ---- Bloque 60 --------------------------------------------------------
 color_principal <- "#2a78d6"
 
 grafica_mensual <- kpi_mensual %>%
@@ -1093,7 +1005,7 @@ grafica_mensual <- kpi_mensual %>%
         axis.text.x = element_text(angle = 45, hjust = 1))
 grafica_mensual
 
-# ---- Bloque 70 --------------------------------------------------------
+# ---- Bloque 61 --------------------------------------------------------
 dbGetQuery(con, "
   SELECT p.nombre_producto, p.categoria,
          SUM(f.cantidad)                            AS unidades,
@@ -1107,7 +1019,7 @@ dbGetQuery(con, "
   LIMIT 5
 ")
 
-# ---- Bloque 71 --------------------------------------------------------
+# ---- Bloque 62 --------------------------------------------------------
 # ¿Hay productos que se venden con pérdida?
 dbGetQuery(con, "
   SELECT p.nombre_producto, p.costo,
@@ -1120,7 +1032,7 @@ dbGetQuery(con, "
   ORDER BY margen_total
 ")
 
-# ---- Bloque 72 --------------------------------------------------------
+# ---- Bloque 63 --------------------------------------------------------
 dbGetQuery(con, "
   SELECT c.nombre, c.ciudad, c.segmento,
          CASE c.es_premium WHEN 1 THEN 'Sí' ELSE 'No' END AS premium,
@@ -1134,7 +1046,7 @@ dbGetQuery(con, "
   LIMIT 5
 ")
 
-# ---- Bloque 73 --------------------------------------------------------
+# ---- Bloque 64 --------------------------------------------------------
 dbGetQuery(con, "
   SELECT t.nombre_tienda, t.tipo, t.tamano_m2,
          ROUND(SUM(f.total), 0)               AS ventas,
@@ -1146,7 +1058,7 @@ dbGetQuery(con, "
   ORDER BY ventas_m2 DESC
 ")
 
-# ---- Bloque 74 --------------------------------------------------------
+# ---- Bloque 65 --------------------------------------------------------
 dbGetQuery(con, "
   WITH ventas_vendedor_zona AS (
     SELECT t.zona, v.nombre AS vendedor, SUM(f.total) AS ventas
@@ -1165,18 +1077,7 @@ dbGetQuery(con, "
   ORDER BY zona, lugar
 ")
 
-# ---- Bloque 75 --------------------------------------------------------
-dbGetQuery(con, "
-  SELECT nombre_mes, ventas,
-         ROUND(100.0 * (ventas - LAG(ventas) OVER (ORDER BY mes)) /
-               LAG(ventas) OVER (ORDER BY mes), 1) AS crec_ventas_pct,
-         ROUND(100.0 * (margen - LAG(margen) OVER (ORDER BY mes)) /
-               LAG(margen) OVER (ORDER BY mes), 1) AS crec_margen_pct
-  FROM vw_kpi_mensual
-  ORDER BY mes
-")
-
-# ---- Bloque 76 --------------------------------------------------------
+# ---- Bloque 66 --------------------------------------------------------
 dbGetQuery(con, "
   SELECT CASE d.es_fin_semana WHEN 1 THEN 'Fin de semana'
                               ELSE 'Entre semana' END AS tipo_dia,
@@ -1190,33 +1091,29 @@ dbGetQuery(con, "
   GROUP BY tipo_dia
 ")
 
-# ---- Bloque 77 --------------------------------------------------------
+# ---- Bloque 67 --------------------------------------------------------
 mostrar_error <- function(expr) {
   tryCatch(expr,
            error   = function(e) cat("Error:", conditionMessage(e), "\n"),
            warning = function(w) cat("Aviso:", conditionMessage(w), "\n"))
 }
 
-# ---- Bloque 78 --------------------------------------------------------
+# ---- Bloque 68 --------------------------------------------------------
 mostrar_error(dbGetQuery(con, "SELECT * FROM ventas_2024"))
 mostrar_error(dbGetQuery(con, "SELECT totl FROM fact_ventas"))
-
-# ---- Bloque 79 --------------------------------------------------------
 mostrar_error(dbWriteTable(con, "dim_tienda", dimensiones$dim_tienda))
-
-# ---- Bloque 80 --------------------------------------------------------
 mostrar_error(dbAppendTable(con, "dim_tienda", dimensiones$dim_tienda))
 
-# ---- Bloque 81 --------------------------------------------------------
+# ---- Bloque 69 --------------------------------------------------------
 dbGetQuery(con, "SELECT COUNT(*) AS n FROM dim_cliente
                  WHERE ciudad = 'CDMX'")     # correcto: 27
 dbGetQuery(con, "SELECT COUNT(*) AS n FROM dim_cliente
                  WHERE ciudad = \"ciudad\"")  # ¡columna consigo misma!
 
-# ---- Bloque 82 --------------------------------------------------------
+# ---- Bloque 70 --------------------------------------------------------
 con_temporal <- dbConnect(RSQLite::SQLite(), ":memory:")
 dbDisconnect(con_temporal)
 mostrar_error(dbGetQuery(con_temporal, "SELECT 1"))
 
-# ---- Bloque 83 --------------------------------------------------------
+# ---- Bloque 71 --------------------------------------------------------
 dbDisconnect(con)
