@@ -92,7 +92,13 @@ anscombe_largo %>%
   mutate(across(where(is.numeric), ~ round(.x, 2)))
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+# A tibble: 4 x 5
+  conjunto   media_x media_y desv_y correlacion
+  <chr>        <dbl>   <dbl>  <dbl>       <dbl>
+1 Conjunto 1       9     7.5   2.03        0.82
+2 Conjunto 2       9     7.5   2.03        0.82
+3 Conjunto 3       9     7.5   2.03        0.82
+4 Conjunto 4       9     7.5   2.03        0.82
 \end{rsalida}
 
 Las cuatro filas son prácticamente iguales: media de $x$ igual a 9, media de
@@ -258,7 +264,13 @@ ventas_detalle %>%
   head(4)
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+# A tibble: 4 x 5
+  fecha      categoria  tienda  metodo_pago     total_transaccion
+  <date>     <chr>      <chr>   <chr>                       <dbl>
+1 2023-01-13 Automotriz Express Tarjeta Crédito             1216.
+2 2023-01-09 Automotriz Norte   Tarjeta Débito               232.
+3 2023-02-20 Juguetes   Plaza B Tarjeta Débito               826.
+4 2023-05-05 Deportes   Plaza A Tarjeta Débito               421.
 \end{rsalida}
 
 Para la primera gráfica necesitamos los ingresos de cada mes.
@@ -276,7 +288,21 @@ ventas_mes <- ventas_detalle %>%
 ventas_mes
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+# A tibble: 12 x 3
+   mes        ingresos tickets
+   <date>        <dbl>   <int>
+ 1 2023-01-01   82560.      98
+ 2 2023-02-01   65899.      79
+ 3 2023-03-01   90931.      91
+ 4 2023-04-01   57038.      71
+ 5 2023-05-01   93910.      88
+ 6 2023-06-01   88509.      84
+ 7 2023-07-01   86456.      83
+ 8 2023-08-01   78929.      75
+ 9 2023-09-01   68856.      86
+10 2023-10-01   70004.      74
+11 2023-11-01   80507.      80
+12 2023-12-01   96394.      91
 \end{rsalida}
 
 \subsection{Tu primer gráfico, capa por capa}
@@ -467,7 +493,13 @@ g_conteo <- ggplot(ventas_detalle, aes(x = metodo_pago)) +
 ventas_detalle %>% count(metodo_pago)
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+# A tibble: 4 x 2
+  metodo_pago         n
+  <chr>           <int>
+1 Efectivo          315
+2 Tarjeta Crédito   350
+3 Tarjeta Débito    233
+4 Transferencia     102
 \end{rsalida}
 
 Las dos formas producen la misma gráfica de conteos. Nuestra recomendación:
@@ -491,7 +523,19 @@ ingresos_categoria <- ventas_detalle %>%
 ingresos_categoria
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+# A tibble: 10 x 4
+   categoria   ingresos tickets participacion
+   <chr>          <dbl>   <int>         <dbl>
+ 1 Belleza      182143.     187        0.190 
+ 2 Electrónica  132672.     137        0.138 
+ 3 Juguetes     125093.     118        0.130 
+ 4 Alimentos    121543.     115        0.127 
+ 5 Automotriz   104085.     105        0.108 
+ 6 Deportes      86171.      92        0.0898
+ 7 Hogar         63407.      64        0.0660
+ 8 Mascotas      57668.      74        0.0601
+ 9 Libros        57162.      70        0.0595
+10 Ropa          30048.      38        0.0313
 \end{rsalida}
 
 Ahora la gráfica. Usamos barras \emph{horizontales} (la categoría en el eje
@@ -639,7 +683,14 @@ ingresos_semestre %>%
   mutate(cambio = `Jul-Dic` / `Ene-Jun` - 1)
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+# A tibble: 5 x 4
+  categoria   `Ene-Jun` `Jul-Dic`  cambio
+  <chr>           <dbl>     <dbl>   <dbl>
+1 Alimentos      61538.    60005. -0.0249
+2 Automotriz     47343.    56742.  0.199 
+3 Belleza       114399.    67744. -0.408 
+4 Electrónica    58242.    74431.  0.278 
+5 Juguetes       63886.    61207. -0.0419
 \end{rsalida}
 
 \begin{rcode}
@@ -723,7 +774,7 @@ cada trimestre.}
 
 \textbf{Cómo leerla.} En los cuatro trimestres Tarjeta de crédito ocupa
 algo más de un tercio (su mayor peso fue en Q2), Efectivo cerca de un
-tercio, Tarjeta de débito entre 21\% y 26\% y Transferencia menos del 11\%.
+tercio, Tarjeta de débito entre 20\% y 26\% y Transferencia menos del 11\%.
 No hay un cambio de hábito relevante. \codigo{position\_fill(reverse =
 TRUE)} hace que el orden de las franjas (de abajo hacia arriba) coincida con
 el de la leyenda (de izquierda a derecha).
@@ -763,7 +814,7 @@ mes_record <- ventas_mes %>% slice_max(ingresos, n = 1)   # mejor mes
 sum(ventas_mes$ingresos >= meta_mensual)    # meses que alcanzaron meta
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+[1] 7
 \end{rsalida}
 
 \begin{rcode}
@@ -860,7 +911,13 @@ real_vs_meta <- ventas_mes %>%
 head(real_vs_meta, 4)
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+# A tibble: 4 x 3
+  mes        serie  monto
+  <date>     <fct>  <dbl>
+1 2023-01-01 Real  82560.
+2 2023-01-01 Meta  75000 
+3 2023-02-01 Real  65899.
+4 2023-02-01 Meta  70000
 \end{rsalida}
 
 \begin{rcode}
@@ -998,7 +1055,7 @@ g_precio_cantidad
 cor(ventas_detalle$precio_venta, ventas_detalle$cantidad)
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+[1] 0.0602253
 \end{rsalida}
 
 \begin{figure}[H]
@@ -1171,8 +1228,8 @@ g_densidad
 \end{figure}
 
 \textbf{Cómo leerla.} La distribución es \termino{asimétrica a la derecha}:
-la mayoría de los tickets están entre \$0 y \$600 (las barras más altas),
-y luego hay una ``cola'' larga de tickets cada vez menos frecuentes que
+las barras más altas están entre \$0 y \$600 (ahí cae el 45\% de los
+tickets), y luego hay una ``cola'' larga de tickets cada vez menos frecuentes que
 llega hasta casi \$3,000. Por eso el promedio (\$960) es bastante mayor que
 la mediana (\$713): los tickets grandes jalan el promedio hacia arriba.
 
@@ -1242,7 +1299,13 @@ ventas_detalle %>%
   arrange(desc(mediana))
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+# A tibble: 4 x 5
+  metodo_pago        q1 mediana    q3 promedio
+  <chr>           <dbl>   <dbl> <dbl>    <dbl>
+1 Tarjeta Crédito  334.    780. 1586.    1003.
+2 Tarjeta Débito   340.    732. 1415.     948.
+3 Efectivo         383.    710. 1479.     964.
+4 Transferencia    267.    608. 1121.     826.
 \end{rsalida}
 
 \begin{rcode}
@@ -1337,7 +1400,16 @@ calor %>% slice_max(ingresos, n = 3)
 calor %>% slice_min(ingresos, n = 1)
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+# A tibble: 3 x 3
+  mes   dia   ingresos
+  <ord> <ord>    <dbl>
+1 ene   lun     21287.
+2 may   vie     21079.
+3 dic   dom     20350.
+# A tibble: 1 x 3
+  mes   dia   ingresos
+  <ord> <ord>    <dbl>
+1 abr   mar       303.
 \end{rsalida}
 
 \begin{rcode}
@@ -1434,8 +1506,8 @@ g_facetas
 \end{figure}
 
 \textbf{Cómo leerla.} Con la misma escala en todos los paneles salta a la
-vista el tamaño: Belleza se mueve casi siempre entre \$10,000 y \$23,000 al
-mes, mientras que Ropa rara vez pasa de \$6,000. También se ve la caída de
+vista el tamaño: Belleza se mueve entre unos \$6,500 y \$23,000 al mes,
+mientras que Ropa nunca pasa de \$6,500. También se ve la caída de
 Belleza a partir de julio. \codigo{complete()} (de \paquete{tidyr}) fue
 necesario porque Mascotas y Ropa tuvieron un mes sin ventas; sin él, la
 línea uniría directamente el mes anterior con el siguiente y ocultaría el
@@ -1463,7 +1535,7 @@ g_facetas_libre
 \end{figure}
 
 \textbf{Cómo leerla.} Ahora Ropa ocupa todo su panel y se ve su propio
-patrón (picos en septiembre y noviembre), pero ya no puedes comparar
+patrón (picos en agosto, octubre y diciembre), pero ya no puedes comparar
 tamaños entre paneles: el pico de Ropa (unos \$6,000) parece tan alto como
 el de Juguetes (más de \$20,000). La regla:
 
@@ -1505,8 +1577,19 @@ label_number(scale_cut = cut_short_scale())(montos)   # K, M automáticos
 label_dollar(scale_cut = cut_short_scale())(montos)
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+[1] "$500"       "$25,000"    "$750,000"   "$1,200,000" "$3,500,000"
+[1] "500"       "25,000"    "750,000"   "1,200,000" "3,500,000"
+[1] "19.0%" "8.8%"  "36.6%"
+[1] "$0.50K"     "$25.00K"    "$750.00K"   "$1,200.00K" "$3,500.00K"
+[1] "500"  "25K"  "750K" "1.2M" "3.5M"
+[1] "$500"  "$25K"  "$750K" "$1.2M" "$3.5M"
 \end{rsalida}
+
+Observa la cuarta línea: cuando los números son muy distintos entre sí,
+\codigo{label\_dollar()} agrega decimales para que ninguno se vea igual
+(\$0.50K). En un eje, con marcas redondas, verás \$250K, \$500K; si
+quieres controlarlo tú, usa el argumento \codigo{accuracy} (por ejemplo,
+\codigo{accuracy = 1} para no mostrar decimales).
 
 \begin{table}[H]
 \centering
@@ -1589,7 +1672,7 @@ desde cero (derecha).}
 \end{figure}
 
 \textbf{Cómo leerla.} En la versión truncada, la barra de Outlet parece
-\emph{quince veces} más larga que la de Plaza B. En realidad Outlet vendió
+\emph{dieciséis veces} más larga que la de Plaza B. En realidad Outlet vendió
 \$114,377 y Plaza B \$80,236: 43\% más, no quince veces más. En una barra,
 la \emph{longitud} es el dato; si cortas el eje, mientes con la longitud.
 
@@ -1992,7 +2075,7 @@ file.exists(c("resultados/ingresos_categoria.png",
               "resultados/ingresos_categoria.pdf"))
 \end{rcode}
 \begin{rsalida}
-PENDIENTE
+[1] TRUE TRUE
 \end{rsalida}
 
 Los argumentos clave:
@@ -2075,3 +2158,526 @@ pruébalo tú en RStudio. Dos advertencias: \codigo{ggplotly()} no traduce al
 archivo HTML no se puede pegar en PowerPoint como imagen. Para la
 presentación del consejo, exporta PNG; para el equipo que explora, HTML.
 
+% ----------------------------------------------------------------------------
+\section{Caso práctico: tablero de ventas 2023 para la dirección}
+\label{sec:m3-caso}
+
+\begin{ejemplo}{Las láminas del consejo}
+La directora general pidió ``tres o cuatro láminas'' con las ventas de 2023.
+Vas a entregar un \termino{tablero} (\emph{dashboard}): una fila de
+tarjetas KPI y cinco gráficas coherentes, todas con
+\codigo{tema\_empresa()} y los mismos colores, cada una con un título que
+dice su conclusión. Al final redactarás tres conclusiones para el consejo.
+\end{ejemplo}
+
+\subsection{Paso 1: las tarjetas KPI}
+
+Lo primero que quiere ver la dirección son los números grandes del año.
+Aquí una gráfica no aporta nada: el mensaje \emph{es} el número.
+
+\begin{rcode}
+kpis <- ventas_detalle %>%
+  summarise(ingresos = sum(total_transaccion),
+            tickets  = n(),
+            ticket_promedio = mean(total_transaccion),
+            clientes = n_distinct(cliente_id))   # clientes distintos
+kpis
+\end{rcode}
+\begin{rsalida}
+# A tibble: 1 x 4
+  ingresos tickets ticket_promedio clientes
+     <dbl>   <int>           <dbl>    <int>
+1  959993.    1000            960.      198
+\end{rsalida}
+
+Para ponerlas en la lámina podemos ``dibujar'' las tarjetas con
+\paquete{ggplot2}: un rectángulo (\codigo{geom\_tile()}) y dos textos por
+tarjeta, sin ejes (\codigo{theme\_void()}).
+
+\begin{rcode}
+tarjetas <- tibble(
+  x      = 1:4,                              # posición de cada tarjeta
+  valor  = c(dollar(kpis$ingresos, accuracy = 1),
+             comma(kpis$tickets),
+             dollar(kpis$ticket_promedio, accuracy = 1),
+             comma(kpis$clientes)),
+  titulo = c("Ingresos 2023", "Tickets", "Ticket promedio",
+             "Clientes distintos")
+)
+
+g_kpi <- ggplot(tarjetas, aes(x = x, y = 0)) +
+  geom_tile(width = 0.92, height = 1, fill = "#f3f7fd",
+            color = "#cde2fb") +                     # la tarjeta
+  geom_text(aes(label = valor), vjust = -0.1, size = 7,
+            fontface = "bold", color = "#0d366b") +  # el número grande
+  geom_text(aes(label = titulo), vjust = 2.2, size = 3.5,
+            color = "#52514e") +                     # la etiqueta
+  theme_void()                                       # sin ejes
+g_kpi
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{m03-tablero-kpi}
+\caption{Fila de tarjetas KPI del tablero.}
+\label{fig:m03-tablero-kpi}
+\end{figure}
+
+\subsection{Paso 2: las cinco gráficas}
+
+Reutilizamos objetos que ya construiste (\codigo{ventas\_mes},
+\codigo{ingresos\_categoria}, \codigo{g\_tema}, \codigo{g\_calor}) y les
+aplicamos el mismo tema. Los títulos van numerados para que en la junta se
+pueda decir ``en la gráfica 3\ldots''.
+
+\begin{rcode}
+# 1. Evolución mensual contra la meta
+t_mensual <- ggplot(ventas_mes, aes(x = mes, y = ingresos)) +
+  geom_hline(yintercept = meta_mensual, linetype = "dashed",
+             color = color_gris, linewidth = 0.6) +
+  geom_line(color = color_principal, linewidth = 0.8) +
+  geom_point(color = color_principal, size = 2) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+  scale_y_continuous(labels = label_dollar(scale = 1e-3, suffix = "K")) +
+  labs(title = "1. Abril fue el peor mes; diciembre, el mejor",
+       subtitle = "Ingresos mensuales (línea punteada = meta de $80K)",
+       x = NULL, y = NULL) +
+  tema_empresa()
+
+# 2. Categorías, con Belleza resaltada
+t_categorias <- ggplot(ingresos_categoria,
+                       aes(x = ingresos,
+                           y = fct_reorder(categoria, ingresos),
+                           fill = grupo)) +
+  geom_col(width = 0.7) +
+  scale_fill_manual(values = c(Destacada = color_resalte,
+                               Resto     = color_gris),
+                    guide = "none") +
+  scale_x_continuous(labels = label_dollar(scale = 1e-3, suffix = "K"),
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(title = "2. Belleza lidera", x = NULL, y = NULL) +
+  tema_empresa() +
+  theme(panel.grid.major.y = element_blank())
+\end{rcode}
+
+Para la gráfica de tiendas partimos de \codigo{g\_tema} y solo cambiamos la
+escala y los textos. Al sumar una segunda escala para el eje $x$,
+\paquete{ggplot2} avisa que reemplaza la anterior; es justo lo que queremos.
+
+\begin{rcode}
+# 3. Tiendas: reutiliza g_tema con otra escala y otro título
+t_tiendas <- g_tema +
+  scale_x_continuous(labels = label_dollar(scale = 1e-3, suffix = "K"),
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(title = "3. Outlet vende más", subtitle = NULL,
+       caption = NULL)
+\end{rcode}
+\begin{rsalida}
+Scale for x is already present.
+Adding another scale for x, which will replace the existing scale.
+\end{rsalida}
+
+\begin{rcode}
+# 4. Métodos de pago: participación en los ingresos
+ingresos_pago <- ventas_detalle %>%
+  group_by(metodo_pago) %>%
+  summarise(ingresos = sum(total_transaccion), .groups = "drop") %>%
+  mutate(participacion = ingresos / sum(ingresos))
+ingresos_pago
+
+t_pagos <- ggplot(ingresos_pago,
+                  aes(x = participacion,
+                      y = fct_reorder(metodo_pago, participacion))) +
+  geom_col(fill = color_principal, width = 0.6) +
+  geom_text(aes(label = percent(participacion, accuracy = 1)),
+            hjust = -0.2, size = 3.2, color = "#52514e") +
+  scale_x_continuous(labels = percent,
+                     expand = expansion(mult = c(0, 0.2))) +
+  labs(title = "4. Seis de cada diez pesos\nllegan con tarjeta",
+       x = NULL, y = NULL) +
+  tema_empresa() +
+  theme(panel.grid.major.y = element_blank())
+
+# 5. Mapa de calor: reutiliza g_calor, sin leyenda para ahorrar espacio
+t_calor <- g_calor +
+  labs(title = "5. Sin un día fijo fuerte", subtitle = NULL) +
+  tema_empresa() +
+  theme(panel.grid = element_blank(), legend.position = "none",
+        axis.text.x = element_text(size = 7))
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 3
+  metodo_pago     ingresos participacion
+  <chr>              <dbl>         <dbl>
+1 Efectivo         303735.        0.316 
+2 Tarjeta Crédito  351171.        0.366 
+3 Tarjeta Débito   220855.        0.230 
+4 Transferencia     84232.        0.0877
+\end{rsalida}
+
+El \codigo{"\textbackslash{}n"} dentro del título parte el texto en dos
+renglones para que quepa en una gráfica angosta.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{m03-tablero-mensual}\\[4pt]
+\includegraphics[width=0.48\textwidth]{m03-tablero-categorias}\hfill
+\includegraphics[width=0.48\textwidth]{m03-tablero-tiendas}\\[4pt]
+\includegraphics[width=0.48\textwidth]{m03-tablero-pagos}\hfill
+\includegraphics[width=0.48\textwidth]{m03-tablero-calor}
+\caption{Tablero de ventas 2023: cinco gráficas con el mismo tema y
+colores, cada una con su conclusión en el título.}
+\label{fig:m03-tablero}
+\end{figure}
+
+\subsection{Paso 3: exportar todo de una vez}
+
+Guardamos las seis piezas en una subcarpeta, listas para insertarse en las
+diapositivas. Una lista con nombres y un ciclo \codigo{for} evitan repetir
+seis veces \codigo{ggsave()}.
+
+\begin{rcode}
+dir.create("resultados/tablero", showWarnings = FALSE, recursive = TRUE)
+
+piezas <- list(kpis = g_kpi, mensual = t_mensual,
+               categorias = t_categorias, tiendas = t_tiendas,
+               pagos = t_pagos, calor = t_calor)
+
+for (nombre in names(piezas)) {
+  ggsave(file.path("resultados/tablero", paste0(nombre, ".png")),
+         plot = piezas[[nombre]], width = 6, height = 4, dpi = 300,
+         bg = "white")
+}
+list.files("resultados/tablero")
+\end{rcode}
+\begin{rsalida}
+[1] "calor.png"      "categorias.png" "kpis.png"      
+[4] "mensual.png"    "pagos.png"      "tiendas.png"
+\end{rsalida}
+
+\subsection{Paso 4: las conclusiones para el consejo}
+
+Un tablero sin conclusiones obliga a cada director a sacar las suyas (y
+cada uno sacará una distinta). Estas son las que los datos
+\emph{realmente} muestran:
+
+\begin{enumerate}
+  \item \textbf{El año cerró en \$959,993 con 1,000 tickets y un ticket
+        promedio de \$960.} Siete de doce meses superaron la meta de
+        \$80,000; abril (\$57,038) fue el punto más bajo y diciembre
+        (\$96,394) el más alto. Conviene investigar qué pasó en abril y en
+        septiembre--octubre.
+  \item \textbf{Belleza es la categoría líder (19\% de los ingresos), pero
+        cayó 41\% en el segundo semestre}, mientras Electrónica creció 28\%.
+        Si la tendencia sigue, Belleza podría perder el primer lugar en
+        2024: es la alerta principal para el área comercial.
+  \item \textbf{Las diferencias entre tiendas son moderadas} (de \$80,236
+        en Plaza B a \$114,377 en Outlet, 43\% más). Outlet, con solo 350
+        m\textsuperscript{2}, es la que más vende: vale la pena entender su
+        modelo. La mezcla de métodos de pago es estable (60\% con tarjeta)
+        y no hay un día de la semana consistentemente más fuerte, así que
+        no se justifican promociones por día fijo.
+\end{enumerate}
+
+\begin{advertencia}
+Observa lo que \emph{no} dijimos: ``Outlet es la mejor tienda porque tiene
+la mejor gerencia'' o ``Belleza cayó por la competencia''. Las gráficas
+muestran \emph{qué} pasó, no \emph{por qué}. Las causas requieren más
+análisis (Módulo~\ref{cap:eda}). Además, recuerda que estos datos son
+simulados: con 1,000 tickets repartidos en 10 tiendas y 12 meses, muchas
+diferencias pueden deberse al azar.
+\end{advertencia}
+
+\begin{hazlotu}
+Agrega una sexta gráfica al tablero: ``6. Ticket promedio por tienda''
+(barras horizontales, ordenadas, un color, eje en pesos). ¿La tienda con más
+ingresos es también la de ticket promedio más alto?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Errores comunes}
+\label{sec:m3-errores}
+
+Estos son los errores que más verás al empezar con \paquete{ggplot2}. Los
+mensajes son los que imprime R (versión 3.4 de \paquete{ggplot2}; RStudio
+agrega al final una sugerencia de \codigo{rlang::last\_trace()}).
+
+\subsubsection{1. El signo + al inicio de la línea}
+
+\begin{rnoejecutar}
+ggplot(ingresos_categoria, aes(x = categoria, y = ingresos))
+  + geom_col()
+\end{rnoejecutar}
+\begin{rsalida}
+Error in `+.gg`:
+! Cannot use `+` with a single argument
+i Did you accidentally put `+` on a new line?
+\end{rsalida}
+
+R ejecuta la primera línea completa (y dibuja un lienzo vacío). Luego
+encuentra \codigo{+ geom\_col()} sola y no sabe a qué sumarla.
+\textbf{Solución:} el \codigo{+} va al \emph{final} de la línea anterior.
+
+\subsubsection{2. Usar el pipe en lugar de +}
+
+\begin{rnoejecutar}
+ggplot(ingresos_categoria, aes(x = categoria, y = ingresos)) %>%
+  geom_col()
+\end{rnoejecutar}
+\begin{rsalida}
+Error in `geom_col()`:
+! `mapping` must be created by `aes()`
+i Did you use `%>%` or `|>` instead of `+`?
+\end{rsalida}
+
+El pipe pasa la gráfica como primer argumento de \codigo{geom\_col()}, que
+espera un \codigo{aes()}. \textbf{Solución:} \codigo{\%>\%} para
+transformar datos \emph{antes} de \codigo{ggplot()}; \codigo{+} para las
+capas \emph{después}.
+
+\subsubsection{3. Un color constante dentro de aes()}
+
+\begin{rcode}
+g_rara <- ggplot(ventas_mes, aes(x = mes, y = ingresos)) +
+  geom_line(aes(color = "azul"))     # MAL: "azul" se trata como dato
+layer_data(g_rara)$colour[1]         # ¿qué color usó realmente?
+\end{rcode}
+\begin{rsalida}
+[1] "#F8766D"
+\end{rsalida}
+
+No hay mensaje de error, pero la línea sale \emph{rosa salmón}
+(\codigo{\#F8766D}, el primer color por defecto de \paquete{ggplot2}) y
+aparece una leyenda rara con la palabra ``azul''. Dentro de \codigo{aes()}
+el texto \codigo{"azul"} es un \emph{valor de datos} (una categoría llamada
+``azul''), no un color. \textbf{Solución:}
+\codigo{geom\_line(color = color\_principal)}, fuera de \codigo{aes()}.
+
+\subsubsection{4. geom\_bar() con una variable y}
+
+\begin{rnoejecutar}
+ggplot(ingresos_categoria, aes(x = categoria, y = ingresos)) +
+  geom_bar()
+\end{rnoejecutar}
+\begin{rsalida}
+Error in `geom_bar()`:
+! Problem while computing stat.
+i Error occurred in the 1st layer.
+Caused by error in `setup_params()`:
+! `stat_count()` must only have an x or y aesthetic.
+\end{rsalida}
+
+\codigo{geom\_bar()} quiere \emph{contar} filas y no acepta una altura ya
+calculada. \textbf{Solución:} usa \codigo{geom\_col()} cuando ya tienes el
+valor (o \codigo{geom\_bar(stat = "identity")}, que es lo mismo).
+
+\subsubsection{5. Discrete value supplied to continuous scale}
+
+\begin{rnoejecutar}
+ggplot(ingresos_categoria, aes(x = categoria, y = ingresos)) +
+  geom_col() +
+  scale_x_continuous(labels = comma)    # pero x es texto
+\end{rnoejecutar}
+\begin{rsalida}
+Error in `train_continuous()`:
+! Discrete value supplied to a continuous scale
+\end{rsalida}
+
+Usaste una escala para números (\codigo{continuous}) sobre una columna de
+texto o factor (\codigo{discrete}). Suele pasar al voltear las barras a
+horizontal y olvidar cambiar \codigo{scale\_y\_...} por
+\codigo{scale\_x\_...}. \textbf{Solución:} revisa qué columna está en cada
+eje; para texto usa \codigo{scale\_x\_discrete()}. El error contrario
+(``Continuous value supplied to a discrete scale'') aparece, por ejemplo, al
+usar \codigo{scale\_fill\_manual()} con una columna numérica.
+
+\subsubsection{6. Meses como texto: orden alfabético}
+
+\begin{rcode}
+meses_texto <- format(ventas_mes$mes, "%b")   # "ene", "feb"... (texto)
+sort(meses_texto)                             # así los ordena ggplot2
+\end{rcode}
+\begin{rsalida}
+ [1] "abr" "ago" "dic" "ene" "feb" "jul" "jun" "mar" "may" "nov" "oct"
+[12] "sep"
+\end{rsalida}
+
+Si en tu tabla el mes es texto (\codigo{"ene"}, \codigo{"feb"}\ldots),
+\paquete{ggplot2} lo ordena alfabéticamente: abril, agosto, diciembre,
+enero\ldots{} y tu línea de tiempo queda revuelta. \textbf{Soluciones:}
+(a) conserva la fecha como \codigo{Date} (con \codigo{floor\_date()}) y usa
+\codigo{scale\_x\_date(date\_labels = "\%b")}; (b) usa
+\codigo{month(fecha, label = TRUE)}, que devuelve un factor ya ordenado; o
+(c) conviértelo a factor con los niveles en orden:
+\codigo{factor(mes, levels = c("ene", "feb", ...))}.
+
+\subsubsection{7. Una línea que no aparece}
+
+Si el eje $x$ es texto o factor, \codigo{geom\_line()} no sabe qué puntos
+unir y da el aviso:
+
+\begin{rsalida}
+`geom_line()`: Each group consists of only one observation.
+i Do you need to adjust the group aesthetic?
+\end{rsalida}
+
+\textbf{Solución:} agrega \codigo{aes(group = 1)} para indicar que todos
+los puntos forman una sola línea (o una columna, como \codigo{group =
+tienda}, para una línea por grupo).
+
+% ----------------------------------------------------------------------------
+\begin{resumen}
+\begin{itemize}
+  \item Grafica antes de concluir: el cuarteto de Anscombe muestra que las
+        estadísticas de resumen pueden esconder patrones muy distintos.
+  \item Una gráfica de \paquete{ggplot2} se construye sumando capas con
+        \codigo{+}: datos, \codigo{aes()}, geometrías, escalas, facetas,
+        coordenadas y tema.
+  \item Elige la gráfica por la pregunta: barras para comparar, líneas para
+        el tiempo, histograma/boxplot para distribuciones, dispersión para
+        relaciones, barras 100\% para composición y tarjetas KPI para un
+        solo número.
+  \item Reglas de diseño: una serie un color; resalte + gris; leyenda con
+        2+ series; barras desde cero; sin doble eje; secuencial de un tono;
+        máximo 8 colores y en orden; títulos que dicen la conclusión.
+  \item \codigo{tema\_empresa()} y los colores corporativos hacen que todas
+        tus gráficas se vean como un sistema coherente.
+  \item \codigo{ggsave()} exporta con el tamaño, la resolución y el fondo
+        correctos; \codigo{ggplotly()} las vuelve interactivas.
+\end{itemize}
+
+\medskip
+\small
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{5.3cm} X}
+\toprule
+\textbf{Función} & \textbf{Para qué sirve} \\
+\midrule
+\codigo{ggplot(datos, aes(x, y))} & Crear el lienzo y mapear columnas \\
+\codigo{geom\_col()} / \codigo{geom\_bar()} &
+Barras con valor calculado / barras que cuentan filas \\
+\codigo{geom\_line()}, \codigo{geom\_point()} & Líneas y puntos \\
+\codigo{geom\_histogram()}, \codigo{geom\_density()} & Distribución \\
+\codigo{geom\_boxplot()}, \codigo{geom\_violin()} & Comparar distribuciones \\
+\codigo{geom\_smooth(method = "lm")} & Recta de tendencia \\
+\codigo{geom\_tile()} & Mapa de calor \\
+\codigo{geom\_hline()}, \codigo{annotate()} & Referencias y anotaciones \\
+\codigo{geom\_text()} & Etiquetas de valor \\
+\codigo{facet\_wrap()}, \codigo{facet\_grid()} & Facetas \\
+\codigo{fct\_reorder()}, \codigo{fct\_rev()} & Ordenar categorías \\
+\codigo{position\_dodge()}, \codigo{position\_fill()} &
+Barras agrupadas / al 100\% \\
+\codigo{scale\_fill\_manual()}, \codigo{scale\_color\_manual()} &
+Colores por nombre \\
+\codigo{scale\_fill\_gradient()} & Escala secuencial \\
+\codigo{scale\_x\_date()}, \codigo{scale\_x\_log10()} &
+Ejes de fecha y logarítmicos \\
+\codigo{dollar}, \codigo{comma}, \codigo{percent},
+\codigo{cut\_short\_scale()} & Formato de negocio (\paquete{scales}) \\
+\codigo{coord\_cartesian()} & Zoom sin eliminar datos \\
+\codigo{labs()}, \codigo{theme()}, \codigo{theme\_minimal()} &
+Textos y apariencia \\
+\codigo{ggsave()}, \codigo{ggplotly()} & Exportar / interactivo \\
+\bottomrule
+\end{tabularx}
+\end{resumen}
+
+% ----------------------------------------------------------------------------
+\section{Ejercicios}
+\label{sec:m3-ejercicios}
+
+Para cada ejercicio escribe un script que cargue sus propios paquetes y
+datos (los de la carpeta \archivo{datasets/}) y define los colores
+corporativos que uses. Las soluciones completas están en el
+Apéndice~\ref{ap:soluciones}.
+
+\begin{ejercicio}{m3-1}{Tickets por tienda}
+\nivel{Básico}
+Con \archivo{transacciones.csv} y \archivo{tiendas.csv}, haz una gráfica de
+barras horizontales con el \emph{número de tickets} por tienda, ordenada de
+mayor a menor, de un solo color, con título y fuente. ¿Qué tienda tuvo más
+tickets? ¿Coincide con la que más ingresos tuvo?
+\end{ejercicio}
+
+\begin{ejercicio}{m3-2}{Edad de los clientes}
+\nivel{Básico}
+Con \archivo{clientes.csv}, haz un histograma de la edad con barras de 5
+años (\codigo{binwidth = 5}, \codigo{boundary = 0}) y una línea vertical
+punteada en la mediana (\codigo{geom\_vline()}). ¿La distribución es
+simétrica, asimétrica o más o menos pareja?
+\end{ejercicio}
+
+\begin{ejercicio}{m3-3}{Encuentra los errores}
+\nivel{Básico}
+El siguiente código tiene cuatro errores. Encuéntralos, explica cada uno y
+escribe la versión corregida (que muestre el ingreso por método de pago en
+azul corporativo, con el eje en pesos).
+\begin{textocodigo}
+ingresos_pago <- transacciones %>%
+  group_by(metodo_pago) %>%
+  summarise(ingresos = sum(total_transaccion))
+ggplot(ingresos_pago, aes(x = metodo_pago, y = ingresos,
+                          fill = "#2a78d6"))
+  + geom_bar() %>%
+  scale_y_continuous(labels = percent)
+\end{textocodigo}
+\end{ejercicio}
+
+\begin{ejercicio}{m3-4}{Tickets por mes contra el promedio}
+\nivel{Intermedio}
+Grafica el número de tickets por mes de 2023 como línea con puntos. Agrega
+una línea horizontal gris en el promedio mensual y anota con
+\codigo{annotate()} el mes con \emph{menos} tickets. Usa
+\codigo{scale\_x\_date()} con los nombres de los meses.
+\end{ejercicio}
+
+\begin{ejercicio}{m3-5}{El mejor día de la semana}
+\nivel{Intermedio}
+Grafica los ingresos por día de la semana (lunes a domingo, en ese orden)
+como columnas. Resalta en naranja el día con más ingresos, deja el resto en
+gris y pon la etiqueta con el monto solo en esa barra. El título debe decir
+la conclusión.
+\end{ejercicio}
+
+\begin{ejercicio}{m3-6}{Salarios por departamento}
+\nivel{Intermedio}
+Con \archivo{empleados.csv}, haz un boxplot horizontal del salario mensual
+por departamento, ordenado por la mediana, con el eje en pesos. ¿Qué
+departamento tiene la mediana más alta? ¿Cuál tiene más dispersión?
+\end{ejercicio}
+
+\begin{ejercicio}{m3-7}{Precio contra costo: hallazgo de calidad de datos}
+\nivel{Intermedio}
+Con \archivo{productos.csv}, haz una dispersión de \codigo{costo} (eje $x$)
+contra \codigo{precio\_catalogo} (eje $y$). Dibuja la recta ``precio =
+costo'' con \codigo{geom\_abline()} y colorea los puntos en dos grupos: los
+productos con costo mayor al precio y el resto. ¿Cuántos productos venden
+con pérdida? ¿Qué le dirías al área de compras?
+\end{ejercicio}
+
+\begin{ejercicio}{m3-8}{Las tres tiendas líderes}
+\nivel{Avanzado}
+Grafica los ingresos \emph{acumulados} por mes de las 10 tiendas. Las tres
+tiendas con más ingresos al cierre del año deben ir en color (con leyenda,
+colores de \codigo{paleta\_libro} en orden) y las otras siete en gris, sin
+leyenda. Las tres líderes deben calcularse con código, no escribirse a mano.
+\end{ejercicio}
+
+\begin{ejercicio}{m3-9}{Tu propia función de gráficas}
+\nivel{Avanzado}
+Escribe una función \codigo{grafica\_ranking(datos, categoria, valor,
+titulo)} que devuelva una gráfica de barras horizontales ordenadas, de un
+color, con eje en pesos y \codigo{tema\_empresa()}. Pista: dentro de
+\codigo{aes()} usa \codigo{\{\{ categoria \}\}} para recibir nombres de
+columna. Úsala para graficar ingresos por método de pago y por tienda, y
+guarda ambas gráficas como PNG en \archivo{resultados/}.
+\end{ejercicio}
+
+\begin{ejercicio}{m3-10}{Reto: mini tablero de clientes}
+\nivel{Reto}
+Con \archivo{clientes.csv}, arma un mini tablero para el área de
+marketing: (a) tres KPI impresos en consola (clientes totales, \% premium y
+edad mediana); (b) clientes por ciudad, resaltando la ciudad con más
+clientes; (c) \% de clientes premium por segmento de edad. Usa el mismo
+tema en ambas gráficas, expórtalas y escribe tres conclusiones basadas en
+lo que muestran.
+\end{ejercicio}

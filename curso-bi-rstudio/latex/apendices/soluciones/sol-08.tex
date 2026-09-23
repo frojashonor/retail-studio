@@ -1,0 +1,601 @@
+% ============================================================================
+% SOLUCIONES DEL MÓDULO 8. REPORTES AUTOMÁTICOS CON R MARKDOWN
+% ============================================================================
+
+\begin{solucion}{m8-1}
+El bloque que lee los datos lleva \codigo{include = FALSE} para que no se
+vea; la fecha es código en línea en el YAML, y la frase usa código en línea
+con \codigo{nrow()} y \codigo{sum()} sobre la columna lógica
+\codigo{es\_premium} (cada \codigo{TRUE} cuenta como 1). Como el archivo se
+guarda en \archivo{reportes/}, los datos se buscan también en
+\archivo{../datasets}.
+
+\begin{textocodigo}[title=reportes/ej1-clientes.Rmd]
+---
+title: "Reporte de clientes"
+author: "Tu nombre"
+date: "`r format(Sys.Date(), '%d/%m/%Y')`"
+output: html_document
+---
+
+```{r datos, include = FALSE}
+library(dplyr)
+library(readr)
+library(knitr)
+carpeta <- if (dir.exists("datasets")) "datasets" else "../datasets"
+clientes <- read_csv(file.path(carpeta, "clientes.csv"),
+                     show_col_types = FALSE)
+```
+
+## Resumen
+
+La base tiene **`r nrow(clientes)` clientes**, de los cuales
+**`r sum(clientes$es_premium)`** son premium
+(`r round(mean(clientes$es_premium) * 100, 1)` %).
+
+## Clientes por ciudad
+
+```{r tabla-ciudades, echo = FALSE}
+clientes %>%
+  count(ciudad, sort = TRUE) %>%
+  kable(col.names = c("Ciudad", "Clientes"),
+        caption = "Clientes por ciudad")
+```
+\end{textocodigo}
+
+Lo generamos con \menu{Knit} (o con
+\codigo{rmarkdown::render("reportes/ej1-clientes.Rmd")}). Para comprobar
+qué dirá el reporte, ejecutamos los mismos cálculos en la consola:
+
+\begin{rcode}
+library(tidyverse)
+library(knitr)
+clientes <- read_csv("datasets/clientes.csv", show_col_types = FALSE)
+\end{rcode}
+
+\begin{rcode}
+nrow(clientes)
+sum(clientes$es_premium)
+round(mean(clientes$es_premium) * 100, 1)
+clientes %>%
+  count(ciudad, sort = TRUE) %>%
+  kable(format = "pipe", col.names = c("Ciudad", "Clientes"))
+\end{rcode}
+\begin{rsalida}
+[1] 200
+[1] 73
+[1] 36.5
+
+
+|Ciudad      | Clientes|
+|:-----------|--------:|
+|Puebla      |       28|
+|CDMX        |       27|
+|Guadalajara |       22|
+|Cancún      |       20|
+|Toluca      |       20|
+|León        |       18|
+|Mérida      |       17|
+|Querétaro   |       17|
+|Tijuana     |       17|
+|Monterrey   |       14|
+\end{rsalida}
+
+El reporte generado dice que hay 200 clientes, 73 premium
+(36.5\,\%), y la tabla empieza con Puebla (28 clientes) y CDMX (27).
+\end{solucion}
+
+\begin{solucion}{m8-2}
+Unimos las transacciones con la categoría del producto, resumimos, ordenamos
+\emph{antes} de formatear (porque al formatear las columnas se vuelven texto)
+y damos formato de negocio con \paquete{scales}.
+
+\begin{rcode}
+library(tidyverse)
+library(knitr)
+library(scales)
+
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+productos <- read_csv("datasets/productos.csv", show_col_types = FALSE)
+
+por_categoria <- transacciones %>%
+  left_join(productos %>% select(producto_id, categoria),
+            by = "producto_id") %>%
+  group_by(categoria) %>%
+  summarise(ventas = sum(total_transaccion),
+            unidades = sum(cantidad), .groups = "drop") %>%
+  arrange(desc(ventas)) %>%                  # ordenar con números
+  mutate(participacion = percent(ventas / sum(ventas), accuracy = 0.1),
+         ventas = dollar(ventas, accuracy = 1),
+         unidades = comma(unidades))
+
+kable(por_categoria, format = "pipe",
+      col.names = c("Categoría", "Ventas", "Unidades", "% del total"),
+      align = c("l", "r", "r", "r"),
+      caption = "Ventas 2023 por categoría")
+\end{rcode}
+\begin{rsalida}
+
+Table: Ventas 2023 por categoría
+
+|Categoría   |   Ventas| Unidades| % del total|
+|:-----------|--------:|--------:|-----------:|
+|Belleza     | $182,143|      551|       19.0%|
+|Electrónica | $132,672|      403|       13.8%|
+|Juguetes    | $125,093|      356|       13.0%|
+|Alimentos   | $121,543|      356|       12.7%|
+|Automotriz  | $104,085|      325|       10.8%|
+|Deportes    |  $86,171|      280|        9.0%|
+|Hogar       |  $63,407|      187|        6.6%|
+|Mascotas    |  $57,668|      201|        6.0%|
+|Libros      |  $57,162|      204|        6.0%|
+|Ropa        |  $30,048|      106|        3.1%|
+\end{rsalida}
+
+Belleza es la categoría que más vende: \$182,143, el 19.0\,\% del total, seguida
+de Electrónica (13.8\,\%). Ropa queda al final con solo el 3.1\,\%. Observa
+la alineación: los números a la derecha permiten comparar magnitudes de un
+vistazo.
+\end{solucion}
+
+\begin{solucion}{m8-3}
+La función calcula primero el cumplimiento (\codigo{ventas / meta}) y con
+\codigo{if}/\codigo{else if}/\codigo{else} elige la frase. Para aplicarla a
+cada trimestre usamos \codigo{map\_chr()}, que llama a la función con cada
+valor de ventas.
+
+\begin{rcode}
+library(tidyverse)
+library(scales)
+
+frase_meta <- function(ventas, meta) {
+  cumplimiento <- ventas / meta
+  montos <- paste0("(ventas de ", dollar(ventas, accuracy = 1),
+                   " contra meta de ", dollar(meta, accuracy = 1), ").")
+  if (ventas >= meta) {
+    paste("Se superó la meta en",
+          percent(cumplimiento - 1, accuracy = 0.1), montos)
+  } else if (cumplimiento >= 0.9) {
+    paste("Se alcanzó el", percent(cumplimiento, accuracy = 0.1),
+          "de la meta", montos)
+  } else {
+    paste("Alerta: solo se alcanzó el",
+          percent(cumplimiento, accuracy = 0.1), "de la meta", montos)
+  }
+}
+
+# Los tres casos
+frase_meta(110000, 100000)
+frase_meta(95000, 100000)
+frase_meta(70000, 100000)
+
+# Aplicación a los trimestres de 2023
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+trimestres <- transacciones %>%
+  group_by(trimestre) %>%
+  summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
+  mutate(frase = map_chr(ventas, frase_meta, meta = 220000))
+cat(paste0(trimestres$trimestre, ": ", trimestres$frase), sep = "\n")
+\end{rcode}
+\begin{rsalida}
+[1] "Se superó la meta en 10.0% (ventas de $110,000 contra meta de $100,000)."
+[1] "Se alcanzó el 95.0% de la meta (ventas de $95,000 contra meta de $100,000)."
+[1] "Alerta: solo se alcanzó el 70.0% de la meta (ventas de $70,000 contra meta de $100,000)."
+Q1: Se superó la meta en 8.8% (ventas de $239,390 contra meta de $220,000).
+Q2: Se superó la meta en 8.8% (ventas de $239,457 contra meta de $220,000).
+Q3: Se superó la meta en 6.5% (ventas de $234,241 contra meta de $220,000).
+Q4: Se superó la meta en 12.2% (ventas de $246,905 contra meta de $220,000).
+\end{rsalida}
+
+Los cuatro trimestres superaron la meta de \$220,000; el mejor fue Q4, con
+12.2\,\% por encima. Si cambias la meta a \$240,000, Q1, Q2 y Q3 pasan a
+``Se alcanzó el \ldots'' sin tocar el texto: la frase depende solo de los
+datos.
+\end{solucion}
+
+\begin{solucion}{m8-4}
+El bloque \codigo{configuracion} fija las opciones globales; el bloque de
+cálculo lleva \codigo{include = FALSE}; la gráfica define su tamaño y su
+pie; y el bloque final usa \codigo{results = "asis"} para que el texto de
+\codigo{cat()} se convierta en una lista.
+
+\begin{textocodigo}[title=reportes/ej4-opciones.Rmd]
+---
+title: "Ventas mensuales 2023"
+output:
+  html_document: default
+  word_document: default
+---
+
+```{r configuracion, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(scales)
+```
+
+```{r calculos, include = FALSE}
+carpeta <- if (dir.exists("datasets")) "datasets" else "../datasets"
+ventas <- read_csv(file.path(carpeta, "ventas_retail.csv"),
+                   show_col_types = FALSE)
+por_mes <- ventas %>%
+  group_by(mes) %>%
+  summarise(ventas = sum(total), .groups = "drop")
+```
+
+## Tendencia
+
+```{r grafica, fig.cap = "Ventas por mes, 2023", fig.width = 7,
+    fig.height = 3, out.width = "80%"}
+ggplot(por_mes, aes(x = mes, y = ventas, group = 1)) +
+  geom_line(color = "#2a78d6", linewidth = 0.8) +
+  scale_y_continuous(labels = dollar) +
+  labs(x = NULL, y = "Ventas") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Los tres mejores meses
+
+```{r top-meses, results = "asis"}
+top3 <- por_mes %>% arrange(desc(ventas)) %>% slice_head(n = 3)
+cat(paste0("- **", top3$mes, "**: ", dollar(top3$ventas, accuracy = 1)),
+    sep = "\n")
+```
+\end{textocodigo}
+
+Se genera en los dos formatos con:
+
+\begin{rnoejecutar}
+rmarkdown::render("reportes/ej4-opciones.Rmd", output_format = "all")
+\end{rnoejecutar}
+
+La lista que escribe el último bloque es exactamente la que produce este
+código en la consola:
+
+\begin{rcode}
+library(tidyverse)
+library(scales)
+ventas <- read_csv("datasets/ventas_retail.csv", show_col_types = FALSE)
+por_mes <- ventas %>%
+  group_by(mes) %>%
+  summarise(ventas = sum(total), .groups = "drop")
+top3 <- por_mes %>% arrange(desc(ventas)) %>% slice_head(n = 3)
+cat(paste0("- **", top3$mes, "**: ", dollar(top3$ventas, accuracy = 1)),
+    sep = "\n")
+\end{rcode}
+\begin{rsalida}
+- **2023-07**: $54,056
+- **2023-11**: $50,398
+- **2023-05**: $48,108
+\end{rsalida}
+
+En el HTML y en el Word esas líneas aparecen como una lista con viñetas y
+los meses en negritas, sin recuadro gris ni \codigo{\#\#}.
+\end{solucion}
+
+\begin{solucion}{m8-5}
+El parámetro se declara en el YAML y se usa como \codigo{params\$categoria}
+en el filtro, en el título y en las frases.
+
+\begin{textocodigo}[title=reportes/ej5-categoria.Rmd]
+---
+title: "Reporte de la categoría `r params$categoria`"
+output: html_document
+params:
+  categoria: "Electrónica"
+---
+
+```{r configuracion, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(scales)
+library(knitr)
+carpeta <- if (dir.exists("datasets")) "datasets" else "../datasets"
+transacciones <- read_csv(file.path(carpeta, "transacciones.csv"),
+                          show_col_types = FALSE)
+productos <- read_csv(file.path(carpeta, "productos.csv"),
+                      show_col_types = FALSE)
+ventas_cat <- transacciones %>%
+  left_join(productos, by = "producto_id") %>%
+  filter(categoria == params$categoria)
+if (nrow(ventas_cat) == 0) stop("Sin ventas de ", params$categoria)
+```
+
+En 2023, la categoría **`r params$categoria`** vendió
+**`r dollar(sum(ventas_cat$total_transaccion), accuracy = 1)`** en
+`r nrow(ventas_cat)` transacciones.
+
+```{r top-productos}
+ventas_cat %>%
+  group_by(nombre_producto) %>%
+  summarise(unidades = sum(cantidad),
+            ventas = sum(total_transaccion), .groups = "drop") %>%
+  arrange(desc(ventas)) %>%
+  slice_head(n = 5) %>%
+  mutate(ventas = dollar(ventas, accuracy = 1)) %>%
+  kable(col.names = c("Producto", "Unidades", "Ventas"),
+        align = c("l", "r", "r"),
+        caption = "Productos más vendidos")
+```
+
+```{r grafica, fig.cap = "Ventas por mes", fig.height = 3}
+ventas_cat %>%
+  group_by(mes) %>%
+  summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
+  ggplot(aes(x = mes, y = ventas)) +
+  geom_col(fill = "#2a78d6", width = 0.7) +
+  scale_y_continuous(labels = dollar) +
+  labs(x = NULL, y = "Ventas") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+\end{textocodigo}
+
+Para generar dos versiones, se recorre un vector de categorías y se da un
+\codigo{output\_file} distinto a cada una (si no, la segunda sobrescribe a
+la primera):
+
+\begin{rnoejecutar}
+for (cat_actual in c("Ropa", "Hogar")) {
+  rmarkdown::render(
+    "reportes/ej5-categoria.Rmd",
+    params        = list(categoria = cat_actual),
+    output_file   = paste0("categoria_", tolower(cat_actual), ".html"),
+    output_dir    = "resultados",
+    knit_root_dir = getwd(),
+    envir         = new.env()
+  )
+}
+\end{rnoejecutar}
+
+Las frases de cada reporte coinciden con este cálculo:
+
+\begin{rcode}
+library(tidyverse)
+library(scales)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+productos <- read_csv("datasets/productos.csv", show_col_types = FALSE)
+transacciones %>%
+  left_join(productos, by = "producto_id") %>%
+  filter(categoria %in% c("Ropa", "Hogar")) %>%
+  group_by(categoria) %>%
+  summarise(ventas = dollar(sum(total_transaccion), accuracy = 1),
+            transacciones = n(), .groups = "drop")
+\end{rcode}
+\begin{rsalida}
+# A tibble: 2 x 3
+  categoria ventas  transacciones
+  <chr>     <chr>           <int>
+1 Hogar     $63,407            64
+2 Ropa      $30,048            38
+\end{rsalida}
+
+Se obtienen \archivo{resultados/categoria\_ropa.html} y
+\archivo{resultados/categoria\_hogar.html}, cada uno con su título, su frase,
+su tabla y su gráfica.
+\end{solucion}
+
+\begin{solucion}{m8-6}
+\codigo{expand\_grid()} crea las 40 combinaciones; con \codigo{count()}
+contamos las transacciones por tienda y trimestre y las unimos con
+\codigo{left\_join()}. Si alguna combinación no tuviera transacciones,
+quedaría \codigo{NA}, que convertimos en 0 con \codigo{replace\_na()}.
+
+\begin{rcode}
+library(tidyverse)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+tiendas <- read_csv("datasets/tiendas.csv", show_col_types = FALSE)
+
+limpiar_nombre <- function(x) {
+  x <- chartr("áéíóúüñÁÉÍÓÚÜÑ", "aeiouunAEIOUUN", x)
+  x <- gsub("[^A-Za-z0-9]+", "-", x)
+  tolower(gsub("^-|-$", "", x))
+}
+
+conteo <- transacciones %>% count(tienda_id, trimestre,
+                                  name = "n_transacciones")
+
+trabajos <- expand_grid(tienda_id = tiendas$tienda_id,
+                        trimestre = paste0("Q", 1:4)) %>%
+  left_join(tiendas %>% select(tienda_id, nombre_tienda),
+            by = "tienda_id") %>%
+  left_join(conteo, by = c("tienda_id", "trimestre")) %>%
+  mutate(n_transacciones = replace_na(n_transacciones, 0),
+         archivo = sprintf("2023-%s_T%02d_%s.pdf", trimestre, tienda_id,
+                           limpiar_nombre(nombre_tienda)),
+         generar = n_transacciones >= 20)
+
+nrow(trabajos)
+trabajos %>% arrange(n_transacciones) %>%
+  select(archivo, n_transacciones, generar) %>%
+  head(4)
+sum(trabajos$generar)
+\end{rcode}
+\begin{rsalida}
+[1] 40
+# A tibble: 4 x 3
+  archivo                          n_transacciones generar
+  <chr>                                      <int> <lgl>  
+1 2023-Q2_T07_sucursal-plaza-b.pdf              16 FALSE  
+2 2023-Q4_T05_sucursal-oeste.pdf                18 FALSE  
+3 2023-Q4_T07_sucursal-plaza-b.pdf              18 FALSE  
+4 2023-Q4_T01_sucursal-centro.pdf               19 FALSE  
+[1] 34
+\end{rsalida}
+
+Hay que generar 40 reportes (10 tiendas $\times$ 4 trimestres). La
+combinación con menos transacciones es la Sucursal Plaza B en el segundo
+trimestre (16). Seis combinaciones quedan por debajo de 20 y se marcan con
+\codigo{generar = FALSE}, así que el bucle generaría 34 reportes; en el
+script de automatización bastaría con recorrer
+\codigo{filter(trabajos, generar)}.
+\end{solucion}
+
+\begin{solucion}{m8-7}
+\codigo{split()} divide el detalle en una lista con un data frame por
+tienda; los nombres de esa lista serán los nombres de las hojas. Con
+\codigo{c()} ponemos la hoja \codigo{Resumen} al principio.
+
+\begin{rcode}
+library(tidyverse)
+library(writexl)
+library(readxl)
+
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+tiendas <- read_csv("datasets/tiendas.csv", show_col_types = FALSE)
+
+detalle <- transacciones %>%
+  left_join(tiendas %>% select(tienda_id, nombre_tienda),
+            by = "tienda_id") %>%
+  mutate(hoja = str_remove(nombre_tienda, "Sucursal ")) %>%
+  arrange(tienda_id, fecha)
+
+resumen <- detalle %>%
+  group_by(hoja) %>%
+  summarise(ventas = round(sum(total_transaccion), 2),
+            transacciones = n(), .groups = "drop") %>%
+  arrange(desc(ventas))
+
+# Una hoja por tienda (sin la columna auxiliar "hoja")
+por_tienda <- split(detalle %>% select(-hoja), detalle$hoja)
+
+dir.create("resultados", showWarnings = FALSE)
+archivo <- "resultados/ventas_por_tienda.xlsx"
+write_xlsx(c(list(Resumen = resumen), por_tienda), path = archivo)
+
+# Verificación
+hojas <- excel_sheets(archivo)
+length(hojas)
+hojas
+filas <- sapply(hojas[-1], function(h) nrow(read_excel(archivo, sheet = h)))
+sum(filas)
+\end{rcode}
+\begin{rsalida}
+[1] 11
+ [1] "Resumen" "Centro"  "Este"    "Express" "Norte"   "Oeste"  
+ [7] "Outlet"  "Plaza A" "Plaza B" "Premium" "Sur"    
+[1] 1000
+\end{rsalida}
+
+El libro tiene 11 hojas (el resumen y diez tiendas) y las hojas de tiendas
+suman las 1,000 transacciones: no se perdió ni se duplicó ninguna. Observa
+que \codigo{split()} ordena las hojas alfabéticamente (Centro, Este,
+Express\ldots); si quisieras otro orden, reordena la lista antes de
+escribirla.
+\end{solucion}
+
+\begin{solucion}{m8-8}
+La función valida sus argumentos con \codigo{stop()}, igual que la plantilla
+del reporte ejecutivo. El bucle envuelve cada llamada en
+\codigo{tryCatch()}: las filas exitosas se guardan en una lista de
+resultados y los errores en el registro, así que ninguna combinación inválida
+detiene el proceso.
+
+\begin{rcode}
+library(tidyverse)
+library(scales)
+
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+tiendas <- read_csv("datasets/tiendas.csv", show_col_types = FALSE)
+
+revisar_tienda <- function(id, mes) {
+  if (!id %in% tiendas$tienda_id) stop("La tienda ", id, " no existe.")
+  if (!mes %in% transacciones$mes) stop("No hay datos del mes ", mes)
+  mes_previo <- format(as.Date(paste0(mes, "-01")) - 1, "%Y-%m")
+  if (!mes_previo %in% transacciones$mes) {
+    stop("No hay datos del mes anterior (", mes_previo, ")")
+  }
+  v <- transacciones %>% filter(tienda_id == id)
+  actual   <- sum(v$total_transaccion[v$mes == mes])
+  anterior <- sum(v$total_transaccion[v$mes == mes_previo])
+  variacion <- actual / anterior - 1
+  tibble(tienda_id = id,
+         tienda = tiendas$nombre_tienda[tiendas$tienda_id == id],
+         mes = mes, variacion = variacion,
+         estado = case_when(variacion >  0.10 ~ "Crecimiento sólido",
+                            variacion >= 0    ~ "Estable",
+                            variacion > -0.10 ~ "Ligera caída",
+                            TRUE              ~ "Alerta"))
+}
+
+pendientes <- tibble(id = c(tiendas$tienda_id, 11, 1),
+                     mes = c(rep("2023-06", 10), "2023-06", "2023-01"))
+resultados <- list()
+registro <- list()
+
+for (fila in seq_len(nrow(pendientes))) {
+  id  <- pendientes$id[fila]
+  mes <- pendientes$mes[fila]
+  estado <- tryCatch({
+    resultados[[length(resultados) + 1]] <- revisar_tienda(id, mes)
+    "OK"
+  }, error = function(e) paste("ERROR:", conditionMessage(e)))
+  registro[[fila]] <- tibble(id = id, mes = mes, estado = estado)
+}
+
+registro <- bind_rows(registro)
+registro %>% count(estado)
+registro %>% filter(estado != "OK")
+
+resultados <- bind_rows(resultados)
+resultados %>%
+  mutate(variacion = percent(variacion, accuracy = 0.1)) %>%
+  select(tienda, variacion, estado)
+
+# Texto Markdown para el reporte (iría en un bloque results = "asis")
+alertas <- resultados %>% filter(estado == "Alerta")
+cat(paste0("- **", alertas$tienda, "**: las ventas cayeron ",
+           percent(abs(alertas$variacion), accuracy = 0.1),
+           " respecto a mayo."), sep = "\n")
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 2
+  estado                                             n
+  <chr>                                          <int>
+1 ERROR: La tienda 11 no existe.                     1
+2 ERROR: No hay datos del mes anterior (2022-12)     1
+3 OK                                                10
+# A tibble: 2 x 3
+     id mes     estado                                        
+  <dbl> <chr>   <chr>                                         
+1    11 2023-06 ERROR: La tienda 11 no existe.                
+2     1 2023-01 ERROR: No hay datos del mes anterior (2022-12)
+# A tibble: 10 x 3
+   tienda           variacion estado            
+   <chr>            <chr>     <chr>             
+ 1 Sucursal Centro  -48.1%    Alerta            
+ 2 Sucursal Norte   -73.5%    Alerta            
+ 3 Sucursal Sur     31.8%     Crecimiento sólido
+ 4 Sucursal Este    245.5%    Crecimiento sólido
+ 5 Sucursal Oeste   -41.0%    Alerta            
+ 6 Sucursal Plaza A -16.3%    Alerta            
+ 7 Sucursal Plaza B 29.1%     Crecimiento sólido
+ 8 Sucursal Outlet  612.9%    Crecimiento sólido
+ 9 Sucursal Premium -8.0%     Ligera caída      
+10 Sucursal Express -45.5%    Alerta            
+- **Sucursal Centro**: las ventas cayeron 48.1% respecto a mayo.
+- **Sucursal Norte**: las ventas cayeron 73.5% respecto a mayo.
+- **Sucursal Oeste**: las ventas cayeron 41.0% respecto a mayo.
+- **Sucursal Plaza A**: las ventas cayeron 16.3% respecto a mayo.
+- **Sucursal Express**: las ventas cayeron 45.5% respecto a mayo.
+\end{rsalida}
+
+De las 12 combinaciones, 10 se revisaron y 2 quedaron en el registro con su
+causa: la tienda 11 no existe y enero de 2023 no tiene mes anterior en los
+datos. En junio, cinco tiendas están en alerta y la Sucursal Outlet creció
+612.9\,\%: una variación tan grande con tan pocas transacciones merece
+revisar los datos antes de celebrarla. El texto final está listo para
+insertarse en un reporte con \codigo{results = "asis"}.
+\end{solucion}

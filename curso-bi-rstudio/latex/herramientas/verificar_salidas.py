@@ -52,31 +52,39 @@ def bloques(ruta):
 
 SCRIPT_R = r'''
 options(width = 70, cli.unicode = FALSE, crayon.enabled = FALSE)
-bloques <- jsonlite::fromJSON(commandArgs(TRUE)[1], simplifyVector = FALSE)
-salida <- list()
-entorno <- globalenv()
-for (i in seq_along(bloques)) {
-  res <- evaluate::evaluate(bloques[[i]]$codigo, envir = entorno,
-                            stop_on_error = 1L, new_device = FALSE)
-  txt <- character()
-  error <- NULL
-  for (r in res) {
-    if (evaluate::is.source(r)) next
-    if (is.character(r)) txt <- c(txt, r)
-    else if (evaluate::is.message(r)) txt <- c(txt, conditionMessage(r))
-    else if (evaluate::is.warning(r)) txt <- c(txt, paste("Warning:", conditionMessage(r)))
-    else if (evaluate::is.error(r)) { error <- conditionMessage(r); txt <- c(txt, paste("Error:", error)) }
+# Todo el estado del verificador vive en .verif para no chocar con las
+# variables del capítulo (i, r, res, salida...), que se evalúan en globalenv().
+.verif <- new.env()
+local(envir = .verif, {
+  args <- commandArgs(TRUE)
+  bloques <- jsonlite::fromJSON(args[1], simplifyVector = FALSE)
+  salida <- list()
+  for (i in seq_along(bloques)) {
+    res <- evaluate::evaluate(bloques[[i]]$codigo, envir = globalenv(),
+                              stop_on_error = 1L, new_device = FALSE)
+    txt <- character()
+    error <- NULL
+    asegurar_salto <- function(x) ifelse(grepl("\n$", x), x, paste0(x, "\n"))
+    for (r in res) {
+      if (evaluate::is.source(r)) next
+      if (is.character(r)) txt <- c(txt, r)
+      else if (evaluate::is.message(r)) txt <- c(txt, asegurar_salto(conditionMessage(r)))
+      else if (evaluate::is.warning(r)) txt <- c(txt, paste0("Warning message:\n", conditionMessage(r), "\n"))
+      else if (evaluate::is.error(r)) { error <- conditionMessage(r); txt <- c(txt, paste0("Error: ", error, "\n")) }
+    }
+    salida[[i]] <- list(texto = paste(txt, collapse = ""), error = error)
+    if (!is.null(error)) break
   }
-  salida[[i]] <- list(texto = paste(txt, collapse = ""), error = error)
-  if (!is.null(error)) break
-}
-writeLines(jsonlite::toJSON(salida, auto_unbox = TRUE, null = "null"),
-           commandArgs(TRUE)[2])
+  writeLines(jsonlite::toJSON(salida, auto_unbox = TRUE, null = "null"), args[2])
+})
 '''
 
 
 def normalizar(linea):
-    return re.sub(r"\s+", " ", linea).strip()
+    n = re.sub(r"\s+", " ", linea).strip()
+    # Acepta advertencias en formato corto ("Warning: msg") o largo
+    # ("Warning message:" y el mensaje en la línea siguiente).
+    return n[len("Warning: "):] if n.startswith("Warning: ") else n
 
 
 def comparar(esperado, real):

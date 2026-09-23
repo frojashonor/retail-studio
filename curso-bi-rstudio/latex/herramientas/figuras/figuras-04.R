@@ -171,7 +171,7 @@ p_pareto <- ggplot(pareto, aes(x = pct_productos, y = pct_acumulado)) +
   scale_x_continuous(labels = percent) +
   scale_y_continuous(labels = percent, limits = c(0, 1)) +
   labs(title = "Curva de Pareto de ingresos por producto",
-       subtitle = "Ingresos muy repartidos: no hay pocos productos estrella",
+       subtitle = "Ingresos repartidos: no hay pocos productos estrella",
        x = "% de productos (de mayor a menor ingreso)",
        y = "% acumulado de ingresos") +
   tema_libro()
@@ -286,7 +286,7 @@ p_anova <- ggplot(ticket_categoria,
   geom_point(size = 2.5, color = color_principal) +
   scale_x_continuous(labels = dollar) +
   labs(title = "Ticket promedio por categoría con IC del 95%",
-       subtitle = "Los intervalos se enciman mucho; línea gris = promedio general",
+       subtitle = "Intervalos muy encimados; gris = promedio general",
        x = "Ticket promedio", y = NULL) +
   tema_libro()
 guardar_figura(p_anova, "m04-anova-categorias")
@@ -311,7 +311,7 @@ p_regresion <- ggplot(sucursales, aes(x = publicidad, y = ventas)) +
            label = "ventas = 261.5 + 3.39 × publicidad\nR² = 0.53") +
   scale_x_continuous(labels = label_dollar(suffix = "k")) +
   scale_y_continuous(labels = label_dollar(suffix = "k")) +
-  labs(title = "Publicidad mensual vs ventas por sucursal (datos simulados)",
+  labs(title = "Publicidad vs ventas por sucursal (datos simulados)",
        subtitle = "Cada punto es una sucursal; banda = IC 95% de la recta",
        x = "Inversión en publicidad (miles)",
        y = "Ventas mensuales (miles)") +
@@ -332,7 +332,7 @@ p_residuos <- ggplot(diagnostico, aes(x = ajustado, y = residuo)) +
   geom_hline(yintercept = 0, color = color_resalte, linewidth = 0.8) +
   geom_point(color = color_principal, size = 2, alpha = 0.8) +
   labs(title = "Residuos vs valores ajustados (modelo múltiple)",
-       subtitle = "Nube sin patrón alrededor de cero: los supuestos se ven razonables",
+       subtitle = "Nube sin patrón alrededor de cero: supuestos razonables",
        x = "Ventas ajustadas (miles)", y = "Residuo (miles)") +
   tema_libro()
 guardar_figura(p_residuos, "m04-residuos")

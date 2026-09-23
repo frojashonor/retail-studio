@@ -361,7 +361,7 @@ p_pareto <- ggplot(pareto, aes(x = pct_productos, y = pct_acumulado)) +
   scale_x_continuous(labels = percent) +
   scale_y_continuous(labels = percent, limits = c(0, 1)) +
   labs(title = "Curva de Pareto de ingresos por producto",
-       subtitle = "Ingresos muy repartidos: no hay pocos productos estrella",
+       subtitle = "Ingresos repartidos: no hay pocos productos estrella",
        x = "% de productos (de mayor a menor ingreso)",
        y = "% acumulado de ingresos") +
   tema_libro()
@@ -394,7 +394,7 @@ cor(perfil_clientes$edad, perfil_clientes$gasto)
 
 # ---- Bloque 34 --------------------------------------------------------
 visitantes <- c(100, 120, 150, 170, 200, 220, 250, 270, 300, 320)
-ventas_dia <- c(10, 12, 14, 17, 19, 22, 24, 27, 29, 300)  # la última: atípica
+ventas_dia <- c(10, 12, 14, 17, 19, 22, 24, 27, 29, 300)  # último: atípico
 
 cor(visitantes, ventas_dia)                        # Pearson
 cor(visitantes, ventas_dia, method = "spearman")   # Spearman
@@ -643,7 +643,7 @@ p_anova <- ggplot(ticket_categoria,
   geom_point(size = 2.5, color = color_principal) +
   scale_x_continuous(labels = dollar) +
   labs(title = "Ticket promedio por categoría con IC del 95%",
-       subtitle = "Los intervalos se enciman mucho; línea gris = promedio general",
+       subtitle = "Intervalos muy encimados; gris = promedio general",
        x = "Ticket promedio", y = NULL) +
   tema_libro()
 
@@ -699,7 +699,7 @@ p_regresion <- ggplot(sucursales, aes(x = publicidad, y = ventas)) +
            label = "ventas = 261.5 + 3.39 × publicidad\nR² = 0.53") +
   scale_x_continuous(labels = label_dollar(suffix = "k")) +
   scale_y_continuous(labels = label_dollar(suffix = "k")) +
-  labs(title = "Publicidad mensual vs ventas por sucursal (datos simulados)",
+  labs(title = "Publicidad vs ventas por sucursal (datos simulados)",
        subtitle = "Cada punto es una sucursal; banda = IC 95% de la recta",
        x = "Inversión en publicidad (miles)",
        y = "Ventas mensuales (miles)") +
@@ -737,7 +737,7 @@ p_residuos <- ggplot(diagnostico, aes(x = ajustado, y = residuo)) +
   geom_hline(yintercept = 0, color = color_resalte, linewidth = 0.8) +
   geom_point(color = color_principal, size = 2, alpha = 0.8) +
   labs(title = "Residuos vs valores ajustados (modelo múltiple)",
-       subtitle = "Nube sin patrón alrededor de cero: los supuestos se ven razonables",
+       subtitle = "Nube sin patrón alrededor de cero: supuestos razonables",
        x = "Ventas ajustadas (miles)", y = "Residuo (miles)") +
   tema_libro()
 
@@ -754,7 +754,7 @@ base <- transacciones %>%
   left_join(tiendas %>%
               select(tienda_id, nombre_tienda, tipo, tamano_m2, empleados),
             by = "tienda_id") %>%
-  mutate(costo_total = cantidad * costo,                 # costo de lo vendido
+  mutate(costo_total = cantidad * costo,                # costo de lo vendido
          utilidad    = total_transaccion - costo_total)  # utilidad bruta
 
 dim(base)
@@ -808,8 +808,10 @@ pruebas <- tibble(
                "Método de pago vs tienda"),
   p_valor = c(
     t.test(total_transaccion ~ es_premium, data = base)$p.value,
-    summary(aov(total_transaccion ~ categoria, data = base))[[1]]$`Pr(>F)`[1],
-    summary(aov(total_transaccion ~ nombre_tienda, data = base))[[1]]$`Pr(>F)`[1],
+    summary(aov(total_transaccion ~ categoria,
+                data = base))[[1]]$`Pr(>F)`[1],
+    summary(aov(total_transaccion ~ nombre_tienda,
+                data = base))[[1]]$`Pr(>F)`[1],
     chisq.test(table(base$metodo_pago, base$tienda_id))$p.value
   )
 ) %>%
