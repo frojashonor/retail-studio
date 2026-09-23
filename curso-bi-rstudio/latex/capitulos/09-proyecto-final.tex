@@ -1157,7 +1157,9 @@ ventas_mes %>%
 
 \begin{rcode}
 promedio_mes <- mean(ventas_mes$ventas)
-extremos <- ventas_mes %>% filter(ventas %in% range(ventas))
+extremos <- ventas_mes %>%
+  filter(ventas %in% range(ventas)) %>%
+  mutate(ajuste = if_else(ventas == max(ventas), -1.1, 2))  # arriba/abajo
 
 ggplot(ventas_mes, aes(x = nombre_mes, y = ventas, group = 1)) +
   geom_hline(yintercept = promedio_mes, linetype = "dashed",
@@ -1165,13 +1167,12 @@ ggplot(ventas_mes, aes(x = nombre_mes, y = ventas, group = 1)) +
   geom_line(color = color_principal, linewidth = 0.8) +
   geom_point(color = color_principal, size = 2) +
   geom_point(data = extremos, color = color_resalte, size = 3) +
-  geom_text(data = extremos, aes(label = pesos(ventas)),
-            vjust = -1.1, color = color_resalte, size = 3.5) +
-  annotate("text", x = 1, y = promedio_mes, vjust = -0.6, hjust = 0.2,
-           label = "Promedio", color = "#52514e", size = 3) +
+  geom_text(data = extremos, aes(label = pesos(ventas), vjust = ajuste),
+            color = color_resalte, size = 3.5) +
   scale_y_continuous(labels = dollar, limits = c(0, 110000)) +
   labs(title = "Ventas mensuales de TechRetail, 2023",
-       subtitle = "Mucha variación de un mes a otro, sin tendencia clara",
+       subtitle = str_c("Mucha variación y sin tendencia; línea punteada = ",
+                        "promedio mensual (", pesos(promedio_mes), ")"),
        x = NULL, y = "Ventas") +
   tema_libro()
 \end{rcode}
@@ -1243,10 +1244,11 @@ ventas_categoria %>%
   geom_col(width = 0.7) +
   geom_text(aes(label = etiqueta), hjust = -0.1, size = 3.3,
             color = color_resalte) +
-  scale_fill_manual(values = c(color_resalte, color_gris)) +
+  scale_fill_manual(values = c("Margen estimado < 25%" = color_resalte,
+                               "Margen estimado de 25% o más" = color_gris)) +
   scale_x_continuous(labels = dollar, expand = expansion(c(0, 0.18))) +
   labs(title = "Ventas por categoría, 2023",
-       subtitle = "Belleza lidera en ventas, pero con margen bajo",
+       subtitle = "Hogar y Ropa dejan el menor margen estimado",
        x = "Ventas", y = NULL, fill = NULL) +
   tema_libro()
 \end{rcode}
@@ -1254,7 +1256,8 @@ ventas_categoria %>%
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.9\textwidth]{m09-categorias}
-\caption{Ventas por categoría; en naranja, las de margen estimado bajo.}
+\caption{Ventas por categoría; en naranja, las de margen estimado menor a
+25\%.}
 \label{fig:m09-categorias}
 \end{figure}
 
@@ -1322,7 +1325,7 @@ ventas_tienda %>%
   geom_col(width = 0.7) +
   scale_fill_manual(values = c("Menos de 400 m²" = color_resalte,
                                "400 m² o más" = color_gris)) +
-  scale_x_continuous(labels = dollar, expand = expansion(c(0, 0.05))) +
+  scale_x_continuous(labels = dollar, expand = expansion(c(0, 0.1))) +
   labs(title = "Ventas por sucursal, 2023",
        subtitle = "Las dos tiendas más chicas están entre las 4 que más venden",
        x = "Ventas", y = NULL, fill = "Tamaño") +
@@ -1481,7 +1484,7 @@ ggplot(pareto, aes(x = pct_productos, y = pct_acumulado)) +
   geom_vline(xintercept = 0.2, linetype = "dotted", color = color_gris) +
   geom_line(color = color_principal, linewidth = 0.8) +
   annotate("point", x = 0.2, y = 0.264, color = color_resalte, size = 3) +
-  annotate("text", x = 0.22, y = 0.23, hjust = 0, size = 3.4,
+  annotate("text", x = 0.24, y = 0.12, hjust = 0, size = 3.4,
            color = color_resalte,
            label = "El 20% de los productos genera 26% de las ventas") +
   annotate("text", x = 0.62, y = 0.52, hjust = 0, size = 3,
@@ -1981,8 +1984,9 @@ ggplot() +
             color = color_principal, linewidth = 0.8) +
   geom_line(data = tabla_pronostico, aes(x = semana, y = estimado),
             color = color_resalte, linewidth = 0.8) +
-  annotate("text", x = as.Date("2024-01-20"), y = 30500, size = 3.2,
-           color = color_resalte, label = "Pronóstico e\nintervalos 80% y 95%") +
+  annotate("text", x = as.Date("2024-02-19"), y = 29000, size = 3.2,
+           hjust = 1, vjust = 0, color = color_resalte,
+           label = "Pronóstico e intervalos de 80% y 95%") +
   scale_y_continuous(labels = dollar, limits = c(0, NA)) +
   scale_x_date(date_labels = "%b", date_breaks = "2 months") +
   labs(title = "Ventas semanales y pronóstico a 8 semanas",

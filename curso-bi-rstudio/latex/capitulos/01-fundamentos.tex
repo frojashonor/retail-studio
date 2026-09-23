@@ -763,17 +763,18 @@ La línea \codigo{caja <- caja + 1850} se lee: ``toma el valor actual de
 \codigo{caja}, súmale 1,850 y guarda el resultado otra vez en
 \codigo{caja}''. Al final del día hay \$7,470 en caja.
 
-Para saber qué variables existen usa \codigo{ls()} y para borrar una,
-\codigo{rm()}:
+Para saber qué variables existen usa \codigo{ls()}, que las lista todas
+(es lo mismo que ves en el panel \menu{Environment}); con el argumento
+\codigo{pattern} puedes quedarte solo con las que contienen cierto texto.
+Para borrar una variable usa \codigo{rm()}:
 
 \begin{rcode}
-ls()                      # Lista los objetos del entorno
+ls(pattern = "ventas")    # Objetos cuyo nombre contiene "ventas"
 rm(caja)                  # Borra la variable caja
 exists("caja")            # ¿Todavía existe?
 \end{rcode}
 \begin{rsalida}
-[1] "caja"             "promedio_mensual" "total_trimestre" 
-[4] "ventas_enero"     "ventas_febrero"   "ventas_marzo"    
+[1] "ventas_enero"   "ventas_febrero" "ventas_marzo"  
 [1] FALSE
 \end{rsalida}
 
@@ -2547,7 +2548,7 @@ mejor usar \codigo{cut()} (que aparece en los ejercicios) o
 \subsection{Repetir con \texorpdfstring{\codigo{for}}{for}}
 
 Un \termino{bucle} \codigo{for} repite un bloque de código una vez por
-cada elemento de un vector. La variable del bucle (aquí \codigo{i}) va
+cada elemento de un vector. La variable del bucle (aquí \codigo{k}) va
 tomando cada valor en turno.
 
 \begin{ejemplo}{Reporte de cumplimiento por sucursal}
@@ -2563,11 +2564,11 @@ ventas_mes <- c(485000, 468900, 391200, 552300, 298700)
 metas_mes <- c(520000, 450000, 420000, 540000, 280000)
 
 cat("REPORTE DE CUMPLIMIENTO - MARZO 2023\n")
-for (i in seq_along(sucursales)) {
-  cumpl <- ventas_mes[i] / metas_mes[i] * 100
+for (k in seq_along(sucursales)) {
+  cumpl <- ventas_mes[k] / metas_mes[k] * 100
   alerta <- if (cumpl < 95) "  <- REVISAR" else ""
-  cat(sprintf("%-8s $%9s  %6.1f%%%s\n", sucursales[i],
-              format(ventas_mes[i], big.mark = ","), cumpl, alerta))
+  cat(sprintf("%-8s $%9s  %6.1f%%%s\n", sucursales[k],
+              format(ventas_mes[k], big.mark = ","), cumpl, alerta))
 }
 \end{rcode}
 \begin{rsalida}
@@ -2585,8 +2586,8 @@ Vamos por partes:
   \item \codigo{seq\_along(sucursales)} produce \codigo{1 2 3 4 5}, una
         posición por sucursal. Es más seguro que escribir \codigo{1:5}
         porque se ajusta solo si agregas sucursales.
-  \item En cada vuelta, \codigo{i} vale 1, luego 2, etc., y con
-        \codigo{[i]} tomas el dato de esa sucursal.
+  \item En cada vuelta, \codigo{k} vale 1, luego 2, etc., y con
+        \codigo{[k]} tomas el dato de esa sucursal.
   \item \codigo{cat()} imprime texto tal cual, sin el \codigo{[1]} ni las
         comillas de \codigo{print()}. El \codigo{\textbackslash n} es un
         salto de línea.
@@ -2997,4 +2998,1161 @@ en su nombre: se abrirá su documentación en \menu{Help}. Después ejecuta
 tienes instalado el paquete \paquete{janitor}.
 \end{hazlotu}
 
-% --- CONTINUARÁ ---
+% ============================================================================
+\section{Importar y exportar datos}
+\label{sec:m1-importar}
+% ============================================================================
+
+En la vida real no escribes los datos a mano: vienen de archivos que
+exporta el sistema de ventas, el ERP, el CRM o un compañero. Los formatos
+más comunes en BI son el \termino{CSV} (\emph{comma-separated values},
+texto plano con los valores separados por comas) y el Excel. En esta
+sección aprenderás a leerlos, a guardar tus resultados y a resolver los
+problemas que casi siempre aparecen.
+
+\subsection{Leer un CSV con R base: \texorpdfstring{\codigo{read.csv()}}{read.csv()}}
+
+\begin{rcode}
+ventas_base <- read.csv("datasets/ventas_retail.csv")
+dim(ventas_base)
+head(ventas_base[, c("fecha", "dia_semana", "cantidad", "total")], 3)
+class(ventas_base$fecha)
+\end{rcode}
+\begin{rsalida}
+[1] 365  14
+       fecha dia_semana cantidad    total
+1 2023-01-01    domingo       10 3332.505
+2 2023-01-02      lunes        8 2262.000
+3 2023-01-03     martes        3  800.577
+[1] "character"
+\end{rsalida}
+
+\codigo{read.csv()} viene con R y no necesita paquetes. Leyó las 365 filas
+y 14 columnas, pero fíjate en un detalle: la columna \codigo{fecha} quedó
+como texto (\codigo{character}). Para usarla como fecha tendrías que
+convertirla con \codigo{as.Date()}.
+
+\subsection{Leer un CSV con \texorpdfstring{\paquete{readr}}{readr}: \texorpdfstring{\codigo{read\_csv()}}{read\_csv()}}
+
+El paquete \paquete{readr} (parte del tidyverse) tiene
+\codigo{read\_csv()}, con guion bajo. Es más rápida, detecta las fechas
+automáticamente y devuelve un tibble. La primera vez que la uses verás un
+mensaje:
+
+\begin{rcode}
+ventas <- read_csv("datasets/ventas_retail.csv")
+\end{rcode}
+\begin{rsalida}
+Rows: 365 Columns: 14
+-- Column specification ----------------------------------------------
+Delimiter: ","
+chr   (3): dia_semana, mes, trimestre
+dbl  (10): producto_id, cliente_id, cantidad, precio_unitario, des...
+date  (1): fecha
+
+i Use `spec()` to retrieve the full column specification for this data.
+i Specify the column types or set `show_col_types = FALSE` to quiet this message.
+\end{rsalida}
+
+Este mensaje de \termino{especificación de columnas} no es un error: es
+\paquete{readr} contándote qué adivinó. Leyó 365 filas y 14 columnas
+separadas por coma (\emph{Delimiter}); 3 columnas son texto
+(\codigo{chr}), 10 son números (\codigo{dbl}, de \emph{double}) y 1 es
+fecha (\codigo{date}). Revísalo siempre la primera vez que leas un archivo:
+si una columna que debería ser número aparece como \codigo{chr}, hay algún
+valor raro en ella. Una vez revisado, puedes silenciarlo con
+\codigo{show\_col\_types = FALSE}, como haremos en el resto del libro:
+
+\begin{rcode}
+ventas <- read_csv("datasets/ventas_retail.csv", show_col_types = FALSE)
+class(ventas$fecha)
+ventas
+\end{rcode}
+\begin{rsalida}
+[1] "Date"
+# A tibble: 365 x 14
+   fecha      dia_semana producto_id cliente_id cantidad
+   <date>     <chr>            <dbl>      <dbl>    <dbl>
+ 1 2023-01-01 domingo             31         94       10
+ 2 2023-01-02 lunes               15        169        8
+ 3 2023-01-03 martes              14        136        3
+ 4 2023-01-04 miércoles            3        167        2
+ 5 2023-01-05 jueves              42         81       10
+ 6 2023-01-06 viernes             50        191        8
+ 7 2023-01-07 sábado              43         82       10
+ 8 2023-01-08 domingo             37        106        7
+ 9 2023-01-09 lunes               14        119        7
+10 2023-01-10 martes              25         11        6
+# i 355 more rows
+# i 9 more variables: precio_unitario <dbl>, descuento_pct <dbl>,
+#   tienda_id <dbl>, vendedor_id <dbl>, subtotal <dbl>,
+#   descuento_monto <dbl>, total <dbl>, mes <chr>, trimestre <chr>
+\end{rsalida}
+
+\subsection{Leer Excel con \texorpdfstring{\paquete{readxl}}{readxl}}
+
+Un libro de Excel puede tener varias hojas. Primero pregunta cuáles tiene
+con \codigo{excel\_sheets()} y luego lee la que necesites con
+\codigo{read\_excel()}, por nombre o por posición:
+
+\begin{rcode}
+excel_sheets("datasets/datos_empresa.xlsx")      # ¿Qué hojas tiene?
+tiendas <- read_excel("datasets/datos_empresa.xlsx", sheet = "Tiendas")
+tiendas[, c("nombre_tienda", "ciudad", "tamano_m2", "empleados")]
+productos_xl <- read_excel("datasets/datos_empresa.xlsx", sheet = 3)
+dim(productos_xl)
+\end{rcode}
+\begin{rsalida}
+[1] "Ventas"    "Clientes"  "Productos" "Empleados" "Tiendas"  
+# A tibble: 10 x 4
+   nombre_tienda    ciudad      tamano_m2 empleados
+   <chr>            <chr>           <dbl>     <dbl>
+ 1 Sucursal Centro  CDMX              500        25
+ 2 Sucursal Norte   Guadalajara       450        20
+ 3 Sucursal Sur     Monterrey         600        30
+ 4 Sucursal Este    CDMX              400        18
+ 5 Sucursal Oeste   Puebla            550        22
+ 6 Sucursal Plaza A CDMX              700        35
+ 7 Sucursal Plaza B Guadalajara       480        21
+ 8 Sucursal Outlet  Tijuana           350        15
+ 9 Sucursal Premium CDMX              800        40
+10 Sucursal Express Querétaro         300        12
+[1] 50 13
+\end{rsalida}
+
+El archivo trae cinco hojas. Leímos la de tiendas por su nombre y la
+tercera (Productos, con 50 filas y 13 columnas) por su posición. Otros
+argumentos útiles de \codigo{read\_excel()} son \codigo{skip = 3} (saltar
+las primeras filas, típicas de los reportes con título y logotipo) y
+\codigo{range = "B3:F40"} (leer solo un rango de celdas).
+
+\begin{advertencia}
+Cierra el archivo en Excel antes de leerlo o sobrescribirlo desde R. En
+Windows, un archivo abierto en Excel queda bloqueado y R no podrá
+escribir sobre él.
+\end{advertencia}
+
+\subsection{Exportar resultados}
+
+Guardaremos todo lo que produzcamos en una carpeta \archivo{resultados/}.
+\codigo{dir.create()} la crea; con \codigo{showWarnings = FALSE} no se queja
+si ya existe.
+
+\begin{rcode}
+dir.create("resultados", showWarnings = FALSE)
+
+# Un resumen pequeño para exportar: ventas por trimestre
+por_trimestre <- aggregate(total ~ trimestre, data = ventas_base, FUN = sum)
+por_trimestre$total <- round(por_trimestre$total, 2)
+por_trimestre
+
+# CSV con R base (row.names = FALSE evita una columna extra de números)
+write.csv(por_trimestre, "resultados/ventas_trimestre.csv",
+          row.names = FALSE)
+# CSV con readr (nunca escribe nombres de fila)
+write_csv(por_trimestre, "resultados/ventas_trimestre_readr.csv")
+
+# Excel con varias hojas: una lista con nombre = una hoja por elemento
+write_xlsx(list(Trimestres = por_trimestre,
+                Tiendas = tiendas,
+                Catalogo = productos),
+           "resultados/reporte_modulo1.xlsx")
+excel_sheets("resultados/reporte_modulo1.xlsx")
+\end{rcode}
+\begin{rsalida}
+  trimestre    total
+1        Q1 126273.9
+2        Q2 120716.9
+3        Q3 134427.4
+4        Q4 132498.3
+[1] "Trimestres" "Tiendas"    "Catalogo"  
+\end{rsalida}
+
+\codigo{write\_xlsx()} (del paquete \paquete{writexl}) crea un Excel con
+una hoja por cada elemento de la lista, y el nombre del elemento se usa
+como nombre de la hoja. Es la forma más rápida de mandarle a tu jefa
+varios cuadros en un solo archivo.
+
+\subsection{El formato nativo de R: RDS}
+
+Un CSV guarda solo texto: al volver a leerlo, R tiene que adivinar otra vez
+los tipos, y los factores o fechas pueden perderse. El formato
+\termino{RDS} guarda \emph{un} objeto de R exactamente como está, con sus
+tipos, y ocupa poco espacio. Es ideal para datos intermedios que solo
+usarás en R.
+
+\begin{rcode}
+saveRDS(ventas, "resultados/ventas_2023.rds")        # Guardar
+ventas_copia <- readRDS("resultados/ventas_2023.rds") # Leer
+class(ventas_copia$fecha)                             # La fecha sigue
+all.equal(ventas, ventas_copia)                       # ¿Son iguales?
+file.exists(c("resultados/ventas_trimestre.csv",      # ¿Se crearon
+              "resultados/reporte_modulo1.xlsx",      #  los archivos?
+              "resultados/ventas_2023.rds"))
+\end{rcode}
+\begin{rsalida}
+[1] "Date"
+[1] TRUE
+[1] TRUE TRUE TRUE
+\end{rsalida}
+
+\begin{consejo}
+Una regla práctica: usa CSV o Excel para \emph{compartir} con personas u
+otros programas, y RDS para \emph{guardar} tu trabajo intermedio en R. Y
+nunca sobrescribas los datos originales: lee de \archivo{datasets/} y
+escribe en \archivo{resultados/}.
+\end{consejo}
+
+\subsection{Problemas típicos al importar}
+
+\subsubsection{Separador punto y coma y decimales con coma}
+
+En muchos países (y en Excel configurado en español de España o
+Latinoamérica) los CSV usan \codigo{;} para separar columnas y \codigo{,}
+para los decimales. Simulemos un archivo así, como el que exportaría el
+sistema de un proveedor:
+
+\begin{rcode}
+dir.create("datos", showWarnings = FALSE)
+writeLines(c("producto;precio;unidades",
+             "Café molido;145,50;12",
+             "Té verde;89,90;30",
+             "Azúcar;32,00;45"),
+           "datos/proveedor.csv")
+read.csv("datos/proveedor.csv")          # ¡Mal! Todo en una columna
+\end{rcode}
+\begin{rsalida}
+                producto.precio.unidades
+Café molido;145                    50;12
+Té verde;89                        90;30
+Azúcar;32                          00;45
+\end{rsalida}
+
+\codigo{read.csv()} buscó comas, encontró las de los decimales y armó una
+tabla sin sentido. La solución es usar las variantes ``2'', pensadas para
+este formato:
+
+\begin{rcode}
+read.csv2("datos/proveedor.csv")                           # R base
+read_csv2("datos/proveedor.csv", show_col_types = FALSE)   # readr
+\end{rcode}
+\begin{rsalida}
+     producto precio unidades
+1 Café molido  145.5       12
+2    Té verde   89.9       30
+3      Azúcar   32.0       45
+i Using "','" as decimal and "'.'" as grouping mark. Use `read_delim()` for more control.
+# A tibble: 3 x 3
+  producto    precio unidades
+  <chr>        <dbl>    <dbl>
+1 Café molido  146.        12
+2 Té verde      89.9       30
+3 Azúcar        32         45
+\end{rsalida}
+
+Ahora sí: tres productos, con el precio como número. \codigo{read\_csv2()}
+te avisa qué supuso (coma como decimal y punto como separador de miles).
+Para combinaciones raras existe \codigo{read\_delim()}, donde indicas todo
+a mano:
+
+\begin{rcode}
+read_delim("datos/proveedor.csv", delim = ";",
+           locale = locale(decimal_mark = ","), show_col_types = FALSE)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 3
+  producto    precio unidades
+  <chr>        <dbl>    <dbl>
+1 Café molido  146.        12
+2 Té verde      89.9       30
+3 Azúcar        32         45
+\end{rsalida}
+
+\subsubsection{Acentos que se ven raros: la codificación}
+
+Una \termino{codificación} (\emph{encoding}) es la tabla que traduce las
+letras a bytes. Hoy el estándar es \termino{UTF-8}, pero los sistemas
+antiguos y algunas versiones de Excel en Windows guardan en
+\codigo{latin1} (también llamado ISO-8859-1 o Windows-1252). Si lees un
+archivo con la codificación equivocada, los acentos salen como símbolos
+extraños:
+
+\begin{rcode}
+# Simulamos un archivo exportado por un sistema antiguo (latin1)
+con <- file("datos/sistema_viejo.csv", open = "w", encoding = "latin1")
+writeLines(c("producto,precio", "Café molido,145.5", "Té verde,89.9"), con)
+close(con)
+
+read_csv("datos/sistema_viejo.csv", show_col_types = FALSE)
+read_csv("datos/sistema_viejo.csv", show_col_types = FALSE,
+         locale = locale(encoding = "latin1"))
+\end{rcode}
+\begin{rsalida}
+# A tibble: 2 x 2
+  producto         precio
+  <chr>             <dbl>
+1 "Caf\xe9 molido"  146. 
+2 "T\xe9 verde"      89.9
+# A tibble: 2 x 2
+  producto    precio
+  <chr>        <dbl>
+1 Café molido  146. 
+2 Té verde      89.9
+\end{rsalida}
+
+En la primera lectura R no pudo interpretar la \emph{é} y la mostró como
+\codigo{\textbackslash{}xe9} (su código en latin1); en la segunda, al
+indicar la codificación correcta, todo se ve bien. Con R base el argumento
+equivalente es \codigo{read.csv(archivo, fileEncoding = "latin1")}. Si no
+sabes qué codificación tiene un archivo, \codigo{guess\_encoding(archivo)}
+de \paquete{readr} te da una pista.
+
+\subsubsection{Rutas en Windows: \texorpdfstring{\codigo{\textbackslash}}{\textbackslash} contra \texorpdfstring{\codigo{/}}{/}}
+
+En Windows, el Explorador de archivos muestra las rutas con diagonal
+invertida (\codigo{C:\textbackslash{}Users\textbackslash{}ana\ldots}). Si
+copias una ruta así en R, falla, porque para R la diagonal invertida es un
+carácter especial (\codigo{\textbackslash{}n} es un salto de línea,
+\codigo{\textbackslash{}t} un tabulador\ldots):
+
+\begin{rnoejecutar}
+ruta <- "C:\Users\ana\ventas.csv"
+\end{rnoejecutar}
+\begin{rsalida}
+Error: '\U' used without hex digits in character string (<input>:1:13)
+\end{rsalida}
+
+Tienes tres soluciones: usar diagonales normales (\codigo{/}), que R
+acepta también en Windows; duplicar las invertidas
+(\codigo{\textbackslash\textbackslash}); o, mejor aún, construir la ruta con
+\codigo{file.path()}, que pone el separador correcto por ti:
+
+\begin{rcode}
+"C:/Users/ana/ventas.csv"              # Diagonal normal: funciona
+"C:\\Users\\ana\\ventas.csv"           # Diagonal doble: también
+file.path("datasets", "ventas_retail.csv")   # Ruta relativa armada
+\end{rcode}
+\begin{rsalida}
+[1] "C:/Users/ana/ventas.csv"
+[1] "C:\\Users\\ana\\ventas.csv"
+[1] "datasets/ventas_retail.csv"
+\end{rsalida}
+
+\begin{hazlotu}
+Lee la hoja \codigo{"Empleados"} de \archivo{datasets/datos\_empresa.xlsx},
+revisa con \codigo{str()} qué tipo tiene cada columna y guarda en
+\archivo{resultados/empleados\_ventas.csv} solo los empleados del
+departamento de Ventas. Después vuelve a leer ese CSV con
+\codigo{read\_csv()} y comprueba con \codigo{nrow()} cuántos son.
+\end{hazlotu}
+
+% ============================================================================
+\section{Cómo obtener ayuda}
+\label{sec:m1-ayuda}
+% ============================================================================
+
+Nadie memoriza todas las funciones de R, ni siquiera los expertos. Lo que
+distingue a un buen analista es saber \emph{encontrar} la respuesta rápido.
+
+\subsection{La ayuda integrada}
+
+Cada función de R tiene una página de documentación. Estas son las formas
+de llegar a ella:
+
+\begin{rnoejecutar}
+?mean                    # Ayuda de una función (abre el panel Help)
+help("read_csv")         # Lo mismo, con el nombre como texto
+??"moving average"       # Busca un tema en TODA la documentación
+example(mean)            # Ejecuta los ejemplos de la ayuda
+vignette("readxl")       # Tutoriales largos de un paquete (viñetas)
+\end{rnoejecutar}
+
+También puedes colocar el cursor sobre el nombre de una función en tu
+script y presionar \tecla{F1}. Dos funciones más te ayudan desde la propia
+consola: \codigo{args()} muestra los argumentos de una función y
+\codigo{apropos()} busca funciones cuyo nombre contenga un texto.
+
+\begin{rcode}
+args(round)            # ¿Qué argumentos acepta round()?
+apropos("mean")        # Funciones cuyo nombre contiene "mean"
+\end{rcode}
+\begin{rsalida}
+function (x, digits = 0) 
+NULL
+ [1] ".colMeans"      ".rowMeans"      "colMeans"      
+ [4] "cummean"        "kmeans"         "mean"          
+ [7] "mean_cl_boot"   "mean_cl_normal" "mean_sdl"      
+[10] "mean_se"        "mean.Date"      "mean.default"  
+[13] "mean.difftime"  "mean.POSIXct"   "mean.POSIXlt"  
+[16] "rowMeans"       "weighted.mean" 
+\end{rsalida}
+
+\subsection{Cómo leer una página de ayuda}
+
+Las páginas de ayuda siempre tienen las mismas secciones. Al principio
+intimidan; léelas en este orden:
+
+\begin{enumerate}
+  \item \textbf{Description}: qué hace la función, en una o dos frases.
+  \item \textbf{Usage}: cómo se escribe, con los argumentos y sus valores
+        por defecto. Por ejemplo, \codigo{mean(x, trim = 0, na.rm = FALSE,
+        ...)} te dice que \codigo{na.rm} vale \codigo{FALSE} si no lo
+        cambias: por eso los \codigo{NA} ``contagian'' el promedio.
+  \item \textbf{Arguments}: qué significa cada argumento.
+  \item \textbf{Value}: qué devuelve la función.
+  \item \textbf{Examples}: ejemplos listos para copiar. ¡Empieza por aquí
+        si tienes prisa!
+\end{enumerate}
+
+\subsection{Cheatsheets y recursos}
+
+Las \termino{cheatsheets} (hojas de referencia) son resúmenes de una o dos
+páginas con las funciones más usadas de un paquete. RStudio incluye
+enlaces en \menu{Help > Cheat Sheets}, y todas están en
+\url{https://posit.co/resources/cheatsheets/}. Imprime las de RStudio,
+\paquete{readr} y \paquete{dplyr} y tenlas a la mano durante el curso.
+
+\subsection{Buscar un error en internet}
+
+Cuando R te muestre un error, sigue esta receta:
+
+\begin{enumerate}
+  \item Lee el mensaje con calma: muchas veces dice exactamente qué pasa
+        (``object not found'', ``could not find function'').
+  \item Copia la parte general del mensaje, sin tus nombres de variables,
+        y búscala entre comillas junto con la palabra ``R''. Por ejemplo:
+        \codigo{"non-numeric argument to binary operator" R}.
+  \item Los mejores resultados suelen estar en \emph{Stack Overflow} (hay
+        versión en español), en la comunidad de Posit
+        (\url{https://forum.posit.co}) y en la documentación de los
+        paquetes.
+\end{enumerate}
+
+Por eso conviene conocer los mensajes en inglés: hay mucha más ayuda
+disponible. Si tu R muestra los mensajes en español y prefieres verlos en
+inglés, ejecuta \codigo{Sys.setenv(LANGUAGE = "en")} al inicio de la
+sesión.
+
+\subsection{Hacer una buena pregunta: el ejemplo reproducible}
+
+Si nada funciona, pregunta en un foro o a un colega. Una buena pregunta
+incluye un \termino{ejemplo reproducible} (\emph{reprex}): el código
+\emph{mínimo} que cualquiera puede copiar y ejecutar para ver tu mismo
+problema. Nadie puede ayudarte con ``no me sale el promedio''; todos pueden
+ayudarte con esto:
+
+\begin{rnoejecutar}
+# Pregunta: ¿por qué mean() me da NA si mi columna tiene números?
+ventas <- data.frame(tienda = c("A", "B", "C"),
+                     monto = c(1500, NA, 2300))
+mean(ventas$monto)
+#> [1] NA
+# Esperaba 1900. Uso R 4.3.3 en Windows 11.
+\end{rnoejecutar}
+
+Un buen ejemplo reproducible: (1) carga los paquetes que usa, (2) incluye
+datos pequeños \emph{inventados} o un fragmento de los tuyos (nunca datos
+confidenciales de clientes), (3) muestra el resultado que obtienes y el
+que esperabas. Para convertir un pedazo de tus datos en código que otros
+puedan pegar, usa \codigo{dput()}:
+
+\begin{rcode}
+dput(productos[1:3, c("nombre", "precio")])
+\end{rcode}
+\begin{rsalida}
+structure(list(nombre = c("Laptop Pro 14", "Mouse inalámbrico", 
+"Monitor 27"), precio = c(18999, 349, 5499)), row.names = c(NA, 
+3L), class = "data.frame")
+\end{rsalida}
+
+La salida parece críptica, pero es código de R que recrea exactamente
+esas tres filas: quien lo pegue en su consola tendrá tus mismos datos.
+
+\begin{hazlotu}
+Abre la ayuda de \codigo{round()} con \codigo{?round}. En la sección
+\emph{Usage} encuentra qué hace la función \codigo{signif()} y pruébala con
+\codigo{signif(513916.6, 2)}. ¿Para qué te serviría en un reporte
+ejecutivo?
+\end{hazlotu}
+
+% ============================================================================
+\section{Caso práctico: tu primer análisis de ventas}
+\label{sec:m1-caso}
+% ============================================================================
+
+Es momento de responder las preguntas de tu jefa del inicio del módulo.
+Usaremos solo R base, es decir, las herramientas que aprendiste en este
+módulo, sobre el archivo \archivo{ventas\_retail.csv}: una venta registrada
+por cada día de 2023.
+
+\begin{negocio}{El encargo}
+La dirección comercial quiere un resumen de 2023 para su junta mensual:
+(1) venta total y ticket promedio, (2) ventas por trimestre, (3) mejor y
+peor mes, (4) si los días con descuento venden más que los días sin
+descuento y (5) los cinco días de mayor venta. Todo debe llegar en un Excel.
+\end{negocio}
+
+\subsection{Paso 1: cargar y conocer los datos}
+
+\begin{rcode}
+# ---- 1. Cargar -----------------------------------------------------------
+ventas_2023 <- read.csv("datasets/ventas_retail.csv")
+ventas_2023$fecha <- as.Date(ventas_2023$fecha)   # Texto -> fecha
+str(ventas_2023)
+\end{rcode}
+\begin{rsalida}
+'data.frame':   365 obs. of  14 variables:
+ $ fecha          : Date, format: "2023-01-01" ...
+ $ dia_semana     : chr  "domingo" "lunes" "martes" "miércoles" ...
+ $ producto_id    : int  31 15 14 3 42 50 43 37 14 25 ...
+ $ cliente_id     : int  94 169 136 167 81 191 82 106 119 11 ...
+ $ cantidad       : int  10 8 3 2 10 8 10 7 7 6 ...
+ $ precio_unitario: num  351 283 297 222 219 ...
+ $ descuento_pct  : int  5 0 10 0 0 0 15 0 0 15 ...
+ $ tienda_id      : int  6 5 2 7 3 3 4 1 6 5 ...
+ $ vendedor_id    : int  5 24 25 18 8 19 3 5 8 12 ...
+ $ subtotal       : num  3508 2262 890 445 2188 ...
+ $ descuento_monto: num  175 0 89 0 0 ...
+ $ total          : num  3333 2262 801 445 2188 ...
+ $ mes            : chr  "2023-01" "2023-01" "2023-01" "2023-01" ...
+ $ trimestre      : chr  "Q1" "Q1" "Q1" "Q1" ...
+\end{rsalida}
+
+Cada fila es una venta con su fecha, producto, cliente, cantidad, precio
+unitario, porcentaje de descuento, tienda y vendedor. Las columnas
+\codigo{subtotal}, \codigo{descuento\_monto} y \codigo{total} ya vienen
+calculadas, y \codigo{mes} y \codigo{trimestre} sirven para agrupar.
+Antes de calcular, comprobemos la calidad básica:
+
+\begin{rcode}
+range(ventas_2023$fecha)            # ¿Qué periodo cubre?
+sum(is.na(ventas_2023))             # ¿Hay datos faltantes?
+sum(duplicated(ventas_2023$fecha))  # ¿Fechas repetidas?
+\end{rcode}
+\begin{rsalida}
+[1] "2023-01-01" "2023-12-31"
+[1] 0
+[1] 0
+\end{rsalida}
+
+Los datos cubren el año completo, no hay valores faltantes ni días
+repetidos. Podemos confiar en los totales.
+
+\subsection{Paso 2: KPIs generales}
+
+\begin{rcode}
+# ---- 2. KPIs del año -----------------------------------------------------
+venta_total <- sum(ventas_2023$total)
+ticket_promedio <- mean(ventas_2023$total)
+unidades_totales <- sum(ventas_2023$cantidad)
+descuentos_otorgados <- sum(ventas_2023$descuento_monto)
+
+scales::dollar(venta_total)
+scales::dollar(ticket_promedio, accuracy = 0.01)
+unidades_totales
+scales::dollar(descuentos_otorgados)
+summary(ventas_2023$total)
+\end{rcode}
+\begin{rsalida}
+[1] "$513,917"
+[1] "$1,407.99"
+[1] 2057
+[1] "$27,360.13"
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  20.07  448.38 1103.67 1407.99 2169.50 4950.30 
+\end{rsalida}
+
+\textbf{¿Qué nos dice esto?} En 2023 se vendieron \$513,917 en 2,057
+unidades, con un ticket promedio de \$1,407.99. Los descuentos le costaron
+a la empresa \$27,360, alrededor del 5\% de la venta. El ticket
+\emph{mediano} (\$1,103.67) es menor que el promedio: hay algunas ventas
+muy grandes (hasta \$4,950) que jalan el promedio hacia arriba.
+
+\subsection{Paso 3: ventas por trimestre}
+
+\begin{rcode}
+# ---- 3. Por trimestre ----------------------------------------------------
+venta_trimestre <- tapply(ventas_2023$total, ventas_2023$trimestre, sum)
+round(venta_trimestre, 2)
+round(venta_trimestre / venta_total * 100, 1)     # Participación %
+\end{rcode}
+\begin{rsalida}
+      Q1       Q2       Q3       Q4 
+126273.9 120716.9 134427.4 132498.3 
+  Q1   Q2   Q3   Q4 
+24.6 23.5 26.2 25.8 
+\end{rsalida}
+
+Las ventas son bastante parejas a lo largo del año: cada trimestre aporta
+entre 23.5\% y 26.2\%. El tercer trimestre fue el más fuerte (\$134,427) y
+el segundo el más débil (\$120,717).
+
+\subsection{Paso 4: mejor y peor mes}
+
+\begin{rcode}
+# ---- 4. Por mes ----------------------------------------------------------
+venta_mes <- tapply(ventas_2023$total, ventas_2023$mes, sum)
+round(venta_mes)
+names(which.max(venta_mes))
+names(which.min(venta_mes))
+round(max(venta_mes) / min(venta_mes), 2)   # ¿Cuántas veces más?
+\end{rcode}
+\begin{rsalida}
+2023-01 2023-02 2023-03 2023-04 2023-05 2023-06 2023-07 2023-08 
+  46884   42656   36733   34738   48108   37871   54056   41421 
+2023-09 2023-10 2023-11 2023-12 
+  38950   36584   50398   45516 
+[1] "2023-07"
+[1] "2023-04"
+[1] 1.56
+\end{rsalida}
+
+Julio fue el mejor mes (\$54,056) y abril el peor (\$34,738): el mejor mes
+vendió 1.56 veces lo que el peor. En una junta, esto abre una pregunta de
+negocio: ¿qué pasó en abril? (¿Semana Santa?, ¿falta de inventario?, ¿una
+campaña que no funcionó?). Los datos no responden el \emph{por qué}, pero
+te dicen dónde buscar.
+
+\subsection{Paso 5: ¿venden más los días con descuento?}
+
+\begin{rcode}
+# ---- 5. Con y sin descuento ----------------------------------------------
+ventas_2023$con_descuento <- ifelse(ventas_2023$descuento_pct > 0,
+                                    "Con descuento", "Sin descuento")
+table(ventas_2023$con_descuento)
+round(tapply(ventas_2023$total, ventas_2023$con_descuento, mean), 2)
+round(tapply(ventas_2023$cantidad, ventas_2023$con_descuento, mean), 2)
+\end{rcode}
+\begin{rsalida}
+
+Con descuento Sin descuento 
+          177           188 
+Con descuento Sin descuento 
+      1351.79       1460.90 
+Con descuento Sin descuento 
+         5.67          5.61 
+\end{rsalida}
+
+\textbf{¿Qué nos dice esto?} Hubo descuento en 177 de los 365 días. Pero
+los días con descuento tuvieron un ticket promedio \emph{menor} (\$1,351.79
+contra \$1,460.90) y prácticamente las mismas unidades por venta (5.67
+contra 5.61). Es decir, en estos datos el descuento no se traduce en
+clientes que compren más piezas: solo reduce el ingreso. Es un hallazgo
+importante para la dirección comercial, aunque con una advertencia
+honesta: comparar promedios no prueba causalidad (los descuentos pudieron
+aplicarse a productos distintos). En el Módulo~\ref{cap:eda} aprenderás
+a comprobar si una diferencia así es estadísticamente significativa.
+
+\subsection{Paso 6: los cinco mejores días}
+
+\begin{rcode}
+# ---- 6. Top 5 días -------------------------------------------------------
+orden <- order(ventas_2023$total, decreasing = TRUE)
+top5 <- ventas_2023[orden[1:5],
+                    c("fecha", "dia_semana", "cantidad",
+                      "precio_unitario", "descuento_pct", "total")]
+top5
+\end{rcode}
+\begin{rsalida}
+         fecha dia_semana cantidad precio_unitario descuento_pct
+205 2023-07-24      lunes       10          495.03             0
+111 2023-04-21    viernes       10          492.49             0
+247 2023-09-04      lunes       10          487.48             0
+46  2023-02-15  miércoles       10          488.26             5
+47  2023-02-16     jueves        9          485.20             0
+      total
+205 4950.30
+111 4924.90
+247 4874.80
+46  4638.47
+47  4366.80
+\end{rsalida}
+
+Los cinco mejores días tienen algo en común: se vendieron 9 o 10 unidades
+de un producto caro (cerca de \$490 cada una), casi siempre sin
+descuento. Las ventas grandes vienen de pedidos de muchas piezas de
+productos de precio alto.
+
+\subsection{Paso 7: exportar el resumen a Excel}
+
+Armamos cada cuadro como data frame y los guardamos en un solo Excel, una
+hoja por cuadro:
+
+\begin{rcode}
+# ---- 7. Exportar ---------------------------------------------------------
+kpis <- data.frame(
+  indicador = c("Venta total", "Ticket promedio", "Unidades vendidas",
+                "Descuentos otorgados", "Mejor mes", "Peor mes"),
+  valor = c(scales::dollar(venta_total),
+            scales::dollar(ticket_promedio, accuracy = 0.01),
+            scales::comma(unidades_totales),
+            scales::dollar(descuentos_otorgados),
+            names(which.max(venta_mes)), names(which.min(venta_mes)))
+)
+tabla_trimestre <- data.frame(trimestre = names(venta_trimestre),
+                              venta = round(as.numeric(venta_trimestre), 2))
+tabla_mes <- data.frame(mes = names(venta_mes),
+                        venta = round(as.numeric(venta_mes), 2))
+tabla_descuento <- aggregate(total ~ con_descuento, data = ventas_2023,
+                             FUN = mean)
+
+dir.create("resultados", showWarnings = FALSE)
+write_xlsx(list(KPIs = kpis, Trimestres = tabla_trimestre,
+                Meses = tabla_mes, Descuentos = tabla_descuento,
+                Top5 = top5),
+           "resultados/resumen_ventas_2023.xlsx")
+kpis
+excel_sheets("resultados/resumen_ventas_2023.xlsx")
+\end{rcode}
+\begin{rsalida}
+             indicador      valor
+1          Venta total   $513,917
+2      Ticket promedio  $1,407.99
+3    Unidades vendidas      2,057
+4 Descuentos otorgados $27,360.13
+5            Mejor mes    2023-07
+6             Peor mes    2023-04
+[1] "KPIs"       "Trimestres" "Meses"      "Descuentos" "Top5"      
+\end{rsalida}
+
+Listo: el archivo \archivo{resultados/resumen\_ventas\_2023.xlsx} tiene
+cinco hojas con todo lo que pidió la dirección. Lo mejor es que el próximo
+año solo cambias el archivo de entrada y vuelves a ejecutar el script: el
+reporte se regenera en segundos. Eso es automatizar un reporte de BI.
+
+\begin{hazlotu}
+Agrega al caso un paso 8: calcula la venta total por día de la semana con
+\codigo{tapply()} y ordénala de mayor a menor con \codigo{sort()}. ¿Qué día
+conviene reforzar con personal? Agrégala como una hoja más del Excel.
+\end{hazlotu}
+
+% ============================================================================
+\section{Errores comunes y cómo resolverlos}
+\label{sec:m1-errores}
+% ============================================================================
+
+Equivocarse es parte normal de programar; lo importante es entender qué te
+dice R. Los mensajes aparecen en inglés en la mayoría de las instalaciones
+(o en español, si tu sistema está configurado así; el significado es el
+mismo). La tabla~\ref{tab:m1-errores} reúne los que más verás en este
+curso.
+
+{\small
+\begin{longtable}{>{\raggedright\arraybackslash}p{5.2cm}
+                  >{\raggedright\arraybackslash}p{4.3cm}
+                  >{\raggedright\arraybackslash}p{5.6cm}}
+\caption{Mensajes de error frecuentes, su causa y su solución.}
+\label{tab:m1-errores}\\
+\toprule
+\textbf{Mensaje de R} & \textbf{Causa probable} & \textbf{Solución} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Mensaje de R} & \textbf{Causa probable} & \textbf{Solución} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\codigo{object 'ventas\_total' not found} &
+  El objeto no existe: nombre mal escrito o no ejecutaste la línea que lo
+  crea. &
+  Revisa mayúsculas y guiones bajos; busca el nombre en \menu{Environment};
+  ejecuta el script desde el principio. \\
+\codigo{could not find function "read\_csv"} &
+  La función es de un paquete que no has cargado, o su nombre está mal
+  escrito (\codigo{Mean} en vez de \codigo{mean}). &
+  Ejecuta \codigo{library(readr)} (o \codigo{library(tidyverse)}) o
+  usa \codigo{readr::read\_csv()}. \\
+\codigo{unexpected symbol in "ventas enero"} &
+  Hay algo de más o de menos en la sintaxis: un espacio en un nombre, una
+  coma o un paréntesis faltante. &
+  Revisa la línea indicada: usa \codigo{ventas\_enero} y cuenta comas y
+  paréntesis. \\
+\codigo{non-numeric argument to binary operator} &
+  Operación aritmética con texto: \codigo{"100" + 1}. &
+  Revisa \codigo{class()} y convierte con \codigo{as.numeric()}. \\
+\codigo{cannot open file 'datos/ventas.csv': No such file or directory} &
+  R no encuentra el archivo en la ruta indicada, relativa al directorio de
+  trabajo. &
+  Comprueba \codigo{getwd()}, abre el Proyecto de RStudio y revisa el nombre
+  con \codigo{list.files()}. \\
+\codigo{there is no package called 'janitor'} &
+  El paquete no está instalado. &
+  \codigo{install.packages("janitor")} una vez y luego
+  \codigo{library(janitor)}. \\
+\codigo{argument is not numeric or logical: returning NA} &
+  (Advertencia) Pediste \codigo{mean()} de una columna de texto. &
+  Convierte la columna a número o revisa por qué quedó como texto. \\
+\codigo{the condition has length > 1} &
+  Usaste \codigo{if} con un vector. &
+  Usa \codigo{ifelse()} o \codigo{any()}/\codigo{all()}. \\
+\codigo{undefined columns selected} &
+  Columna mal escrita o faltó la coma en \codigo{df[condición, ]}. &
+  Revisa \codigo{names(df)} y la coma dentro de los corchetes. \\
+\codigo{arguments imply differing number of rows: 3, 2} &
+  Al crear un data frame, las columnas tienen distinto largo. &
+  Cuenta los elementos de cada vector con \codigo{length()}. \\
+\codigo{unexpected end of input} &
+  Falta cerrar un paréntesis, llave o comillas. &
+  En la consola aparece \codigo{+}; presiona \tecla{Esc} y corrige. \\
+\end{longtable}
+}
+
+Veamos los más frecuentes tal como los imprime R.
+
+\subsubsection{Objeto no encontrado}
+
+\begin{rnoejecutar}
+ventas_totales <- 1000
+ventas_total                     # Falta la "s"
+\end{rnoejecutar}
+\begin{rsalida}
+Error: object 'ventas_total' not found
+\end{rsalida}
+
+R distingue cada letra: \codigo{ventas\_totales} existe, pero
+\codigo{ventas\_total} no. Usa \tecla{Tab} para autocompletar nombres y
+evitar erratas.
+
+\subsubsection{Función no encontrada}
+
+\begin{rnoejecutar}
+# En una sesión nueva, sin haber cargado readr
+total <- read_csv("datasets/ventas_retail.csv")
+\end{rnoejecutar}
+\begin{rsalida}
+Error in read_csv("datasets/ventas_retail.csv") :
+  could not find function "read_csv"
+\end{rsalida}
+
+\subsubsection{Símbolo inesperado}
+
+\begin{rnoejecutar}
+ventas enero <- 15000
+\end{rnoejecutar}
+\begin{rsalida}
+Error: unexpected symbol in "ventas enero"
+\end{rsalida}
+
+\subsubsection{Texto en una operación aritmética}
+
+\begin{rnoejecutar}
+precio <- "100"
+precio + 1
+\end{rnoejecutar}
+\begin{rsalida}
+Error in precio + 1 : non-numeric argument to binary operator
+\end{rsalida}
+
+\subsubsection{Archivo que no existe}
+
+\begin{rnoejecutar}
+ventas <- read.csv("datos/ventas_retail.csv")    # La carpeta es datasets
+\end{rnoejecutar}
+\begin{rsalida}
+Error in file(file, "rt") : cannot open the connection
+In addition: Warning message:
+In file(file, "rt") :
+  cannot open file 'datos/ventas_retail.csv': No such file or directory
+\end{rsalida}
+
+El error principal (\emph{cannot open the connection}) es genérico; la
+pista útil está en la advertencia de abajo: el archivo no está en esa
+ruta. Aquí la carpeta correcta era \archivo{datasets}.
+
+\subsubsection{Paquete no instalado}
+
+\begin{rnoejecutar}
+library(janitor)
+\end{rnoejecutar}
+\begin{rsalida}
+Error in library(janitor) : there is no package called 'janitor'
+\end{rsalida}
+
+\subsubsection{Promedio de un texto}
+
+\begin{rnoejecutar}
+mean(c("1500", "2300"))          # Números guardados como texto
+\end{rnoejecutar}
+\begin{rsalida}
+[1] NA
+Warning message:
+In mean.default(c("1500", "2300")) :
+  argument is not numeric or logical: returning NA
+\end{rsalida}
+
+Esta es una advertencia, no un error: R no se detiene, pero el resultado
+es \codigo{NA}. Es peligrosa porque, si no lees la consola, un
+\codigo{NA} puede colarse en tu reporte.
+
+\begin{consejo}
+Ante cualquier error: (1) lee el mensaje completo, (2) identifica la línea
+que falló, (3) revisa nombres, tipos (\codigo{class()}, \codigo{str()}) y
+rutas (\codigo{getwd()}, \codigo{list.files()}), (4) reinicia R y ejecuta el
+script desde el principio. La mayoría de los errores se resuelven en uno de
+estos cuatro pasos.
+\end{consejo}
+
+\begin{hazlotu}
+Provoca a propósito tres de estos errores en tu consola (por ejemplo,
+escribe mal un nombre, suma un texto y lee un archivo que no existe). Leer
+los mensajes cuando \emph{sabes} qué los causó es la mejor forma de
+reconocerlos después.
+\end{hazlotu}
+
+% ============================================================================
+\section{Resumen del módulo}
+\label{sec:m1-resumen}
+% ============================================================================
+
+\begin{resumen}
+\begin{itemize}
+  \item RStudio tiene cuatro paneles: editor, consola, entorno y
+        archivos/gráficas/ayuda. Escribe siempre en scripts, ejecuta con
+        \tecla{Ctrl} + \tecla{Enter} y trabaja dentro de un Proyecto con
+        rutas relativas (sin \codigo{setwd()}).
+  \item R es una calculadora potente; guardas resultados en variables con
+        \codigo{<-} y nombres en snake\_case.
+  \item Cada valor tiene un tipo: \codigo{numeric}, \codigo{integer},
+        \codigo{character}, \codigo{logical}, \codigo{Date} y
+        \codigo{factor}. Revísalo con \codigo{class()} y conviértelo con
+        \codigo{as.*()}, cuidando las trampas (comas de miles, factores,
+        texto que parece número).
+  \item Los vectores guardan muchos valores del mismo tipo; las operaciones
+        son vectorizadas. Se filtran con corchetes por posición, nombre o
+        condición, y \codigo{sum(condición)} cuenta.
+  \item \codigo{NA} marca datos faltantes; usa \codigo{na.rm = TRUE} y
+        \codigo{is.na()}.
+  \item Los data frames (y tibbles) son las tablas de R: se exploran con
+        \codigo{str()} y \codigo{summary()}, se filtran con
+        \codigo{df[condición, ]} y se resumen con \codigo{tapply()} y
+        \codigo{aggregate()}.
+  \item \codigo{if}/\codigo{else}, \codigo{ifelse()}, \codigo{for} y
+        \codigo{while} controlan el flujo; en R se prefiere lo vectorizado.
+  \item Tus funciones con \codigo{function()} encapsulan reglas de negocio
+        y se validan con \codigo{stop()} y \codigo{warning()}.
+  \item Los paquetes se instalan una vez y se cargan en cada sesión.
+        \codigo{read\_csv()}, \codigo{read\_excel()},
+        \codigo{write\_xlsx()} y \codigo{saveRDS()} mueven datos entre R y
+        el mundo exterior.
+\end{itemize}
+\end{resumen}
+
+{\small
+\begin{longtable}{>{\raggedright\arraybackslash}p{5.4cm}
+                  >{\raggedright\arraybackslash}p{9.6cm}}
+\caption{Funciones clave del Módulo~1.}
+\label{tab:m1-funciones}\\
+\toprule
+\textbf{Función} & \textbf{Para qué sirve} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Función} & \textbf{Para qué sirve} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\codigo{getwd()}, \codigo{list.files()}, \codigo{file.exists()} &
+  Directorio de trabajo y archivos disponibles \\
+\codigo{round()}, \codigo{ceiling()}, \codigo{floor()}, \codigo{abs()},
+  \codigo{sqrt()}, \codigo{log()} & Funciones matemáticas \\
+\codigo{ls()}, \codigo{rm()} & Listar y borrar objetos \\
+\codigo{class()}, \codigo{typeof()}, \codigo{is.*()}, \codigo{as.*()} &
+  Consultar y convertir tipos \\
+\codigo{as.Date()}, \codigo{Sys.Date()}, \codigo{format()},
+  \codigo{weekdays()} & Crear, formatear y operar fechas \\
+\codigo{factor()}, \codigo{levels()}, \codigo{table()} & Categorías y
+  conteos \\
+\codigo{c()}, \codigo{seq()}, \codigo{rep()}, \codigo{length()} &
+  Crear vectores \\
+\codigo{sum()}, \codigo{mean()}, \codigo{median()}, \codigo{sd()},
+  \codigo{quantile()}, \codigo{summary()} & Resumir un vector \\
+\codigo{cumsum()}, \codigo{diff()}, \codigo{sort()}, \codigo{order()} &
+  Acumulados, cambios y ordenamiento \\
+\codigo{which()}, \codigo{which.max()}, \codigo{\%in\%}, \codigo{is.na()} &
+  Localizar elementos y faltantes \\
+\codigo{paste()}, \codigo{paste0()}, \codigo{sprintf()} & Construir textos \\
+\codigo{toupper()}, \codigo{trimws()}, \codigo{substr()}, \codigo{gsub()},
+  \codigo{grepl()} & Limpiar y transformar textos \\
+\codigo{scales::dollar()}, \codigo{scales::percent()} & Formato de moneda
+  y porcentaje \\
+\codigo{data.frame()}, \codigo{tibble::tibble()} & Crear tablas \\
+\codigo{head()}, \codigo{str()}, \codigo{nrow()}, \codigo{names()} &
+  Explorar tablas \\
+\codigo{subset()}, \codigo{tapply()}, \codigo{aggregate()} & Filtrar y
+  resumir por grupos \\
+\codigo{matrix()}, \codigo{rowSums()}, \codigo{colSums()}, \codigo{list()}
+  & Matrices y listas \\
+\codigo{if}, \codigo{ifelse()}, \codigo{for}, \codigo{while},
+  \codigo{sapply()}, \codigo{vapply()} & Control de flujo \\
+\codigo{function()}, \codigo{return()}, \codigo{stop()},
+  \codigo{warning()} & Funciones propias \\
+\codigo{install.packages()}, \codigo{library()}, \codigo{paquete::funcion()}
+  & Paquetes \\
+\codigo{read.csv()}, \codigo{read\_csv()}, \codigo{read\_csv2()},
+  \codigo{read\_excel()}, \codigo{excel\_sheets()} & Importar datos \\
+\codigo{write.csv()}, \codigo{write\_csv()}, \codigo{write\_xlsx()},
+  \codigo{saveRDS()}, \codigo{readRDS()} & Exportar y guardar \\
+\codigo{?}, \codigo{help()}, \codigo{args()}, \codigo{apropos()},
+  \codigo{dput()} & Obtener ayuda y preguntar bien \\
+\end{longtable}
+}
+
+En el Módulo~\ref{cap:manipulacion} darás el siguiente gran salto:
+\paquete{dplyr} y \paquete{tidyr} convertirán muchas de las operaciones de
+este módulo (filtrar, ordenar, crear columnas, resumir por grupos) en un
+lenguaje mucho más legible y potente.
+
+% ============================================================================
+\section{Ejercicios}
+\label{sec:m1-ejercicios}
+% ============================================================================
+
+Resuelve cada ejercicio en un script nuevo guardado en tu carpeta
+\archivo{mis\_scripts/}, con el Proyecto del curso abierto. Los ejercicios
+van de \emph{Básico} a \emph{Reto}; las soluciones completas y comentadas
+están en el Apéndice~\ref{ap:soluciones}.
+
+\begin{ejercicio}{m1-1}{Calculadora de ticket}
+\nivel{Básico}
+Un cliente compra 2 audífonos de \$899, 1 teclado de \$1,299 y 3 memorias
+USB de \$189 (precios sin IVA). Con variables, calcula: (a) el subtotal,
+(b) el IVA del 16\%, (c) el total, (d) el total si se aplica un cupón del
+10\% sobre el subtotal antes de IVA y (e) cuánto ahorra el cliente con el
+cupón. Muestra el total final con \codigo{scales::dollar()}.
+\end{ejercicio}
+
+\begin{ejercicio}{m1-2}{KPIs y punto de equilibrio de una sucursal}
+\nivel{Básico}
+En abril la Sucursal Norte vendió \$612,400; el costo de la mercancía fue
+\$379,700, los gastos fijos \$158,000 y la meta del mes \$580,000. Calcula
+la utilidad bruta, la utilidad de operación, el margen bruto y el de
+operación (en \%, un decimal), y el cumplimiento de la meta. Después
+calcula el \termino{punto de equilibrio} en ventas: las ventas mínimas para
+no perder dinero, que es \codigo{gastos\_fijos / margen\_bruto} (con el
+margen como proporción). ¿Cuánto por encima del punto de equilibrio está la
+sucursal?
+\end{ejercicio}
+
+\begin{ejercicio}{m1-3}{Limpiar montos y fechas}
+\nivel{Básico}
+Un sistema exportó estos montos como texto:
+\codigo{c("\$1,250.50", "\$980.00", "\$12,400.75", "\$3,105.20")} y sus
+fechas de factura en formato mexicano:
+\codigo{c("05/01/2023", "19/01/2023", "02/02/2023", "28/02/2023")}.
+(a) Convierte los montos a número y súmalos. (b) Convierte las fechas a
+\codigo{Date}. (c) Calcula la fecha de vencimiento de cada factura a 30
+días y muéstrala en formato \codigo{dd/mm/aaaa}. (d) ¿Qué día de la semana
+vence cada una?
+\end{ejercicio}
+
+\begin{ejercicio}{m1-4}{Un año de ventas en un vector}
+\nivel{Básico}
+Las ventas mensuales (en miles de pesos) de una tienda fueron: 420, 385,
+455, 402, 478, 510, 495, 530, 468, 501, 560 y 640, de enero a diciembre.
+Crea un vector con nombres (\codigo{month.abb} te da los meses en inglés;
+usa mejor \codigo{c("ene", "feb", \ldots)}). Calcula: total anual,
+promedio, mejor y peor mes, cuántos meses superaron \$500 mil, el
+crecimiento porcentual de cada mes contra el anterior y el acumulado del
+año. ¿En qué mes el acumulado superó los 3 millones?
+\end{ejercicio}
+
+\begin{ejercicio}{m1-5}{Días sin datos}
+\nivel{Intermedio}
+Las ventas de 10 días de una tienda fueron:
+\codigo{c(8200, 7650, NA, 9100, 10400, NA, 8800, 12100, NA, 9650)}.
+(a) ¿Cuántos días no tienen dato y cuáles son? (b) Calcula la venta
+promedio y total con los días disponibles. (c) ¿Cuántos días con dato
+superaron la meta de \$9,000 y qué porcentaje representan? (d) Crea una
+copia donde cada \codigo{NA} se reemplace por el promedio de los días
+disponibles y compara el total estimado con el total observado. Explica
+por qué no conviene reemplazar por cero.
+\end{ejercicio}
+
+\begin{ejercicio}{m1-6}{Directorio de clientes}
+\nivel{Intermedio}
+Tienes los nombres \codigo{c("  ana LÓPEZ", "Carlos pérez ", "MARÍA
+gonzález")}, sus ciudades \codigo{c("cdmx", "Monterrey ", " CDMX")} y sus
+compras del año \codigo{c(15230.5, 8900, 42100.75)}. (a) Limpia los
+espacios y deja nombres y ciudades en mayúsculas. (b) Construye con
+\codigo{sprintf()} y \codigo{scales::dollar()} un mensaje por cliente del
+estilo \codigo{"ANA LÓPEZ (CDMX) compró \$15,230.50"}. (c) Genera un
+código de cliente \codigo{CLI-001}, \codigo{CLI-002}\ldots\ con
+\codigo{sprintf()}. (d) Cuenta cuántos clientes son de CDMX.
+\end{ejercicio}
+
+\begin{ejercicio}{m1-7}{Análisis de una plantilla de empleados}
+\nivel{Intermedio}
+Crea un data frame con 8 empleados: nombre, departamento (Ventas,
+Operaciones o TI), salario mensual, años de antigüedad y calificación de
+desempeño (1 a 5); inventa los valores o usa los de la solución. (a)
+Agrega una columna \codigo{bono} igual al 10\% del salario anual si la
+calificación es 4 o más, y 0 si no. (b) Muestra los empleados de Ventas
+ordenados de mayor a menor salario. (c) Con \codigo{aggregate()} calcula el
+salario promedio y el total de bonos por departamento. (d) ¿Qué
+departamento tiene el mayor costo anual de nómina (salario $\times$ 12 +
+bono)?
+\end{ejercicio}
+
+\begin{ejercicio}{m1-8}{Semáforo de metas y proyección}
+\nivel{Intermedio}
+Seis vendedores tuvieron estas ventas del trimestre: 185, 240, 132, 310,
+198 y 260 (miles de pesos), con una meta común de 200 mil. (a) Con
+\codigo{ifelse()} anidado asigna un semáforo: ``Verde'' si cumplen 100\% o
+más, ``Amarillo'' entre 85\% y 99.9\%, ``Rojo'' debajo de 85\%. (b) Con un
+\codigo{for} imprime con \codigo{cat()} una línea por vendedor con su venta,
+su cumplimiento y su semáforo. (c) Con un \codigo{while} calcula cuántos
+trimestres necesita el vendedor con menor venta para alcanzar la meta si
+crece 8\% cada trimestre.
+\end{ejercicio}
+
+\begin{ejercicio}{m1-9}{Funciones de precios y punto de equilibrio}
+\nivel{Avanzado}
+(a) Escribe \codigo{precio\_final(precio, descuento = 0, iva = 0.16)} que
+aplique el descuento y luego el IVA, redondee a 2 decimales y se detenga
+con \codigo{stop()} si el descuento no está entre 0 y 1 o si el precio es
+negativo. (b) Escribe \codigo{punto\_equilibrio(costos\_fijos, precio,
+costo\_variable)} que devuelva las unidades mínimas a vender (redondeadas
+hacia arriba) y se detenga si el precio no supera al costo variable. (c)
+Úsalas: precio final de un catálogo de 4 productos con 20\% de descuento, y
+unidades de equilibrio para un negocio con \$85,000 de costos fijos, precio
+de \$450 y costo variable de \$280. (d) Muestra con \codigo{tryCatch()} o
+con un bloque comentado qué pasa si el descuento es 1.5.
+\end{ejercicio}
+
+\begin{ejercicio}{m1-10}{Calidad de datos del catálogo}
+\nivel{Avanzado}
+Lee \archivo{datasets/productos.csv} con \codigo{read\_csv()}. (a) ¿Cuántos
+productos y columnas hay? (b) ¿Cuántos productos tienen margen negativo
+(costo mayor que precio de catálogo)? Muestra los 5 peores. (c) Calcula el
+margen promedio por categoría con \codigo{aggregate()} y ordénalo. (d)
+¿Cuántos productos están en ``Stock Bajo'' o ``Sin Stock''? (e) Exporta a
+\archivo{resultados/calidad\_catalogo.xlsx} dos hojas: los productos con
+margen negativo y el resumen por categoría. Redacta dos frases de
+conclusión para el área de compras.
+\end{ejercicio}
+
+\begin{ejercicio}{m1-11}{Métodos de pago}
+\nivel{Avanzado}
+Con \archivo{datasets/transacciones.csv}: (a) calcula el número de
+transacciones, el monto total y el ticket promedio por método de pago; (b)
+¿qué porcentaje del monto total se pagó con tarjeta (crédito o débito)?;
+(c) ¿cuál fue el mes con más ingresos y cuál el día de la semana con más
+transacciones?; (d) exporta el resumen por método de pago a CSV y a RDS en
+\archivo{resultados/}, vuelve a leer el RDS y comprueba que es idéntico.
+\end{ejercicio}
+
+\begin{ejercicio}{m1-12}{Reto: reporte automático por sucursal}
+\nivel{Reto}
+Combina \archivo{datasets/ventas\_retail.csv} y
+\archivo{datasets/tiendas.csv}. Escribe una función
+\codigo{resumen\_tienda(id, ventas, tiendas)} que devuelva un data frame de
+una fila con: nombre de la tienda, ciudad, número de ventas, venta total,
+ticket promedio, mejor mes y venta por metro cuadrado. Aplícala a las 10
+tiendas (con un \codigo{for} o con \codigo{lapply()} +
+\codigo{do.call(rbind, \ldots)}), ordena el resultado por venta total,
+imprime un ranking con \codigo{cat()} y \codigo{sprintf()} y guarda todo en
+\archivo{resultados/ranking\_tiendas.xlsx}. ¿Qué tienda vende más por metro
+cuadrado? ¿Coincide con la que más vende en total?
+\end{ejercicio}

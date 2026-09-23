@@ -1,0 +1,1910 @@
+% ============================================================================
+% APÉNDICE B. REFERENCIA RÁPIDA
+% Chuleta de consulta para el trabajo diario de BI con R y RStudio
+% ============================================================================
+\chapter{Referencia rápida}
+\label{ap:referencia}
+
+Este apéndice es tu \termino{chuleta} (en inglés, \emph{cheat sheet}): una
+colección de tablas para consultar en segundos la función, el atajo o la
+fórmula que necesitas mientras trabajas. No sustituye a los módulos (ahí se
+explica el porqué de cada cosa); está pensado para tenerlo abierto junto a
+RStudio cuando ya sabes \emph{qué} quieres hacer y solo necesitas recordar
+\emph{cómo}.
+
+Cada tabla sigue la misma lógica: \textbf{función o sintaxis}
+$\rightarrow$ \textbf{qué hace} $\rightarrow$ \textbf{ejemplo corto}. Los
+ejemplos usan las columnas reales de los datos del curso
+(\archivo{ventas\_retail.csv}, \archivo{productos.csv},
+\archivo{tiendas.csv}, \archivo{clientes.csv}\ldots) para que puedas
+copiarlos casi sin cambios.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Mapa del apéndice: dónde buscar cada cosa.}
+\label{tab:ap-b-mapa}
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Sección} & \textbf{Úsala cuando\ldots} \\
+\midrule
+\ref{sec:ap-b-atajos} Atajos de RStudio & quieras trabajar más rápido con el teclado. \\
+\ref{sec:ap-b-rbase} R base esencial & dudes de un operador, un tipo de dato, un NA o un bucle. \\
+\ref{sec:ap-b-importar} Importar y exportar & tengas que leer o guardar CSV, Excel, RDS o bases de datos. \\
+\ref{sec:ap-b-dplyr} dplyr & necesites filtrar, agrupar, resumir, clasificar o unir tablas. \\
+\ref{sec:ap-b-tidyr} tidyr, lubridate, stringr & haya que reestructurar tablas, trabajar fechas o limpiar texto. \\
+\ref{sec:ap-b-ggplot} ggplot2 & elijas el tipo de gráfico o el formato de los ejes. \\
+\ref{sec:ap-b-sql} SQL, dplyr y Excel & traduzcas una consulta o una fórmula de Excel a R. \\
+\ref{sec:ap-b-estadistica} Estadística y KPIs & elijas una prueba o calcules un indicador de negocio. \\
+\ref{sec:ap-b-ml} Machine learning & elijas algoritmo y métrica para un problema de negocio. \\
+\ref{sec:ap-b-shiny} Shiny y R Markdown & armes un dashboard o un reporte automático. \\
+\ref{sec:ap-b-errores} Errores frecuentes & R te muestre un mensaje de error que no entiendes. \\
+\ref{sec:ap-b-glosario} Glosario & te encuentres un término de BI que no conoces. \\
+\ref{sec:ap-b-recursos} Recursos & quieras seguir aprendiendo. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Los pocos bloques de código de este apéndice se ejecutan de corrido, como un
+solo script, desde la carpeta del curso. Este es el arranque que todos
+asumen:
+
+\begin{rcode}[title=Arranque de cualquier análisis del curso]
+# Paquetes y datos que usan los ejemplos de este apéndice
+library(tidyverse)   # dplyr, ggplot2, tidyr, readr, stringr, lubridate
+library(scales)      # formatos de negocio: dólar, coma, porcentaje
+
+ventas    <- read_csv("datasets/ventas_retail.csv", show_col_types = FALSE)
+productos <- read_csv("datasets/productos.csv", show_col_types = FALSE)
+tiendas   <- read_csv("datasets/tiendas.csv", show_col_types = FALSE)
+\end{rcode}
+
+% ============================================================================
+\section{Atajos de teclado de RStudio}
+\label{sec:ap-b-atajos}
+% ============================================================================
+
+En Mac, \tecla{Ctrl} suele cambiarse por \tecla{Cmd} y \tecla{Alt} por
+\tecla{Option}. La lista completa está en \menu{Help > Keyboard Shortcuts
+Help} (o con \tecla{Alt} + \tecla{Shift} + \tecla{K}), y puedes cambiar
+cualquier atajo en \menu{Tools > Modify Keyboard Shortcuts}.
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{5.4cm}
+                    >{\raggedright\arraybackslash}p{5.1cm}
+                    >{\raggedright\arraybackslash}p{5.3cm}@{}}
+\caption{Atajos de teclado más útiles de RStudio.}
+\label{tab:ap-b-atajos}\\
+\toprule
+\textbf{Acción} & \textbf{Windows / Linux} & \textbf{Mac} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Acción} & \textbf{Windows / Linux} & \textbf{Mac} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\multicolumn{3}{@{}l}{\textbf{\color{secundario}Ejecutar código}} \\
+Ejecutar línea o selección & \tecla{Ctrl}+\tecla{Enter} & \tecla{Cmd}+\tecla{Return} \\
+Ejecutar todo el script (con eco) & \tecla{Ctrl}+\tecla{Shift}+\tecla{Enter} & \tecla{Cmd}+\tecla{Shift}+\tecla{Return} \\
+Ejecutar todo el script (\codigo{source}) & \tecla{Ctrl}+\tecla{Shift}+\tecla{S} & \tecla{Cmd}+\tecla{Shift}+\tecla{S} \\
+Ejecutar desde el inicio hasta la línea actual & \tecla{Ctrl}+\tecla{Alt}+\tecla{B} & \tecla{Cmd}+\tecla{Option}+\tecla{B} \\
+Detener la ejecución & \tecla{Esc} & \tecla{Esc} \\
+Reiniciar R (sesión limpia) & \tecla{Ctrl}+\tecla{Shift}+\tecla{F10} & \tecla{Cmd}+\tecla{Shift}+\tecla{0} \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\color{secundario}Escribir código}} \\
+Insertar \codigo{<-} & \tecla{Alt}+\tecla{-} & \tecla{Option}+\tecla{-} \\
+Insertar pipe \codigo{\%>\%} (o \codigo{|>}) & \tecla{Ctrl}+\tecla{Shift}+\tecla{M} & \tecla{Cmd}+\tecla{Shift}+\tecla{M} \\
+Autocompletar & \tecla{Tab} & \tecla{Tab} \\
+Comentar / descomentar líneas & \tecla{Ctrl}+\tecla{Shift}+\tecla{C} & \tecla{Cmd}+\tecla{Shift}+\tecla{C} \\
+Reindentar líneas & \tecla{Ctrl}+\tecla{I} & \tecla{Cmd}+\tecla{I} \\
+Reformatear código & \tecla{Ctrl}+\tecla{Shift}+\tecla{A} & \tecla{Cmd}+\tecla{Shift}+\tecla{A} \\
+Insertar sección \codigo{\# Título ----} & \tecla{Ctrl}+\tecla{Shift}+\tecla{R} & \tecla{Cmd}+\tecla{Shift}+\tecla{R} \\
+Mover línea arriba / abajo & \tecla{Alt}+\tecla{$\uparrow$}/\tecla{$\downarrow$} & \tecla{Option}+\tecla{$\uparrow$}/\tecla{$\downarrow$} \\
+Duplicar línea hacia abajo & \tecla{Alt}+\tecla{Shift}+\tecla{$\downarrow$} & \tecla{Cmd}+\tecla{Option}+\tecla{$\downarrow$} \\
+Borrar línea & \tecla{Ctrl}+\tecla{D} & \tecla{Cmd}+\tecla{D} \\
+Cursor múltiple (varias líneas) & \tecla{Ctrl}+\tecla{Alt}+\tecla{$\uparrow$}/\tecla{$\downarrow$} & \tecla{Ctrl}+\tecla{Option}+\tecla{$\uparrow$}/\tecla{$\downarrow$} \\
+Renombrar variable en su ámbito & \tecla{Ctrl}+\tecla{Alt}+\tecla{Shift}+\tecla{M} & \tecla{Cmd}+\tecla{Option}+\tecla{Shift}+\tecla{M} \\
+Convertir selección en función & \tecla{Ctrl}+\tecla{Alt}+\tecla{X} & \tecla{Cmd}+\tecla{Option}+\tecla{X} \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\color{secundario}Navegar y buscar}} \\
+Ir al editor / a la consola & \tecla{Ctrl}+\tecla{1} / \tecla{Ctrl}+\tecla{2} & \tecla{Ctrl}+\tecla{1} / \tecla{Ctrl}+\tecla{2} \\
+Buscar y reemplazar en el archivo & \tecla{Ctrl}+\tecla{F} & \tecla{Cmd}+\tecla{F} \\
+Buscar en todos los archivos & \tecla{Ctrl}+\tecla{Shift}+\tecla{F} & \tecla{Cmd}+\tecla{Shift}+\tecla{F} \\
+Ir a archivo o función & \tecla{Ctrl}+\tecla{.} & \tecla{Ctrl}+\tecla{.} \\
+Ver índice del documento (secciones) & \tecla{Ctrl}+\tecla{Shift}+\tecla{O} & \tecla{Cmd}+\tecla{Shift}+\tecla{O} \\
+Ir a la definición de una función & \tecla{F2} & \tecla{F2} \\
+Ayuda de la función bajo el cursor & \tecla{F1} & \tecla{F1} \\
+Paleta de comandos & \tecla{Ctrl}+\tecla{Shift}+\tecla{P} & \tecla{Cmd}+\tecla{Shift}+\tecla{P} \\
+Plegar todo el código & \tecla{Alt}+\tecla{O} & \tecla{Cmd}+\tecla{Option}+\tecla{O} \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\color{secundario}Consola y archivos}} \\
+Comando anterior en la consola & \tecla{$\uparrow$} & \tecla{$\uparrow$} \\
+Historial filtrado por lo escrito & \tecla{Ctrl}+\tecla{$\uparrow$} & \tecla{Cmd}+\tecla{$\uparrow$} \\
+Limpiar la consola & \tecla{Ctrl}+\tecla{L} & \tecla{Ctrl}+\tecla{L} \\
+Nuevo script & \tecla{Ctrl}+\tecla{Shift}+\tecla{N} & \tecla{Cmd}+\tecla{Shift}+\tecla{N} \\
+Guardar & \tecla{Ctrl}+\tecla{S} & \tecla{Cmd}+\tecla{S} \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\color{secundario}R Markdown}} \\
+Insertar bloque (\emph{chunk}) de R & \tecla{Ctrl}+\tecla{Alt}+\tecla{I} & \tecla{Cmd}+\tecla{Option}+\tecla{I} \\
+Ejecutar el bloque actual & \tecla{Ctrl}+\tecla{Shift}+\tecla{Enter} & \tecla{Cmd}+\tecla{Shift}+\tecla{Return} \\
+Ejecutar todos los bloques anteriores & \tecla{Ctrl}+\tecla{Alt}+\tecla{P} & \tecla{Cmd}+\tecla{Option}+\tecla{P} \\
+Generar el documento (\emph{Knit}) & \tecla{Ctrl}+\tecla{Shift}+\tecla{K} & \tecla{Cmd}+\tecla{Shift}+\tecla{K} \\
+\end{longtable}
+\endgroup
+
+\begin{consejo}
+Si solo vas a memorizar cinco atajos, que sean estos: ejecutar línea
+(\tecla{Ctrl}+\tecla{Enter}), asignación (\tecla{Alt}+\tecla{-}), pipe
+(\tecla{Ctrl}+\tecla{Shift}+\tecla{M}), comentar
+(\tecla{Ctrl}+\tecla{Shift}+\tecla{C}) y reiniciar R
+(\tecla{Ctrl}+\tecla{Shift}+\tecla{F10}). Reiniciar a menudo es la mejor
+forma de comprobar que tu script funciona desde cero.
+\end{consejo}
+
+% ============================================================================
+\section{R base esencial}
+\label{sec:ap-b-rbase}
+% ============================================================================
+
+\subsection{Operadores y asignación}
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.6cm}
+                    >{\raggedright\arraybackslash}p{5.6cm}
+                    >{\raggedright\arraybackslash}p{6.6cm}@{}}
+\caption{Operadores de R.}
+\label{tab:ap-b-operadores}\\
+\toprule
+\textbf{Sintaxis} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Sintaxis} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\codigo{<-} & Asigna un valor a un nombre (estilo recomendado). & \codigo{meta <- 50000} \\
+\codigo{=} & Asigna argumentos dentro de funciones. & \codigo{round(x, digits = 2)} \\
+\codigo{+ - * /} & Suma, resta, multiplicación, división. & \codigo{total * 0.16} \\
+\codigo{\textasciicircum{}} & Potencia. & \codigo{(1 + 0.05)\textasciicircum{}12} \\
+\codigo{\%/\%} y \codigo{\%\%} & División entera y residuo. & \codigo{17 \%/\% 5} da 3; \codigo{17 \%\% 5} da 2 \\
+\codigo{== != > >= < <=} & Comparaciones (devuelven \codigo{TRUE}/\codigo{FALSE}). & \codigo{tienda\_id == 3} \\
+\codigo{\& | !} & Y, O, NO (vectorizados, elemento a elemento). & \codigo{total > 1000 \& descuento\_pct == 0} \\
+\codigo{\&\& ||} & Y, O de un solo valor (para \codigo{if}). & \codigo{if (n > 0 \&\& !is.na(x))} \\
+\codigo{\%in\%} & ¿Está el valor en el conjunto? & \codigo{ciudad \%in\% c("CDMX", "Puebla")} \\
+\codigo{:} & Secuencia de enteros. & \codigo{1:12} \\
+\codigo{\%>\%} y \codigo{|>} & Pipe: pasa el resultado a la siguiente función. & \codigo{ventas \%>\% head()} \\
+\codigo{::} & Usa una función de un paquete sin cargarlo. & \codigo{readxl::read\_excel(...)} \\
+\codigo{\#} & Comentario (R lo ignora). & \codigo{\# Calcular el IVA} \\
+\codigo{?} y \codigo{??} & Ayuda de una función / búsqueda en la ayuda. & \codigo{?mutate}, \codigo{??regression} \\
+\end{longtable}
+\endgroup
+
+\subsection{Tipos de datos y conversión}
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.3cm}
+                    >{\raggedright\arraybackslash}p{5.0cm}
+                    >{\raggedright\arraybackslash}p{7.5cm}@{}}
+\caption{Tipos de datos, cómo comprobarlos y cómo convertirlos.}
+\label{tab:ap-b-tipos}\\
+\toprule
+\textbf{Tipo (clase)} & \textbf{Para qué sirve} & \textbf{Comprobar / convertir} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Tipo (clase)} & \textbf{Para qué sirve} & \textbf{Comprobar / convertir} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\codigo{numeric} (double) & Montos, precios, promedios. & \codigo{is.numeric(x)}, \codigo{as.numeric("12.5")} da 12.5 \\
+\codigo{integer} & Conteos enteros (\codigo{5L}). & \codigo{as.integer(3.9)} da 3 (trunca, no redondea) \\
+\codigo{character} & Texto: nombres, ciudades, IDs con ceros. & \codigo{is.character(x)}, \codigo{as.character(101)} \\
+\codigo{logical} & \codigo{TRUE}/\codigo{FALSE}: banderas como \codigo{es\_premium}. & \codigo{as.logical("TRUE")}; \codigo{sum(es\_premium)} cuenta los \codigo{TRUE} \\
+\codigo{factor} & Categorías con orden o niveles fijos. & \codigo{factor(segmento, levels = c("Joven", "Adulto"))} \\
+\codigo{Date} & Fechas sin hora. & \codigo{as.Date("2023-03-15")}; \codigo{as.Date("15/03/2023", format = "\%d/\%m/\%Y")} \\
+\codigo{POSIXct} & Fecha con hora. & \codigo{as.POSIXct("2023-03-15 14:30")}, \codigo{ymd\_hms()} \\
+\codigo{data.frame} / \codigo{tibble} & Tabla: columnas de igual longitud. & \codigo{tibble(tienda = 1:3, ventas = c(10, 20, 30))} \\
+\codigo{list} & Contenedor de objetos distintos. & \codigo{list(modelo = m, fecha = Sys.Date())} \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\color{secundario}Funciones para inspeccionar}} \\
+\codigo{class()}, \codigo{typeof()} & Clase y tipo interno de un objeto. & \codigo{class(ventas\$fecha)} da \codigo{"Date"} \\
+\codigo{str()}, \codigo{glimpse()} & Estructura: columnas, tipos y primeros valores. & \codigo{glimpse(ventas)} \\
+\codigo{parse\_number()} & Extrae el número de un texto sucio (\paquete{readr}). & \codigo{parse\_number("\$1,250.50")} da 1250.5 \\
+\codigo{as.numeric(as.character(f))} & Convierte un factor numérico a número real. & Sin \codigo{as.character()} obtendrías los códigos internos 1, 2, 3\ldots \\
+\end{longtable}
+\endgroup
+
+\subsection{Vectores, indexación y valores faltantes}
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{4.2cm}
+                    >{\raggedright\arraybackslash}p{5.2cm}
+                    >{\raggedright\arraybackslash}p{6.4cm}@{}}
+\caption{Crear vectores, seleccionar elementos y manejar NA.}
+\label{tab:ap-b-vectores}\\
+\toprule
+\textbf{Sintaxis} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Sintaxis} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\codigo{c()} & Combina valores en un vector. & \codigo{precios <- c(120, 85, 240)} \\
+\codigo{seq()}, \codigo{rep()} & Secuencias y repeticiones. & \codigo{seq(0, 100, by = 25)}; \codigo{rep("A", 3)} \\
+\codigo{length()} & Número de elementos. & \codigo{length(precios)} \\
+\codigo{x[i]} & Elemento(s) por posición. & \codigo{precios[2]}, \codigo{precios[c(1, 3)]}, \codigo{precios[-1]} \\
+\codigo{x[condición]} & Elementos que cumplen una condición. & \codigo{precios[precios > 100]} \\
+\codigo{which()}, \codigo{which.max()} & Posiciones que cumplen / posición del máximo. & \codigo{which(precios > 100)} \\
+\codigo{df[filas, columnas]} & Indexar un data frame. & \codigo{ventas[1:5, c("fecha", "total")]} \\
+\codigo{df\$columna} & Extraer una columna como vector. & \codigo{mean(ventas\$total)} \\
+\codigo{lista[[1]]}, \codigo{lista\$nombre} & Extraer un elemento de una lista. & \codigo{modelo\$coefficients} \\
+\codigo{head()}, \codigo{tail()} & Primeras / últimas filas. & \codigo{head(ventas, 10)} \\
+\codigo{sort()}, \codigo{order()}, \codigo{rev()} & Ordenar valores / posiciones de orden / invertir. & \codigo{sort(precios, decreasing = TRUE)} \\
+\codigo{unique()}, \codigo{duplicated()} & Valores únicos / ¿está repetido? & \codigo{sum(duplicated(clientes\$email))} \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\color{secundario}Valores faltantes (NA)}} \\
+\codigo{NA} & Dato faltante; ``contagia'' cálculos. & \codigo{mean(c(1, NA))} da \codigo{NA} \\
+\codigo{is.na()} & ¿Es faltante? (nunca uses \codigo{x == NA}). & \codigo{sum(is.na(ventas\$total))} \\
+\codigo{na.rm = TRUE} & Ignora los NA en funciones de resumen. & \codigo{sum(total, na.rm = TRUE)} \\
+\codigo{complete.cases()} & Filas sin ningún NA. & \codigo{ventas[complete.cases(ventas), ]} \\
+\codigo{colSums(is.na(df))} & NA por columna (diagnóstico rápido). & \codigo{colSums(is.na(clientes))} \\
+\codigo{NULL}, \codigo{NaN}, \codigo{Inf} & Vacío, ``no es número'' (\codigo{0/0}), infinito (\codigo{1/0}). & Aparecen al dividir entre cero: revisa denominadores. \\
+\end{longtable}
+\endgroup
+
+El comportamiento de \codigo{NA} es la fuente número uno de sorpresas, así
+que vale la pena verlo en acción:
+
+\begin{rcode}
+precios <- c(120, 85, NA, 240, 99)       # vector con un dato faltante
+mean(precios)                            # el NA "contagia" el resultado
+mean(precios, na.rm = TRUE)              # ignora los NA
+sum(is.na(precios))                      # ¿cuántos faltan?
+precios[precios > 100 & !is.na(precios)] # filtrar sin arrastrar NA
+\end{rcode}
+\begin{rsalida}
+[1] NA
+[1] 136
+[1] 1
+[1] 120 240
+\end{rsalida}
+
+El promedio sin \codigo{na.rm = TRUE} es \codigo{NA}; con él, R promedia los
+cuatro valores conocidos (136). En un reporte, un \codigo{NA} en el total es
+señal de que falta tratar datos faltantes, no de que las ventas sean cero.
+
+\subsection{Funciones de resumen}
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{4.4cm}
+                    >{\raggedright\arraybackslash}p{5.4cm}
+                    >{\raggedright\arraybackslash}p{6.0cm}@{}}
+\caption{Funciones de resumen numérico y de conteo.}
+\label{tab:ap-b-resumen}\\
+\toprule
+\textbf{Función} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Función} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\codigo{sum()}, \codigo{mean()}, \codigo{median()} & Suma, promedio, mediana. & \codigo{median(ventas\$total)} \\
+\codigo{min()}, \codigo{max()}, \codigo{range()} & Mínimo, máximo, ambos. & \codigo{range(ventas\$fecha)} \\
+\codigo{sd()}, \codigo{var()} & Desviación estándar, varianza. & \codigo{sd(ventas\$total)} \\
+\codigo{quantile()}, \codigo{IQR()} & Percentiles y rango intercuartílico. & \codigo{quantile(total, c(0.25, 0.9))} \\
+\codigo{summary()} & Resumen de 6 números (o de un modelo). & \codigo{summary(ventas\$total)} \\
+\codigo{cumsum()}, \codigo{cumprod()} & Acumulados. & \codigo{cumsum(ventas\_mes)} \\
+\codigo{diff()} & Diferencia entre valores consecutivos. & \codigo{diff(c(5, 8, 17))} da 3 9 \\
+\codigo{round()}, \codigo{signif()} & Redondeo a decimales / cifras significativas. & \codigo{round(1234.567, 1)} \\
+\codigo{ceiling()}, \codigo{floor()} & Redondeo hacia arriba / abajo. & \codigo{ceiling(4.1)} da 5 \\
+\codigo{table()}, \codigo{prop.table()} & Frecuencias y proporciones. & \codigo{prop.table(table(clientes\$genero))} \\
+\codigo{cor()} & Correlación entre variables numéricas. & \codigo{cor(ventas\$cantidad, ventas\$total)} \\
+\codigo{skimr::skim()} & Resumen completo de un data frame. & \codigo{skimr::skim(productos)} \\
+\end{longtable}
+\endgroup
+
+\subsection{Texto y fechas en R base}
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{4.0cm}
+                    >{\raggedright\arraybackslash}p{4.8cm}
+                    >{\raggedright\arraybackslash}p{7.0cm}@{}}
+\caption{Funciones base para texto y fechas (sus equivalentes tidyverse están en la sección~\ref{sec:ap-b-tidyr}).}
+\label{tab:ap-b-texto-base}\\
+\toprule
+\textbf{Función} & \textbf{Qué hace} & \textbf{Ejemplo $\rightarrow$ resultado} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Función} & \textbf{Qué hace} & \textbf{Ejemplo $\rightarrow$ resultado} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\codigo{paste()}, \codigo{paste0()} & Une textos (con / sin espacio). & \codigo{paste0("Q", 1:4)} $\rightarrow$ \codigo{"Q1" "Q2" "Q3" "Q4"} \\
+\codigo{nchar()} & Número de caracteres. & \codigo{nchar("Mérida")} $\rightarrow$ 6 \\
+\codigo{toupper()}, \codigo{tolower()} & Mayúsculas / minúsculas. & \codigo{toupper("puebla")} $\rightarrow$ \codigo{"PUEBLA"} \\
+\codigo{substr()} & Recorta por posición. & \codigo{substr("Guadalajara", 1, 3)} $\rightarrow$ \codigo{"Gua"} \\
+\codigo{trimws()} & Quita espacios al inicio y final. & \codigo{trimws("  hola ")} $\rightarrow$ \codigo{"hola"} \\
+\codigo{grepl()} & ¿Contiene el patrón? & \codigo{grepl("Tarjeta", metodo\_pago)} \\
+\codigo{gsub()} & Reemplaza todas las coincidencias. & \codigo{gsub(",", "", "1,250")} $\rightarrow$ \codigo{"1250"} \\
+\codigo{strsplit()} & Divide un texto. & \codigo{strsplit("a,b,c", ",")} \\
+\codigo{sprintf()} & Formato tipo C. & \codigo{sprintf("\%.2f", 3.14159)} $\rightarrow$ \codigo{"3.14"} \\
+\codigo{format()} & Números con separador de miles. & \codigo{format(1234567.891, big.mark = ",", nsmall = 2)} $\rightarrow$ \codigo{"1,234,567.89"} \\
+\midrule
+\codigo{Sys.Date()}, \codigo{Sys.time()} & Fecha / fecha y hora actuales. & \codigo{Sys.Date() - as.Date("2023-01-01")} \\
+\codigo{format(fecha, "...")} & Fecha como texto. & \codigo{format(as.Date("2023-03-15"), "\%d de \%B de \%Y")} $\rightarrow$ \codigo{"15 de marzo de 2023"} \\
+\codigo{weekdays()}, \codigo{months()} & Nombre del día / mes (según idioma). & \codigo{weekdays(as.Date("2023-03-15"))} $\rightarrow$ \codigo{"miércoles"} \\
+\codigo{difftime()} & Diferencia entre fechas. & \codigo{difftime(fin, inicio, units = "days")} \\
+\codigo{seq()} con fechas & Secuencia de fechas. & \codigo{seq(as.Date("2023-01-01"), by = "month", length.out = 3)} \\
+\end{longtable}
+\endgroup
+
+Códigos de formato de fecha más usados: \codigo{\%Y} año con 4 dígitos,
+\codigo{\%y} con 2, \codigo{\%m} mes (01--12), \codigo{\%B} nombre del mes,
+\codigo{\%b} mes abreviado, \codigo{\%d} día, \codigo{\%A} día de la semana,
+\codigo{\%H:\%M} hora y minuto.
+
+\subsection{Control de flujo, funciones y familia apply}
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{4.0cm}
+                    >{\raggedright\arraybackslash}p{5.0cm}
+                    >{\raggedright\arraybackslash}p{6.8cm}@{}}
+\caption{Estructuras de control, funciones propias e iteración.}
+\label{tab:ap-b-control}\\
+\toprule
+\textbf{Sintaxis} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Sintaxis} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\codigo{if (cond) \{\} else \{\}} & Decide con UN valor lógico. & \codigo{if (ventas > meta) "Cumplió" else "No cumplió"} \\
+\codigo{ifelse(cond, a, b)} & Versión vectorizada (una respuesta por elemento). & \codigo{ifelse(total > 1000, "alta", "normal")} \\
+\codigo{for (i in x) \{\}} & Repite para cada elemento. & \codigo{for (t in 1:10) print(t)} \\
+\codigo{while (cond) \{\}} & Repite mientras se cumpla. & \codigo{while (stock > 0) stock <- stock - 1} \\
+\codigo{switch()} & Elige según un valor. & \codigo{switch("b", a = "uno", b = "dos")} $\rightarrow$ \codigo{"dos"} \\
+\codigo{function(args) \{\}} & Crea una función propia. & \codigo{iva <- function(x, tasa = 0.16) x * tasa} \\
+\codigo{return()} & Devuelve un valor y sale de la función. & \codigo{if (is.na(x)) return(0)} \\
+\codigo{stop()}, \codigo{warning()} & Lanza un error / una advertencia. & \codigo{if (n == 0) stop("Sin datos")} \\
+\codigo{tryCatch()} & Captura errores sin detener el script. & \codigo{tryCatch(log(-1), warning = function(w) NA)} \\
+\midrule
+\codigo{sapply(x, f)} & Aplica \codigo{f} a cada elemento; simplifica a vector. & \codigo{sapply(ventas[, c("cantidad", "total")], mean)} \\
+\codigo{lapply(x, f)} & Igual, pero devuelve una lista. & \codigo{lapply(archivos, read\_csv)} \\
+\codigo{vapply(x, f, tipo)} & Como \codigo{sapply} con tipo de salida garantizado. & \codigo{vapply(lista, mean, numeric(1))} \\
+\codigo{apply(m, 1 o 2, f)} & Por filas (1) o columnas (2) de una matriz. & \codigo{apply(matriz, 2, sum)} \\
+\codigo{tapply(x, grupo, f)} & Resume \codigo{x} por grupo. & \codigo{tapply(ventas\$total, ventas\$tienda\_id, sum)} \\
+\codigo{purrr::map\_dbl()} & Versión tidyverse de \codigo{sapply} para números. & \codigo{map\_dbl(lista, mean)} \\
+\end{longtable}
+\endgroup
+
+Una función típica de negocio combina casi todo lo anterior:
+
+\begin{rcode}
+# Clasifica un monto de venta; umbral tiene un valor por omisión
+clasificar_venta <- function(monto, umbral = 1000) {
+  if (is.na(monto)) return("sin dato")    # protegerse de NA
+  if (monto >= umbral) "alta" else "normal"
+}
+clasificar_venta(1500)                     # usa umbral = 1000
+clasificar_venta(300, umbral = 200)        # cambia el umbral
+sapply(c(1500, 300, NA), clasificar_venta) # aplicar a cada elemento
+for (trimestre in c("Q1", "Q2")) {         # bucle sencillo
+  cat("Procesando", trimestre, "\n")
+}
+\end{rcode}
+\begin{rsalida}
+[1] "alta"
+[1] "alta"
+[1] "alta"     "normal"   "sin dato"
+Procesando Q1
+Procesando Q2
+\end{rsalida}
+
+\subsection{Archivos, carpetas y sesión}
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{4.3cm}
+                    >{\raggedright\arraybackslash}p{5.3cm}
+                    >{\raggedright\arraybackslash}p{6.2cm}@{}}
+\caption{Trabajar con archivos, carpetas y la sesión de R.}
+\label{tab:ap-b-archivos}\\
+\toprule
+\textbf{Función} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Función} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\codigo{getwd()} & Muestra la carpeta de trabajo. & \codigo{getwd()} \\
+\codigo{setwd()} & Cambia la carpeta (mejor usa proyectos de RStudio). & \codigo{setwd("C:/Users/Ana/curso")} \\
+\codigo{list.files()} & Lista archivos. & \codigo{list.files("datasets", pattern = "csv\$")} \\
+\codigo{file.exists()} & ¿Existe el archivo? & \codigo{file.exists("datasets/tiendas.csv")} \\
+\codigo{file.path()} & Arma rutas portables. & \codigo{file.path("resultados", "reporte.csv")} \\
+\codigo{dir.create()} & Crea una carpeta. & \codigo{dir.create("resultados", showWarnings = FALSE)} \\
+\codigo{source()} & Ejecuta otro script. & \codigo{source("datasets/generar\_datasets.R")} \\
+\codigo{ls()}, \codigo{rm()} & Lista / borra objetos del entorno. & \codigo{rm(list = ls())} \\
+\codigo{install.packages()} & Instala un paquete (una sola vez). & \codigo{install.packages("writexl")} \\
+\codigo{library()} & Carga un paquete (en cada sesión). & \codigo{library(dplyr)} \\
+\codigo{sessionInfo()} & Versiones de R y paquetes (para reportar problemas). & \codigo{sessionInfo()} \\
+\codigo{Sys.setenv()} & Variables de entorno. & \codigo{Sys.setenv(LANGUAGE = "en")} (mensajes en inglés) \\
+\end{longtable}
+\endgroup
+
+% ============================================================================
+\section{Importar y exportar datos}
+\label{sec:ap-b-importar}
+% ============================================================================
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{4.3cm}
+                    >{\raggedright\arraybackslash}p{4.3cm}
+                    >{\raggedright\arraybackslash}p{7.2cm}@{}}
+\caption{Leer y escribir archivos: CSV, Excel, RDS y otros formatos.}
+\label{tab:ap-b-importar}\\
+\toprule
+\textbf{Función (paquete)} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Función (paquete)} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\codigo{read\_csv()} (\paquete{readr}) & Lee CSV separado por comas. & \codigo{read\_csv("datasets/ventas\_retail.csv", show\_col\_types = FALSE)} \\
+\codigo{read\_csv2()} (\paquete{readr}) & CSV con \codigo{;} y coma decimal (Excel en español). & \codigo{read\_csv2("datos/ventas\_excel.csv")} \\
+\codigo{read\_delim()} (\paquete{readr}) & Cualquier separador. & \codigo{read\_delim("datos.txt", delim = "|")} \\
+Argumentos útiles & Controlar la lectura. & \codigo{locale = locale(encoding = "latin1")}, \codigo{skip = 2}, \codigo{na = c("", "NA", "-")}, \codigo{col\_types = cols(tienda\_id = col\_character())} \\
+\codigo{write\_csv()} (\paquete{readr}) & Escribe CSV (UTF-8). & \codigo{write\_csv(resumen, "resultados/resumen.csv")} \\
+\codigo{write\_excel\_csv()} & CSV que Excel abre con acentos correctos. & \codigo{write\_excel\_csv(resumen, "resultados/resumen.csv")} \\
+\codigo{read.csv()} (base) & Lector base (más lento; data.frame). & \codigo{read.csv("datasets/tiendas.csv")} \\
+\midrule
+\codigo{excel\_sheets()} (\paquete{readxl}) & Nombres de las hojas de un Excel. & \codigo{excel\_sheets("datasets/datos\_empresa.xlsx")} \\
+\codigo{read\_excel()} (\paquete{readxl}) & Lee una hoja de Excel. & \codigo{read\_excel("datasets/datos\_empresa.xlsx", sheet = "Productos")} \\
+Argumentos útiles & Rango, filas a saltar, tipos. & \codigo{range = "A1:F20"}, \codigo{skip = 3}, \codigo{na = "N/D"} \\
+\codigo{write\_xlsx()} (\paquete{writexl}) & Escribe Excel; una lista = varias hojas. & \codigo{write\_xlsx(list(Ventas = v, Tiendas = t), "resultados/reporte.xlsx")} \\
+\midrule
+\codigo{saveRDS()}, \codigo{readRDS()} & Guarda / lee UN objeto de R tal cual (tipos, factores, modelos). & \codigo{saveRDS(modelo, "resultados/modelo.rds")} \\
+\codigo{save()}, \codigo{load()} & Varios objetos en un \archivo{.RData}. & \codigo{save(ventas, tiendas, file = "datos/base.RData")} \\
+\codigo{haven::read\_sav()} y similares & SPSS (\codigo{read\_sav}), Stata (\codigo{read\_dta}), SAS (\codigo{read\_sas}). & \codigo{haven::read\_sav("encuesta.sav")} \\
+\codigo{jsonlite::fromJSON()} & JSON (APIs web). & \codigo{fromJSON("https://api.ejemplo.com/ventas")} \\
+\codigo{data.table::fread()} & Lectura muy rápida de archivos grandes. & \codigo{fread("datos/transacciones\_2023.csv")} \\
+\end{longtable}
+\endgroup
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{4.3cm}
+                    >{\raggedright\arraybackslash}p{4.6cm}
+                    >{\raggedright\arraybackslash}p{6.9cm}@{}}
+\caption{Bases de datos con \paquete{DBI} (y \paquete{dbplyr}).}
+\label{tab:ap-b-dbi}\\
+\toprule
+\textbf{Función} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Función} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\codigo{dbConnect()} & Abre la conexión. & \codigo{con <- dbConnect(RSQLite::SQLite(), "datos/empresa.sqlite")} \\
+\codigo{dbListTables()} & Tablas disponibles. & \codigo{dbListTables(con)} \\
+\codigo{dbListFields()} & Columnas de una tabla. & \codigo{dbListFields(con, "ventas")} \\
+\codigo{dbWriteTable()} & Sube un data frame como tabla. & \codigo{dbWriteTable(con, "ventas", ventas, overwrite = TRUE)} \\
+\codigo{dbReadTable()} & Descarga una tabla completa. & \codigo{dbReadTable(con, "tiendas")} \\
+\codigo{dbGetQuery()} & Ejecuta un SELECT y trae el resultado. & \codigo{dbGetQuery(con, "SELECT * FROM ventas LIMIT 5")} \\
+\codigo{dbExecute()} & Ejecuta INSERT, UPDATE, DELETE, CREATE. & \codigo{dbExecute(con, "DELETE FROM ventas WHERE total < 0")} \\
+\codigo{params = list()} & Consulta parametrizada (evita inyección SQL). & \codigo{dbGetQuery(con, "SELECT * FROM ventas WHERE tienda\_id = ?", params = list(3))} \\
+\codigo{dbDisconnect()} & Cierra la conexión (¡siempre!). & \codigo{dbDisconnect(con)} \\
+\midrule
+\codigo{tbl()} (\paquete{dbplyr}) & Referencia perezosa a una tabla remota. & \codigo{tbl(con, "ventas") \%>\% count(tienda\_id)} \\
+\codigo{show\_query()} & Muestra el SQL que genera dplyr. & \codigo{consulta \%>\% show\_query()} \\
+\codigo{collect()} & Trae el resultado a R. & \codigo{consulta \%>\% collect()} \\
+Otros motores & Solo cambia el controlador. & \codigo{RPostgres::Postgres()}, \codigo{RMariaDB::MariaDB()}, \codigo{odbc::odbc()} (SQL Server) \\
+\end{longtable}
+\endgroup
+
+\begin{advertencia}
+Nunca escribas contraseñas dentro del script. Guárdalas en el archivo
+\archivo{.Renviron} (por ejemplo, \codigo{BD\_CLAVE=...}) y léelas con
+\codigo{Sys.getenv("BD\_CLAVE")}. Así puedes compartir tu código sin
+exponer credenciales.
+\end{advertencia}
+
+% ============================================================================
+\section{dplyr: manipulación de datos}
+\label{sec:ap-b-dplyr}
+% ============================================================================
+
+Todos los ejemplos parten de \codigo{ventas \%>\% ...}: el resultado de
+cada verbo es una nueva tabla que puedes encadenar con el siguiente.
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.5cm}
+                    >{\raggedright\arraybackslash}p{4.8cm}
+                    >{\raggedright\arraybackslash}p{7.5cm}@{}}
+\caption{Verbos principales de \paquete{dplyr}.}
+\label{tab:ap-b-dplyr}\\
+\toprule
+\textbf{Verbo} & \textbf{Qué hace} & \textbf{Ejemplo (tras \codigo{ventas \%>\%})} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Verbo} & \textbf{Qué hace} & \textbf{Ejemplo (tras \codigo{ventas \%>\%})} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\codigo{filter()} & Conserva filas que cumplen condiciones (coma = Y). & \codigo{filter(total > 1000, tienda\_id == 3)} \\
+ & Con \codigo{\%in\%}, \codigo{|} o \codigo{between()}. & \codigo{filter(dia\_semana \%in\% c("sábado", "domingo"))}; \codigo{filter(between(total, 500, 1000))} \\
+\codigo{select()} & Elige, ordena o quita columnas. & \codigo{select(fecha, tienda\_id, total)}; \codigo{select(-mes)} \\
+ & Con ayudantes de selección. & \codigo{select(starts\_with("desc"))}, \codigo{ends\_with("\_id")}, \codigo{contains("precio")}, \codigo{where(is.numeric)}, \codigo{everything()} \\
+\codigo{rename()} & Cambia nombres (nuevo = viejo). & \codigo{rename(importe = total)} \\
+\codigo{relocate()} & Mueve columnas. & \codigo{relocate(total, .after = fecha)} \\
+\codigo{mutate()} & Crea o modifica columnas. & \codigo{mutate(iva = total * 0.16, total\_con\_iva = total + iva)} \\
+\codigo{arrange()} & Ordena filas (\codigo{desc()} = descendente). & \codigo{arrange(tienda\_id, desc(total))} \\
+\codigo{summarise()} & Resume muchas filas en una. & \codigo{summarise(ventas = sum(total), ticket = mean(total))} \\
+\codigo{group\_by()} & Agrupa para calcular por grupo. & \codigo{group\_by(tienda\_id) \%>\% summarise(ventas = sum(total), .groups = "drop")} \\
+\codigo{.by =} & Agrupa solo para esa operación (dplyr $\geq$ 1.1). & \codigo{summarise(ventas = sum(total), .by = trimestre)} \\
+\codigo{ungroup()} & Quita la agrupación. & \codigo{group\_by(tienda\_id) \%>\% mutate(p = total / sum(total)) \%>\% ungroup()} \\
+\codigo{count()} & Cuenta filas por grupo. & \codigo{count(tienda\_id, sort = TRUE)} \\
+\codigo{add\_count()} & Añade el conteo como columna. & \codigo{add\_count(cliente\_id, name = "compras\_cliente")} \\
+\codigo{distinct()} & Filas únicas. & \codigo{distinct(cliente\_id, tienda\_id)} \\
+\codigo{pull()} & Extrae una columna como vector. & \codigo{pull(total)} \\
+\codigo{slice\_max()} / \codigo{slice\_min()} & Filas con valores más altos / bajos. & \codigo{slice\_max(total, n = 5)} \\
+\codigo{slice\_head()} / \codigo{slice\_tail()} & Primeras / últimas filas. & \codigo{slice\_head(n = 10)} \\
+\codigo{slice\_sample()} & Muestra aleatoria. & \codigo{slice\_sample(n = 50)} (usa \codigo{set.seed()} antes) \\
+\codigo{slice()} & Filas por posición. & \codigo{slice(1:3)} \\
+\codigo{glimpse()} & Vistazo a columnas y tipos. & \codigo{glimpse()} \\
+\codigo{bind\_rows()} / \codigo{bind\_cols()} & Apila tablas / pega columnas. & \codigo{bind\_rows(ventas\_2022, ventas\_2023, .id = "origen")} \\
+\end{longtable}
+\endgroup
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.9cm}
+                    >{\raggedright\arraybackslash}p{4.6cm}
+                    >{\raggedright\arraybackslash}p{7.3cm}@{}}
+\caption{Funciones auxiliares que se usan dentro de \codigo{mutate()}, \codigo{summarise()} y \codigo{filter()}.}
+\label{tab:ap-b-dplyr-helpers}\\
+\toprule
+\textbf{Función} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Función} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\codigo{n()}, \codigo{n\_distinct()} & Número de filas / de valores distintos. & \codigo{summarise(tickets = n(), clientes = n\_distinct(cliente\_id))} \\
+\codigo{if\_else()} & Condición sí/no (estricta con tipos). & \codigo{mutate(tipo = if\_else(descuento\_pct > 0, "Con desc.", "Sin desc."))} \\
+\codigo{case\_when()} & Varias condiciones en orden; \codigo{.default} para el resto. & \codigo{mutate(nivel = case\_when(total >= 3000 \textasciitilde{} "Alto", total >= 1000 \textasciitilde{} "Medio", .default = "Bajo"))} \\
+\codigo{coalesce()} & Sustituye NA por otro valor. & \codigo{mutate(descuento\_pct = coalesce(descuento\_pct, 0))} \\
+\codigo{na\_if()} & Convierte un valor en NA. & \codigo{mutate(edad = na\_if(edad, 0))} \\
+\codigo{across()} & Aplica una función a varias columnas. & \codigo{summarise(across(c(subtotal, total), sum))} \\
+ & Con selección por tipo y nombres. & \codigo{mutate(across(where(is.character), str\_trim))}; \codigo{summarise(across(where(is.numeric), mean, .names = "prom\_\{.col\}"))} \\
+\codigo{lag()}, \codigo{lead()} & Valor anterior / siguiente. & \codigo{mutate(crec = ventas / lag(ventas) - 1)} \\
+\codigo{cumsum()}, \codigo{cummean()} & Acumulado / promedio acumulado. & \codigo{mutate(acumulado = cumsum(ventas))} \\
+\codigo{row\_number()} & Número de fila (ranking sin empates). & \codigo{mutate(pos = row\_number(desc(total)))} \\
+\codigo{min\_rank()}, \codigo{dense\_rank()} & Ranking con empates (con / sin saltos). & \codigo{mutate(rank = min\_rank(desc(ventas)))} \\
+\codigo{percent\_rank()}, \codigo{ntile()} & Percentil / grupos de igual tamaño. & \codigo{mutate(cuartil = ntile(total, 4))} \\
+\codigo{first()}, \codigo{last()}, \codigo{nth()} & Primer, último o n-ésimo valor. & \codigo{summarise(primera\_compra = first(fecha))} \\
+\codigo{between()} & ¿Está en el rango (inclusive)? & \codigo{filter(between(fecha, as.Date("2023-06-01"), as.Date("2023-06-30")))} \\
+\codigo{cut()} & Convierte números en intervalos. & \codigo{mutate(rango = cut(edad, breaks = c(0, 25, 40, 60, 100)))} \\
+\end{longtable}
+\endgroup
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.2cm}
+                    >{\raggedright\arraybackslash}p{5.9cm}
+                    >{\raggedright\arraybackslash}p{6.7cm}@{}}
+\caption{Uniones (\emph{joins}) de tablas.}
+\label{tab:ap-b-joins}\\
+\toprule
+\textbf{Función} & \textbf{Qué conserva} & \textbf{Ejemplo} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Función} & \textbf{Qué conserva} & \textbf{Ejemplo} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\codigo{left\_join()} & Todas las filas de la izquierda + lo que coincida (NA si no hay). El más usado: ``agregar datos del catálogo''. & \codigo{ventas \%>\% left\_join(tiendas, by = "tienda\_id")} \\
+\codigo{inner\_join()} & Solo filas con coincidencia en ambas. & \codigo{inner\_join(ventas, productos, by = "producto\_id")} \\
+\codigo{right\_join()} & Todas las de la derecha. & \codigo{right\_join(ventas, tiendas, by = "tienda\_id")} \\
+\codigo{full\_join()} & Todas las filas de ambas. & \codigo{full\_join(metas, reales, by = "mes")} \\
+\codigo{semi\_join()} & Filas de la izquierda que SÍ tienen pareja (sin añadir columnas). & \codigo{clientes \%>\% semi\_join(ventas, by = "cliente\_id")} (clientes que compraron) \\
+\codigo{anti\_join()} & Filas de la izquierda que NO tienen pareja. & \codigo{clientes \%>\% anti\_join(ventas, by = "cliente\_id")} (nunca compraron) \\
+Llaves distintas & Columnas con nombre diferente. & \codigo{by = c("id\_tienda" = "tienda\_id")} o \codigo{by = join\_by(id\_tienda == tienda\_id)} \\
+Varias llaves & Unir por más de una columna. & \codigo{by = c("tienda\_id", "mes")} \\
+\end{longtable}
+\endgroup
+
+\begin{advertencia}
+Después de cada \codigo{left\_join()} compara \codigo{nrow()} antes y
+después. Si el número de filas crece, la tabla de la derecha tiene llaves
+repetidas y estarías duplicando ventas. dplyr lo avisa con
+\emph{``Detected an unexpected many-to-many relationship''}
+(sección~\ref{sec:ap-b-errores}).
+\end{advertencia}
+
+Esta es la ``plantilla'' de análisis que más vas a repetir: filtrar, unir,
+agrupar, resumir, ordenar y dar formato.
+
+\begin{rcode}[title=Plantilla: ventas con descuento por ciudad]
+ventas %>%
+  filter(descuento_pct > 0) %>%                 # 1. filas relevantes
+  left_join(tiendas, by = "tienda_id") %>%      # 2. agregar la ciudad
+  group_by(ciudad) %>%                          # 3. agrupar
+  summarise(ventas = sum(total),                # 4. resumir
+            tickets = n(),
+            ticket_prom = mean(total),
+            .groups = "drop") %>%
+  arrange(desc(ventas)) %>%                     # 5. ordenar
+  mutate(participacion = percent(ventas / sum(ventas),
+                                 accuracy = 0.1)) # 6. formato
+\end{rcode}
+\begin{rsalida}
+# A tibble: 6 x 5
+  ciudad      ventas tickets ticket_prom participacion
+  <chr>        <dbl>   <int>       <dbl> <chr>
+1 CDMX        88746.      66       1345. 37.1%
+2 Guadalajara 59122.      42       1408. 24.7%
+3 Tijuana     35240.      25       1410. 14.7%
+4 Puebla      21767.      14       1555. 9.1%
+5 Querétaro   19365.      17       1139. 8.1%
+6 Monterrey   15027.      13       1156. 6.3%
+\end{rsalida}
+
+CDMX concentra el 37.1\% de las ventas con descuento, pero es porque tiene
+más tiendas y más tickets (66); el ticket promedio más alto lo tiene
+Puebla (1,555). Leer las dos columnas juntas evita conclusiones apresuradas.
+
+% ============================================================================
+\section{tidyr, lubridate y stringr}
+\label{sec:ap-b-tidyr}
+% ============================================================================
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.7cm}
+                    >{\raggedright\arraybackslash}p{4.6cm}
+                    >{\raggedright\arraybackslash}p{7.5cm}@{}}
+\caption{\paquete{tidyr}: reestructurar y completar tablas.}
+\label{tab:ap-b-tidyr}\\
+\toprule
+\textbf{Función} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Función} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\codigo{pivot\_wider()} & De largo a ancho (tabla dinámica: categorías como columnas). & \codigo{pivot\_wider(names\_from = trimestre, values\_from = ventas, values\_fill = 0)} \\
+\codigo{pivot\_longer()} & De ancho a largo (formato \emph{tidy}, ideal para ggplot). & \codigo{pivot\_longer(cols = Q1:Q4, names\_to = "trimestre", values\_to = "ventas")} \\
+\codigo{separate\_wider\_delim()} & Divide una columna en varias. & \codigo{separate\_wider\_delim(mes, delim = "-", names = c("anio", "num\_mes"))} \\
+\codigo{unite()} & Une columnas en una. & \codigo{unite("clave", tienda\_id, mes, sep = "\_")} \\
+\codigo{drop\_na()} & Quita filas con NA (en todas o en ciertas columnas). & \codigo{drop\_na(total)} \\
+\codigo{replace\_na()} & Sustituye NA por valores. & \codigo{replace\_na(list(descuento\_pct = 0))} \\
+\codigo{fill()} & Rellena NA con el valor anterior (o siguiente). & \codigo{fill(region, .direction = "down")} \\
+\codigo{complete()} & Agrega combinaciones faltantes (p. ej., meses sin venta). & \codigo{complete(tienda\_id, mes, fill = list(ventas = 0))} \\
+\codigo{expand\_grid()} & Todas las combinaciones de vectores. & \codigo{expand\_grid(tienda = 1:10, mes = 1:12)} \\
+\codigo{nest()} / \codigo{unnest()} & Anida sub-tablas por grupo / las expande. & \codigo{group\_by(tienda\_id) \%>\% nest()} \\
+\end{longtable}
+\endgroup
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{4.0cm}
+                    >{\raggedright\arraybackslash}p{4.5cm}
+                    >{\raggedright\arraybackslash}p{7.3cm}@{}}
+\caption{\paquete{lubridate}: fechas sin dolor.}
+\label{tab:ap-b-lubridate}\\
+\toprule
+\textbf{Función} & \textbf{Qué hace} & \textbf{Ejemplo $\rightarrow$ resultado} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Función} & \textbf{Qué hace} & \textbf{Ejemplo $\rightarrow$ resultado} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\codigo{ymd()}, \codigo{dmy()}, \codigo{mdy()} & Texto a fecha según el orden año-mes-día. & \codigo{dmy("15/03/2023")} $\rightarrow$ \codigo{"2023-03-15"} \\
+\codigo{ymd\_hms()} & Texto a fecha y hora. & \codigo{ymd\_hms("2023-03-15 14:30:00")} \\
+\codigo{make\_date()} & Fecha a partir de números. & \codigo{make\_date(2023, 3, 15)} \\
+\codigo{today()}, \codigo{now()} & Fecha / fecha-hora actual. & \codigo{today() - ymd("2023-01-01")} \\
+\codigo{year()}, \codigo{month()}, \codigo{day()} & Extraen componentes. & \codigo{month(fecha, label = TRUE, abbr = FALSE)} $\rightarrow$ \codigo{enero} \\
+\codigo{wday()} & Día de la semana. & \codigo{wday(fecha, label = TRUE)}; \codigo{wday(fecha, week\_start = 1)} (lunes = 1) \\
+\codigo{quarter()}, \codigo{week()}, \codigo{isoweek()} & Trimestre y semana del año. & \codigo{quarter(ymd("2023-05-10"))} $\rightarrow$ 2 \\
+\codigo{floor\_date()} & Redondea hacia abajo al periodo. & \codigo{floor\_date(fecha, "month")} (primer día del mes) \\
+\codigo{ceiling\_date()}, \codigo{rollback()} & Inicio del periodo siguiente / último día del mes anterior. & \codigo{rollback(ymd("2023-05-10"))} $\rightarrow$ \codigo{"2023-04-30"} \\
+\codigo{\%m+\%} con \codigo{months()} & Suma meses sin fechas inválidas. & \codigo{ymd("2023-01-31") \%m+\% months(1)} $\rightarrow$ \codigo{"2023-02-28"} \\
+\codigo{days()}, \codigo{weeks()}, \codigo{years()} & Periodos para sumar o restar. & \codigo{fecha + days(30)} \\
+\codigo{interval()}, \codigo{time\_length()} & Duración entre dos fechas en la unidad elegida. & \codigo{time\_length(interval(fecha\_registro, today()), "year")} (antigüedad) \\
+\end{longtable}
+\endgroup
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{4.0cm}
+                    >{\raggedright\arraybackslash}p{4.5cm}
+                    >{\raggedright\arraybackslash}p{7.3cm}@{}}
+\caption{\paquete{stringr}: limpieza y manejo de texto (todas empiezan con \codigo{str\_}).}
+\label{tab:ap-b-stringr}\\
+\toprule
+\textbf{Función} & \textbf{Qué hace} & \textbf{Ejemplo $\rightarrow$ resultado} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Función} & \textbf{Qué hace} & \textbf{Ejemplo $\rightarrow$ resultado} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\codigo{str\_detect()} & ¿Contiene el patrón? (para \codigo{filter}). & \codigo{filter(str\_detect(metodo\_pago, "Tarjeta"))} \\
+\codigo{str\_starts()}, \codigo{str\_ends()} & ¿Empieza / termina con? & \codigo{str\_ends(email, "@email.com")} \\
+\codigo{str\_replace\_all()} & Reemplaza todas las coincidencias. & \codigo{str\_replace\_all("Tarjeta Crédito", " ", "\_")} $\rightarrow$ \codigo{"Tarjeta\_Crédito"} \\
+\codigo{str\_remove\_all()} & Elimina coincidencias. & \codigo{str\_remove\_all("\$1,250.50", "[\$,]")} $\rightarrow$ \codigo{"1250.50"} \\
+\codigo{str\_to\_upper()}, \codigo{\_lower()}, \codigo{\_title()} & Mayúsculas, minúsculas, tipo título. & \codigo{str\_to\_title("sucursal centro")} $\rightarrow$ \codigo{"Sucursal Centro"} \\
+\codigo{str\_trim()}, \codigo{str\_squish()} & Quita espacios de los extremos / también los repetidos. & \codigo{str\_squish("  Sucursal   Centro ")} $\rightarrow$ \codigo{"Sucursal Centro"} \\
+\codigo{str\_sub()} & Recorta por posición (negativo = desde el final). & \codigo{str\_sub("Producto 07", -2)} $\rightarrow$ \codigo{"07"} \\
+\codigo{str\_extract()} & Extrae la parte que coincide. & \codigo{str\_extract("Producto 07", "\textbackslash{}\textbackslash{}d+")} $\rightarrow$ \codigo{"07"} \\
+\codigo{str\_split()} & Divide en partes. & \codigo{str\_split("CDMX-Norte", "-")} \\
+\codigo{str\_c()} & Concatena. & \codigo{str\_c("Q", 1:2, collapse = ", ")} $\rightarrow$ \codigo{"Q1, Q2"} \\
+\codigo{str\_glue()} & Plantilla con \codigo{\{variables\}}. & \codigo{str\_glue("Tienda \{3\}: \{dollar(1500)\}")} $\rightarrow$ \codigo{Tienda 3: \$1,500} \\
+\codigo{str\_pad()} & Rellena a un ancho fijo. & \codigo{str\_pad(7, width = 3, pad = "0")} $\rightarrow$ \codigo{"007"} \\
+\codigo{str\_length()}, \codigo{str\_count()} & Longitud / número de coincidencias. & \codigo{str\_count("banana", "a")} $\rightarrow$ 3 \\
+\end{longtable}
+\endgroup
+
+Patrones (expresiones regulares) frecuentes: \codigo{\textasciicircum{}}
+inicio, \codigo{\$} final, \codigo{.} cualquier carácter, \codigo{\textbackslash{}\textbackslash{}d}
+dígito, \codigo{[aeiou]} cualquiera de esos, \codigo{+} una o más veces,
+\codigo{|} ``o''. Para buscar un punto literal escribe
+\codigo{\textbackslash{}\textbackslash{}.}.
+
+\begin{rcode}
+fechas <- ymd(c("2023-01-15", "2023-07-04"))
+month(fechas, label = TRUE, abbr = FALSE)   # nombre del mes
+wday(fechas, label = TRUE)                  # día de la semana
+floor_date(fechas, "month")                 # primer día del mes
+fechas %m+% months(1)                       # un mes después
+str_to_title("sucursal centro norte")
+str_detect(c("Tarjeta Crédito", "Efectivo"), "Tarjeta")
+\end{rcode}
+\begin{rsalida}
+[1] enero julio
+12 Levels: enero < febrero < marzo < abril < mayo < ... < diciembre
+[1] dom mar
+Levels: dom < lun < mar < mié < jue < vie < sáb
+[1] "2023-01-01" "2023-07-01"
+[1] "2023-02-15" "2023-08-04"
+[1] "Sucursal Centro Norte"
+[1]  TRUE FALSE
+\end{rsalida}
+
+Observa que \codigo{month()} y \codigo{wday()} con \codigo{label = TRUE}
+devuelven \emph{factores ordenados}: por eso en ggplot los meses salen en
+orden de calendario y no alfabético. Los nombres aparecen en español porque
+la sesión usa el idioma del sistema.
+
+% ============================================================================
+\section{ggplot2: visualización}
+\label{sec:ap-b-ggplot}
+% ============================================================================
+
+\subsection{Estructura de un gráfico}
+
+Todo gráfico de ggplot2 se arma por capas unidas con \codigo{+} (no con
+\codigo{\%>\%}):
+
+\begin{textocodigo}
+ggplot(datos, aes(x = ..., y = ..., color = ..., fill = ...)) +  # datos + mapeo
+  geom_...() +                     # 1 o más capas geométricas
+  scale_..._...() +                # escalas: formato de ejes y colores
+  facet_wrap(~ variable) +         # (opcional) paneles por grupo
+  labs(title = , subtitle = , x = , y = , caption = ) +  # textos
+  theme_minimal() + theme(...)     # apariencia
+\end{textocodigo}
+
+Esta plantilla completa (datos, geom, escala con formato, títulos, tema y
+guardado) sirve de punto de partida para casi cualquier gráfica de
+tendencia:
+
+\begin{rcode}[title=Plantilla de gráfico de tendencia y exportación]
+color_principal <- "#2a78d6"                   # color corporativo
+p <- ventas %>%
+  mutate(mes = floor_date(fecha, "month")) %>%
+  group_by(mes) %>%
+  summarise(ventas = sum(total), .groups = "drop") %>%
+  ggplot(aes(x = mes, y = ventas)) +
+  geom_line(color = color_principal, linewidth = 0.8) +
+  geom_point(color = color_principal) +
+  scale_y_continuous(labels = label_dollar(), limits = c(0, NA)) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+  labs(title = "Ventas mensuales 2023", x = NULL, y = "Ventas",
+       caption = "Fuente: ventas_retail.csv") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+dir.create("resultados", showWarnings = FALSE)
+ggsave("resultados/ventas_mensuales.png", p,
+       width = 8, height = 4.5, dpi = 300)     # PNG listo para PowerPoint
+\end{rcode}
+
+\subsection{¿Qué gráfico uso? Objetivo $\rightarrow$ geom}
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.9cm}
+                    >{\raggedright\arraybackslash}p{3.6cm}
+                    >{\raggedright\arraybackslash}p{8.3cm}@{}}
+\caption{Elegir el tipo de gráfico según la pregunta de negocio.}
+\label{tab:ap-b-geoms}\\
+\toprule
+\textbf{Objetivo} & \textbf{Geom} & \textbf{Ejemplo} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Objetivo} & \textbf{Geom} & \textbf{Ejemplo} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Comparar montos entre categorías & \codigo{geom\_col()} (barras con valor ya calculado) & \codigo{ggplot(res, aes(x = reorder(ciudad, ventas), y = ventas)) + geom\_col() + coord\_flip()} \\
+Contar registros por categoría & \codigo{geom\_bar()} (cuenta sola) & \codigo{ggplot(clientes, aes(x = segmento)) + geom\_bar()} \\
+Tendencia en el tiempo & \codigo{geom\_line()} + \codigo{geom\_point()} & \codigo{ggplot(mensual, aes(mes, ventas)) + geom\_line(linewidth = 0.8)} \\
+Varias series en el tiempo & \codigo{geom\_line(aes(color = grupo))} & \codigo{aes(mes, ventas, color = ciudad)} (máximo 5--8 series; si no, facetas) \\
+Distribución de una variable & \codigo{geom\_histogram()}, \codigo{geom\_density()} & \codigo{ggplot(ventas, aes(total)) + geom\_histogram(bins = 30)} \\
+Comparar distribuciones entre grupos & \codigo{geom\_boxplot()}, \codigo{geom\_violin()} & \codigo{ggplot(ventas, aes(factor(tienda\_id), total)) + geom\_boxplot()} \\
+Relación entre dos numéricas & \codigo{geom\_point()} + \codigo{geom\_smooth()} & \codigo{ggplot(productos, aes(costo, precio\_catalogo)) + geom\_point() + geom\_smooth(method = "lm")} \\
+Composición (partes de un total) & \codigo{geom\_col(position = "fill")} & \codigo{geom\_col(position = "fill") + scale\_y\_continuous(labels = percent)} \\
+Pocas partes de un total (máx. 5) & \codigo{geom\_col()} + \codigo{coord\_polar("y")} & Solo si las diferencias son grandes; si no, usa barras. \\
+Mapa de calor (día $\times$ hora, mes $\times$ tienda) & \codigo{geom\_tile()} & \codigo{ggplot(t, aes(mes, tienda, fill = ventas)) + geom\_tile()} \\
+Ranking con valor destacado & \codigo{geom\_col()} + \codigo{geom\_text()} & \codigo{geom\_text(aes(label = dollar(ventas)), hjust = -0.1)} \\
+Meta o referencia & \codigo{geom\_hline()}, \codigo{geom\_vline()} & \codigo{geom\_hline(yintercept = meta, linetype = "dashed")} \\
+Rango o incertidumbre & \codigo{geom\_ribbon()}, \codigo{geom\_errorbar()} & \codigo{geom\_ribbon(aes(ymin = li, ymax = ls), alpha = 0.2)} (pronósticos) \\
+Anotar un evento & \codigo{annotate()} & \codigo{annotate("text", x = fecha, y = 5000, label = "Buen Fin")} \\
+\end{longtable}
+\endgroup
+
+\subsection{Escalas, formatos, temas y facetas}
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{4.6cm}
+                    >{\raggedright\arraybackslash}p{4.4cm}
+                    >{\raggedright\arraybackslash}p{6.8cm}@{}}
+\caption{Escalas, formato de ejes (\paquete{scales}), temas, facetas y exportación.}
+\label{tab:ap-b-escalas}\\
+\toprule
+\textbf{Función} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Función} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\codigo{label\_dollar()} & Formato moneda. & \codigo{scale\_y\_continuous(labels = label\_dollar())} \\
+\codigo{label\_comma()} & Separador de miles. & \codigo{scale\_x\_continuous(labels = label\_comma())} \\
+\codigo{label\_percent()} & Porcentaje (0.125 $\rightarrow$ 12.5\%). & \codigo{labels = label\_percent(accuracy = 0.1)} \\
+\codigo{label\_number(scale\_cut = cut\_short\_scale())} & Abrevia miles (K) y millones (M). & \codigo{labels = label\_number(scale\_cut = cut\_short\_scale(), prefix = "\$")} \\
+\codigo{scale\_x\_date()} & Ejes de fecha. & \codigo{scale\_x\_date(date\_labels = "\%b \%Y", date\_breaks = "2 months")} \\
+\codigo{limits}, \codigo{expand} & Rango del eje (incluir el cero en barras). & \codigo{scale\_y\_continuous(limits = c(0, NA))} \\
+\codigo{scale\_fill\_manual()}, \codigo{scale\_color\_manual()} & Colores propios. & \codigo{scale\_fill\_manual(values = paleta\_libro)} \\
+\codigo{scale\_fill\_gradient()} & Secuencial (un tono de claro a oscuro). & \codigo{scale\_fill\_gradient(low = "\#dbe8f7", high = "\#2a78d6")} \\
+\codigo{scale\_fill\_gradient2()} & Divergente (dos tonos, centro neutro). & \codigo{scale\_fill\_gradient2(low = "\#eb6834", mid = "grey90", high = "\#2a78d6", midpoint = 0)} \\
+\midrule
+\codigo{labs()} & Títulos, ejes, leyenda, fuente. & \codigo{labs(title = "...", x = NULL, color = "Ciudad", caption = "Fuente: ...")} \\
+\codigo{theme\_minimal()}, \codigo{theme\_classic()} & Temas base limpios. & \codigo{theme\_minimal(base\_size = 12)} \\
+\codigo{theme()} & Ajuste fino de cualquier elemento. & \codigo{theme(legend.position = "top", panel.grid.minor = element\_blank())} \\
+\codigo{coord\_flip()} & Gira ejes (barras horizontales). & Útil con nombres largos de categorías. \\
+\codigo{facet\_wrap()} & Un panel por categoría. & \codigo{facet\_wrap(\textasciitilde{} ciudad, ncol = 3)} \\
+\codigo{facet\_grid()} & Rejilla filas $\times$ columnas. & \codigo{facet\_grid(tipo \textasciitilde{} trimestre)} \\
+\codigo{ggsave()} & Guarda el gráfico (PNG, PDF, SVG). & \codigo{ggsave("resultados/g.png", p, width = 8, height = 4.5, dpi = 300)} \\
+\codigo{plotly::ggplotly()} & Convierte a gráfico interactivo. & \codigo{ggplotly(p)} \\
+\end{longtable}
+\endgroup
+
+Las funciones de \paquete{scales} también sirven fuera de los gráficos, por
+ejemplo para dar formato a tablas de un reporte:
+
+\begin{rcode}
+dollar(1250.5)                          # moneda
+comma(12500)                            # miles
+percent(0.1253, accuracy = 0.1)         # porcentaje con 1 decimal
+label_number(scale_cut = cut_short_scale(), prefix = "$")(c(12500, 2500000))
+\end{rcode}
+\begin{rsalida}
+[1] "$1,250.50"
+[1] "12,500"
+[1] "12.5%"
+[1] "$12K" "$2M"
+\end{rsalida}
+
+\begin{consejo}
+Reglas de oro de la visualización del curso (Módulo~\ref{cap:visualizacion}):
+una sola serie, un solo color; resalta lo importante con un color de
+acento y el resto en gris; nunca uses doble eje Y; barras siempre desde
+cero; ejes con formato de negocio; y un título que diga la conclusión
+(``Las ventas caen en marzo'') y no solo el tema (``Ventas por mes'').
+\end{consejo}
+
+% ============================================================================
+\section{Equivalencias SQL, dplyr y Excel}
+\label{sec:ap-b-sql}
+% ============================================================================
+
+Si vienes de Excel o de SQL, esta tabla es tu diccionario. Los ejemplos de
+dplyr parten de \codigo{ventas \%>\%}.
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{2.6cm}
+                    >{\raggedright\arraybackslash}p{4.5cm}
+                    >{\raggedright\arraybackslash}p{4.9cm}
+                    >{\raggedright\arraybackslash}p{3.4cm}@{}}
+\caption{Diccionario SQL $\leftrightarrow$ dplyr $\leftrightarrow$ Excel.}
+\label{tab:ap-b-sql-dplyr-excel}\\
+\toprule
+\textbf{Tarea} & \textbf{SQL} & \textbf{dplyr} & \textbf{Excel} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Tarea} & \textbf{SQL} & \textbf{dplyr} & \textbf{Excel} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Elegir columnas & \codigo{SELECT fecha, total FROM ventas} & \codigo{select(fecha, total)} & Ocultar / copiar columnas \\
+Renombrar & \codigo{SELECT total AS importe} & \codigo{rename(importe = total)} & Cambiar encabezado \\
+Filtrar filas & \codigo{WHERE total > 1000 AND tienda\_id = 3} & \codigo{filter(total > 1000, tienda\_id == 3)} & Autofiltro; \codigo{FILTRAR()} \\
+Lista de valores & \codigo{WHERE ciudad IN ('CDMX', 'Puebla')} & \codigo{filter(ciudad \%in\% c("CDMX", "Puebla"))} & Autofiltro con varias casillas \\
+Rango & \codigo{WHERE total BETWEEN 500 AND 1000} & \codigo{filter(between(total, 500, 1000))} & Filtro personalizado \\
+Texto que contiene & \codigo{WHERE metodo\_pago LIKE '\%Tarjeta\%'} & \codigo{filter(str\_detect(metodo\_pago, "Tarjeta"))} & Filtro ``Contiene'' \\
+Nulos & \codigo{WHERE total IS NULL} & \codigo{filter(is.na(total))} & Filtro ``(Vacías)'' \\
+Columna calculada & \codigo{SELECT total * 0.16 AS iva} & \codigo{mutate(iva = total * 0.16)} & Fórmula \codigo{=L2*0.16} arrastrada \\
+Condicional & \codigo{CASE WHEN total >= 1000 THEN 'Alta' ELSE 'Normal' END} & \codigo{if\_else(total >= 1000, "Alta", "Normal")}; \codigo{case\_when()} & \codigo{SI()}, \codigo{SI.CONJUNTO()} \\
+Sustituir nulos & \codigo{COALESCE(descuento, 0)} & \codigo{coalesce(descuento, 0)} & \codigo{SI.ERROR()}, \codigo{SI(ESBLANCO())} \\
+Ordenar & \codigo{ORDER BY total DESC} & \codigo{arrange(desc(total))} & Ordenar de mayor a menor \\
+Primeras n filas & \codigo{LIMIT 10} & \codigo{slice\_head(n = 10)} & --- \\
+Top n por valor & \codigo{ORDER BY total DESC LIMIT 5} & \codigo{slice\_max(total, n = 5)} & Filtro ``Diez mejores'' \\
+Únicos & \codigo{SELECT DISTINCT cliente\_id} & \codigo{distinct(cliente\_id)} & Quitar duplicados; \codigo{UNICOS()} \\
+Totales generales & \codigo{SELECT SUM(total), AVG(total), COUNT(*)} & \codigo{summarise(sum(total), mean(total), n())} & \codigo{SUMA()}, \codigo{PROMEDIO()}, \codigo{CONTAR()} \\
+Contar distintos & \codigo{COUNT(DISTINCT cliente\_id)} & \codigo{n\_distinct(cliente\_id)} & Tabla dinámica con ``Recuento distinto'' \\
+Totales por grupo & \codigo{SELECT tienda\_id, SUM(total) ... GROUP BY tienda\_id} & \codigo{group\_by(tienda\_id) \%>\% summarise(ventas = sum(total))} & Tabla dinámica; \codigo{SUMAR.SI()} \\
+Suma condicional con varios criterios & \codigo{SUM(total) ... WHERE ... GROUP BY tienda\_id, mes} & \codigo{filter(...) \%>\% summarise(sum(total), .by = c(tienda\_id, mes))} & \codigo{SUMAR.SI.CONJUNTO()} \\
+Conteo condicional & \codigo{SUM(CASE WHEN total > 1000 THEN 1 ELSE 0 END)} & \codigo{summarise(n\_altas = sum(total > 1000))} & \codigo{CONTAR.SI()} \\
+Promedio condicional & \codigo{AVG(total) ... GROUP BY ...} & \codigo{summarise(prom = mean(total), .by = ciudad)} & \codigo{PROMEDIO.SI()} \\
+Filtrar grupos & \codigo{GROUP BY tienda\_id HAVING COUNT(*) >= 20} & \codigo{group\_by(tienda\_id) \%>\% filter(n() >= 20)} o \codigo{summarise()} + \codigo{filter()} & Filtro sobre la tabla dinámica \\
+Traer datos de otra tabla & \codigo{LEFT JOIN tiendas t ON v.tienda\_id = t.tienda\_id} & \codigo{left\_join(tiendas, by = "tienda\_id")} & \codigo{BUSCARV()}, \codigo{BUSCARX()}, \codigo{INDICE}+\codigo{COINCIDIR} \\
+Solo coincidencias & \codigo{INNER JOIN} & \codigo{inner\_join()} & --- \\
+Registros sin pareja & \codigo{LEFT JOIN ... WHERE t.id IS NULL} & \codigo{anti\_join()} & \codigo{BUSCARV} que da \codigo{\#N/A} \\
+Apilar tablas & \codigo{UNION ALL} & \codigo{bind\_rows()} & Copiar y pegar debajo \\
+Pivotear & \codigo{SUM(CASE WHEN trimestre = 'Q1' THEN total END) AS Q1, ...} & \codigo{pivot\_wider(names\_from = trimestre, values\_from = ventas)} & Tabla dinámica (campo en Columnas) \\
+Despivotear & \codigo{UNION ALL} por columna & \codigo{pivot\_longer(Q1:Q4, names\_to = "trim", values\_to = "ventas")} & Power Query: ``Anular dinamización'' \\
+\midrule
+\multicolumn{4}{@{}l}{\textbf{\color{secundario}Funciones de ventana}} \\
+Número de fila por grupo & \codigo{ROW\_NUMBER() OVER (PARTITION BY tienda\_id ORDER BY total DESC)} & \codigo{group\_by(tienda\_id) \%>\% mutate(pos = row\_number(desc(total)))} & \codigo{JERARQUIA()} con criterio \\
+Ranking con empates & \codigo{RANK()}, \codigo{DENSE\_RANK() OVER (...)} & \codigo{min\_rank()}, \codigo{dense\_rank()} & \codigo{JERARQUIA.EQV()} \\
+Valor anterior & \codigo{LAG(ventas) OVER (ORDER BY mes)} & \codigo{mutate(anterior = lag(ventas))} & Referencia a la celda de arriba \\
+Acumulado & \codigo{SUM(ventas) OVER (ORDER BY mes)} & \codigo{mutate(acum = cumsum(ventas))} & \codigo{=SUMA(\$B\$2:B2)} \\
+\% del total del grupo & \codigo{total / SUM(total) OVER (PARTITION BY tienda\_id)} & \codigo{group\_by(tienda\_id) \%>\% mutate(p = total / sum(total))} & ``Mostrar valores como \% del total'' \\
+Promedio móvil & \codigo{AVG(v) OVER (ORDER BY mes ROWS 2 PRECEDING)} & \codigo{zoo::rollmean(v, 3, fill = NA, align = "right")} & \codigo{PROMEDIO()} de 3 celdas arrastrado \\
+Cuartiles & \codigo{NTILE(4) OVER (ORDER BY total)} & \codigo{mutate(cuartil = ntile(total, 4))} & \codigo{CUARTIL()} \\
+\midrule
+\multicolumn{4}{@{}l}{\textbf{\color{secundario}Texto y fechas}} \\
+Unir texto & \codigo{CONCAT(nombre, ' ', apellido)} o \codigo{||} & \codigo{str\_c(nombre, " ", apellido)} & \codigo{CONCAT()}, \codigo{\&} \\
+Mayúsculas / espacios & \codigo{UPPER()}, \codigo{TRIM()} & \codigo{str\_to\_upper()}, \codigo{str\_trim()} & \codigo{MAYUSC()}, \codigo{ESPACIOS()} \\
+Subcadena & \codigo{SUBSTR(x, 1, 3)} & \codigo{str\_sub(x, 1, 3)} & \codigo{IZQUIERDA()}, \codigo{EXTRAE()} \\
+Año / mes de una fecha & \codigo{EXTRACT(YEAR FROM fecha)}; en SQLite \codigo{strftime('\%Y', fecha)} & \codigo{year(fecha)}, \codigo{month(fecha)} & \codigo{AÑO()}, \codigo{MES()} \\
+Diferencia de fechas & \codigo{fecha2 - fecha1} (según motor) & \codigo{as.numeric(fecha2 - fecha1)} & \codigo{=B2-A2}, \codigo{SIFECHA()} \\
+\end{longtable}
+\endgroup
+
+La misma consulta, en SQL y en dplyr, da el mismo resultado. Esta es la
+consulta en SQL:
+
+\begin{sqlcode}
+SELECT tienda_id, COUNT(*) AS n, ROUND(SUM(total), 2) AS ventas
+FROM ventas
+WHERE descuento_pct > 0
+GROUP BY tienda_id
+HAVING COUNT(*) >= 20
+ORDER BY ventas DESC
+\end{sqlcode}
+
+Y así se ejecuta desde R sobre una base SQLite en memoria, junto a su
+equivalente en dplyr:
+
+\begin{rcode}
+library(DBI)
+con <- dbConnect(RSQLite::SQLite(), ":memory:")   # base temporal
+dbWriteTable(con, "ventas", select(ventas, tienda_id, descuento_pct, total))
+dbGetQuery(con, "
+  SELECT tienda_id, COUNT(*) AS n, ROUND(SUM(total), 2) AS ventas
+  FROM ventas
+  WHERE descuento_pct > 0
+  GROUP BY tienda_id
+  HAVING COUNT(*) >= 20
+  ORDER BY ventas DESC")
+ventas %>%                                          # lo mismo en dplyr
+  filter(descuento_pct > 0) %>%
+  group_by(tienda_id) %>%
+  summarise(n = n(), ventas = round(sum(total), 2), .groups = "drop") %>%
+  filter(n >= 20) %>%                               # el HAVING
+  arrange(desc(ventas))
+dbDisconnect(con)
+\end{rcode}
+\begin{rsalida}
+  tienda_id  n   ventas
+1         8 25 35240.49
+2         2 25 34557.58
+3         9 22 30632.71
+4         6 21 27960.98
+# A tibble: 4 x 3
+  tienda_id     n ventas
+      <dbl> <int>  <dbl>
+1         8    25 35240.
+2         2    25 34558.
+3         9    22 30633.
+4         6    21 27961.
+\end{rsalida}
+
+Las cifras coinciden; solo cambia la presentación (el tibble muestra menos
+decimales, pero guarda los mismos valores). Nota que en dplyr el
+\codigo{HAVING} es simplemente otro \codigo{filter()} después del
+\codigo{summarise()}.
+
+% ============================================================================
+\section{Estadística y KPIs}
+\label{sec:ap-b-estadistica}
+% ============================================================================
+
+\subsection{¿Qué prueba uso?}
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{4.6cm}
+                    >{\raggedright\arraybackslash}p{3.3cm}
+                    >{\raggedright\arraybackslash}p{7.9cm}@{}}
+\caption{Elegir la prueba estadística según la pregunta de negocio.}
+\label{tab:ap-b-pruebas}\\
+\toprule
+\textbf{Pregunta de negocio} & \textbf{Prueba} & \textbf{Función de R} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Pregunta de negocio} & \textbf{Prueba} & \textbf{Función de R} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+¿El ticket promedio es distinto entre fin de semana y entre semana? (2 grupos, variable numérica) & t de Student (Welch) & \codigo{t.test(total \textasciitilde{} fin\_semana, data = ventas)} \\
+¿El ticket promedio es distinto de la meta de \$1,500? & t de una muestra & \codigo{t.test(ventas\$total, mu = 1500)} \\
+¿Cambió la venta por tienda antes y después de la campaña? (mismas unidades) & t pareada & \codigo{t.test(despues, antes, paired = TRUE)} \\
+¿La versión B del correo convierte más que la A? (2 proporciones, prueba A/B) & Prueba de proporciones & \codigo{prop.test(x = c(conv\_a, conv\_b), n = c(env\_a, env\_b))} \\
+¿La tasa de devolución supera el 5\%? & Proporción vs. valor & \codigo{prop.test(x = devol, n = total, p = 0.05, alternative = "greater")} \\
+¿El ticket promedio difiere entre 3 o más ciudades? & ANOVA de un factor & \codigo{summary(aov(total \textasciitilde{} ciudad, data = d))}; después \codigo{TukeyHSD(aov(...))} \\
+Igual que las anteriores, pero con datos muy asimétricos o pocos datos & No paramétricas & \codigo{wilcox.test(total \textasciitilde{} grupo)} (2 grupos); \codigo{kruskal.test(total \textasciitilde{} ciudad)} (3+) \\
+¿El método de pago depende del segmento del cliente? (2 categóricas) & Chi-cuadrada de independencia & \codigo{chisq.test(table(d\$segmento, d\$metodo\_pago))} \\
+¿Se relacionan el precio y las unidades vendidas? (2 numéricas) & Correlación de Pearson / Spearman & \codigo{cor.test(d\$precio, d\$unidades)}; \codigo{method = "spearman"} si hay atípicos \\
+¿Cuánto aumentan las ventas por cada \$1 de publicidad? (explicar / predecir numérica) & Regresión lineal & \codigo{m <- lm(ventas \textasciitilde{} publicidad + precio, data = d)}; \codigo{summary(m)} \\
+¿Qué factores aumentan la probabilidad de que un cliente se vaya? (respuesta sí/no) & Regresión logística & \codigo{glm(churn \textasciitilde{} antiguedad + compras, family = binomial, data = d)} \\
+¿Los datos son aproximadamente normales? & Shapiro--Wilk (y un histograma) & \codigo{shapiro.test(ventas\$total)} \\
+\end{longtable}
+\endgroup
+
+\begin{concepto}{Cómo leer el p-valor}
+El \termino{p-valor} es la probabilidad de observar una diferencia (o una
+relación) tan grande como la de tus datos \emph{si en realidad no hubiera
+ninguna}. Regla práctica con un nivel de significancia de 0.05:
+\begin{itemize}
+\item \textbf{p $<$ 0.05}: la diferencia es \emph{estadísticamente
+  significativa}; es poco probable que sea solo azar.
+\item \textbf{p $\geq$ 0.05}: no hay evidencia suficiente de diferencia
+  (lo que \emph{no} demuestra que sean iguales).
+\end{itemize}
+Significativo no quiere decir importante: con miles de datos, una
+diferencia de \$2 puede ser significativa y aun así no importar para el
+negocio. Reporta siempre el tamaño del efecto (la diferencia en pesos o en
+puntos porcentuales) y su intervalo de confianza, no solo el p-valor.
+\end{concepto}
+
+\begin{rcode}
+# ¿Gastan más los clientes en fin de semana?
+ventas <- ventas %>%
+  mutate(fin_semana = dia_semana %in% c("sábado", "domingo"))
+prueba <- t.test(total ~ fin_semana, data = ventas)
+prueba$estimate      # promedio de cada grupo (FALSE = entre semana)
+prueba$p.value       # p-valor
+\end{rcode}
+\begin{rsalida}
+mean in group FALSE  mean in group TRUE
+           1428.730            1356.635
+[1] 0.572521
+\end{rsalida}
+
+El ticket de fin de semana (1,356.6) es unos \$72 menor que entre semana
+(1,428.7), pero el p-valor de 0.57 es mucho mayor que 0.05: con estos datos
+no hay evidencia de que el día influya en el ticket. No conviene lanzar una
+promoción ``de fin de semana'' justificada en esa diferencia.
+
+\subsection{Fórmulas de KPIs de negocio}
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.3}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{2.8cm}
+                    >{\raggedright\arraybackslash}p{5.3cm}
+                    >{\raggedright\arraybackslash}p{7.7cm}@{}}
+\caption{KPIs comunes: fórmula y código \paquete{dplyr}.}
+\label{tab:ap-b-kpis}\\
+\toprule
+\textbf{KPI} & \textbf{Fórmula} & \textbf{Código dplyr} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{KPI} & \textbf{Fórmula} & \textbf{Código dplyr} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Crecimiento vs. periodo anterior & $\dfrac{\text{actual} - \text{anterior}}{\text{anterior}}$ & \codigo{mutate(crec = ventas / lag(ventas) - 1)} (ordena por fecha antes) \\
+Crecimiento anual (YoY) & Igual, contra el mismo mes del año anterior & \codigo{mutate(yoy = ventas / lag(ventas, 12) - 1)} (datos mensuales completos) \\
+Margen bruto (\%) & $\dfrac{\text{ingresos} - \text{costo de ventas}}{\text{ingresos}}$ & \codigo{summarise(margen = (sum(total) - sum(cantidad * costo)) / sum(total))} \\
+Ticket promedio & $\dfrac{\text{ventas totales}}{\text{número de transacciones}}$ & \codigo{summarise(ticket = sum(total) / n())} \\
+Unidades por ticket & $\dfrac{\text{unidades vendidas}}{\text{transacciones}}$ & \codigo{summarise(upt = sum(cantidad) / n())} \\
+Participación (\emph{share}) & $\dfrac{\text{ventas del grupo}}{\text{ventas totales}}$ & \codigo{mutate(share = ventas / sum(ventas))} \\
+Tasa de descuento & $\dfrac{\text{descuentos}}{\text{venta bruta}}$ & \codigo{summarise(tasa\_desc = sum(descuento\_monto) / sum(subtotal))} \\
+Cumplimiento de meta & $\dfrac{\text{real}}{\text{meta}}$ & \codigo{mutate(cumpl = ventas / meta)} \\
+Ventas por m\textsuperscript{2} & $\dfrac{\text{ventas}}{\text{superficie}}$ & \codigo{left\_join(tiendas) \%>\% mutate(v\_m2 = ventas / tamano\_m2)} \\
+Tasa de conversión & $\dfrac{\text{compradores (o pedidos)}}{\text{visitas (o leads)}}$ & \codigo{summarise(conv = sum(compro) / n())} \\
+Retención & $\dfrac{\text{clientes al final} - \text{clientes nuevos}}{\text{clientes al inicio}}$ & \codigo{mutate(ret = (clientes\_fin - nuevos) / clientes\_inicio)} \\
+Churn (abandono) & $\dfrac{\text{clientes perdidos}}{\text{clientes al inicio}} = 1 - \text{retención}$ & \codigo{mutate(churn = perdidos / clientes\_inicio)} \\
+CLV simple & ticket $\times$ compras al año $\times$ margen $\times$ años de vida ($\approx 1/\text{churn anual}$) & \codigo{mutate(clv = ticket * frec\_anual * margen * (1 / churn))} \\
+Costo de adquisición (CAC) & $\dfrac{\text{gasto en marketing y ventas}}{\text{clientes nuevos}}$ & \codigo{mutate(cac = gasto\_mkt / nuevos)} \\
+ROI & $\dfrac{\text{ganancia} - \text{inversión}}{\text{inversión}}$ & \codigo{mutate(roi = (ganancia - inversion) / inversion)} \\
+Rotación de inventario & $\dfrac{\text{costo de ventas}}{\text{inventario promedio (a costo)}}$ & \codigo{mutate(rotacion = costo\_ventas / inv\_promedio)} \\
+Días de inventario & $\dfrac{365}{\text{rotación}} = \dfrac{\text{inventario promedio}}{\text{costo de ventas}} \times 365$ & \codigo{mutate(dias\_inv = 365 / rotacion)} \\
+Cobertura de stock & $\dfrac{\text{stock actual}}{\text{venta diaria promedio}}$ & \codigo{mutate(dias\_cobertura = stock\_actual / venta\_diaria)} \\
+\end{longtable}
+\endgroup
+
+Así se ven algunos de estos KPIs calculados con los datos del curso:
+
+\begin{rcode}[title=KPIs mensuales: ventas, tickets, ticket promedio y crecimiento]
+kpi_mes <- ventas %>%
+  mutate(mes = floor_date(fecha, "month")) %>%
+  group_by(mes) %>%
+  summarise(ventas = sum(total), tickets = n(), .groups = "drop") %>%
+  mutate(ticket_prom = ventas / tickets,          # ticket promedio
+         crec_mom = ventas / lag(ventas) - 1)     # vs. mes anterior
+kpi_mes %>%
+  mutate(crec_mom = percent(crec_mom, accuracy = 0.1)) %>%
+  head(4)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 5
+  mes        ventas tickets ticket_prom crec_mom
+  <date>      <dbl>   <int>       <dbl> <chr>
+1 2023-01-01 46884.      31       1512. <NA>
+2 2023-02-01 42656.      28       1523. -9.0%
+3 2023-03-01 36733.      31       1185. -13.9%
+4 2023-04-01 34738.      30       1158. -5.4%
+\end{rsalida}
+
+Enero no tiene crecimiento (no hay mes anterior: por eso \codigo{NA}). En
+marzo las ventas cayeron 13.9\% con casi los mismos tickets (31), así que la
+caída se explica por un ticket promedio más bajo, no por menos clientes.
+
+\begin{rcode}[title=Margen bruto global]
+ventas %>%
+  left_join(select(productos, producto_id, costo), by = "producto_id") %>%
+  summarise(ingresos = sum(total),
+            costo_ventas = sum(cantidad * costo),
+            margen_bruto_pct = (ingresos - costo_ventas) / ingresos)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 1 x 3
+  ingresos costo_ventas margen_bruto_pct
+     <dbl>        <dbl>            <dbl>
+1  513917.      363346.            0.293
+\end{rsalida}
+
+El margen bruto del año es de 29.3\%. Recuerda que en estos datos simulados
+el precio de cada venta no coincide con el precio de catálogo y hay
+productos con costo mayor al precio: antes de presentar un margen, revisa
+siempre la calidad de los datos de costo.
+
+% ============================================================================
+\section{Machine learning}
+\label{sec:ap-b-ml}
+% ============================================================================
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.4cm}
+                    >{\raggedright\arraybackslash}p{2.3cm}
+                    >{\raggedright\arraybackslash}p{2.8cm}
+                    >{\raggedright\arraybackslash}p{4.3cm}
+                    >{\raggedright\arraybackslash}p{2.6cm}@{}}
+\caption{Del problema de negocio al algoritmo, la función de R y la métrica.}
+\label{tab:ap-b-ml}\\
+\toprule
+\textbf{Problema de negocio} & \textbf{Tipo} & \textbf{Algoritmo} & \textbf{Función de R} & \textbf{Métrica} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Problema de negocio} & \textbf{Tipo} & \textbf{Algoritmo} & \textbf{Función de R} & \textbf{Métrica} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Pronosticar las ventas de los próximos meses & Series de tiempo & ARIMA, suavizamiento exponencial (ETS) & \codigo{forecast::auto.arima()}, \codigo{ets()}, \codigo{forecast(m, h = 6)} & MAPE, RMSE \\
+Estimar el monto de compra o el precio de una casa & Regresión & Regresión lineal, bosque aleatorio & \codigo{lm()}, \codigo{randomForest::randomForest()} & RMSE, MAE, R\textsuperscript{2} \\
+Explicar qué mueve las ventas (precio, promoción, temporada) & Regresión explicativa & Regresión lineal múltiple & \codigo{lm(ventas \textasciitilde{} precio + promo + mes)} & R\textsuperscript{2}, p-valores de coeficientes \\
+Predecir qué clientes se darán de baja (churn) & Clasificación binaria & Logística, árbol, bosque aleatorio & \codigo{glm(family = binomial)}, \codigo{rpart::rpart()}, \codigo{randomForest()} & AUC, recall, F1 \\
+Calificar prospectos (\emph{lead scoring}) & Clasificación binaria & Regresión logística & \codigo{glm()} + \codigo{predict(type = "response")} & AUC, lift \\
+Detectar fraude (casos muy raros) & Clasificación desbalanceada & Bosque aleatorio con remuestreo & \codigo{caret::train(method = "rf")} con \codigo{sampling = "down"} & Precisión, recall (no exactitud) \\
+Segmentar clientes para campañas & Agrupamiento (no supervisado) & k-medias, jerárquico & \codigo{kmeans()}, \codigo{hclust()}, \codigo{factoextra::fviz\_cluster()} & Silueta, codo (WSS) \\
+Productos que se compran juntos & Reglas de asociación & Apriori & \codigo{arules::apriori()} & Soporte, confianza, lift \\
+Detectar ventas atípicas & Detección de anomalías & Regla del IQR, puntaje z & \codigo{boxplot.stats(x)\$out}, \codigo{scale()} & Revisión manual \\
+Ajustar y comparar modelos con validación cruzada & Cualquiera supervisado & Varios & \codigo{caret::train(..., trControl = trainControl(method = "cv", number = 5))} & La del problema \\
+\end{longtable}
+\endgroup
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.35}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{2.3cm}
+                    >{\raggedright\arraybackslash}p{5.4cm}
+                    >{\raggedright\arraybackslash}p{8.1cm}@{}}
+\caption{Métricas de evaluación: fórmula y cuándo usarlas. VP, VN, FP, FN = verdaderos/falsos positivos/negativos; $y$ = real, $\hat y$ = predicho.}
+\label{tab:ap-b-metricas}\\
+\toprule
+\textbf{Métrica} & \textbf{Fórmula} & \textbf{Cuándo usarla} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Métrica} & \textbf{Fórmula} & \textbf{Cuándo usarla} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\multicolumn{3}{@{}l}{\textbf{\color{secundario}Regresión y pronóstico}} \\
+MAE & $\frac{1}{n}\sum |y_i - \hat y_i|$ & Error promedio en las unidades del negocio (pesos, piezas). Fácil de explicar. \\
+RMSE & $\sqrt{\frac{1}{n}\sum (y_i - \hat y_i)^2}$ & Penaliza más los errores grandes. Úsala si un error grande es muy costoso (p. ej., quedarte sin inventario). \\
+MAPE & $\frac{100\%}{n}\sum \left|\frac{y_i - \hat y_i}{y_i}\right|$ & Error en \% para comparar series de distinta escala. No sirve si hay valores reales iguales o cercanos a 0. \\
+R\textsuperscript{2} & $1 - \frac{\sum (y_i - \hat y_i)^2}{\sum (y_i - \bar y)^2}$ & Proporción de la variación explicada (0 a 1). Útil para modelos explicativos; no mide el error de pronóstico. \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\color{secundario}Clasificación}} \\
+Exactitud & $\frac{VP + VN}{VP + VN + FP + FN}$ & \% de aciertos. Solo si las clases están balanceadas: con 5\% de churn, decir ``nadie se va'' da 95\% de exactitud. \\
+Precisión & $\frac{VP}{VP + FP}$ & De los que marqué como positivos, ¿cuántos lo eran? Importa cuando cada falso positivo cuesta (p. ej., bloquear una tarjeta legítima). \\
+Recall (sensibilidad) & $\frac{VP}{VP + FN}$ & De los positivos reales, ¿cuántos encontré? Importa cuando perder un caso es caro (fraude no detectado, cliente que se va sin aviso). \\
+F1 & $2 \cdot \frac{\text{precisión} \cdot \text{recall}}{\text{precisión} + \text{recall}}$ & Equilibrio entre precisión y recall en un solo número; buena para clases desbalanceadas. \\
+AUC (ROC) & Área bajo la curva ROC (0.5 = azar, 1 = perfecto) & Capacidad de ordenar positivos por encima de negativos, sin fijar un umbral. Ideal para comparar modelos de puntuación. \\
+\end{longtable}
+\endgroup
+
+Todas estas métricas se calculan con pocas líneas de R base. El paquete
+\paquete{pROC} (se instala junto con \paquete{caret}) calcula el AUC:
+
+\begin{rcode}[title=Métricas de regresión y de clasificación a mano]
+# --- Regresión / pronóstico ---
+real       <- c(120, 95, 130, 150, 110)
+pronostico <- c(115, 100, 128, 140, 118)
+error <- real - pronostico
+tibble(MAE  = mean(abs(error)),
+       RMSE = sqrt(mean(error^2)),
+       MAPE = mean(abs(error / real)))
+# --- Clasificación (1 = el cliente se fue) ---
+obs  <- factor(c(1, 0, 1, 1, 0, 0, 1, 0, 0, 0), levels = c(1, 0))
+pred <- factor(c(1, 0, 0, 1, 0, 1, 1, 0, 0, 0), levels = c(1, 0))
+mc <- table(Predicho = pred, Real = obs)      # matriz de confusión
+mc
+vp <- mc["1", "1"]; fp <- mc["1", "0"]
+fn <- mc["0", "1"]; vn <- mc["0", "0"]
+exactitud <- (vp + vn) / sum(mc)
+precision <- vp / (vp + fp)
+recall    <- vp / (vp + fn)
+f1        <- 2 * precision * recall / (precision + recall)
+round(c(exactitud = exactitud, precision = precision,
+        recall = recall, f1 = f1), 3)
+# --- AUC a partir de probabilidades ---
+prob <- c(0.81, 0.30, 0.45, 0.66, 0.12, 0.58, 0.90, 0.25, 0.40, 0.08)
+curva <- pROC::roc(response = obs, predictor = prob,
+                   levels = c("0", "1"), direction = "<")
+pROC::auc(curva)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 1 x 3
+    MAE  RMSE   MAPE
+  <dbl> <dbl>  <dbl>
+1     6  6.60 0.0498
+        Real
+Predicho 1 0
+       1 3 1
+       0 1 5
+exactitud precision    recall        f1
+     0.80      0.75      0.75      0.75
+Area under the curve: 0.9583
+\end{rsalida}
+
+El pronóstico se equivoca en promedio 6 unidades (MAPE de 5\%). El
+clasificador acierta 8 de 10 casos, encuentra 3 de los 4 clientes que se
+fueron (recall 0.75) y su AUC de 0.96 indica que ordena muy bien a los
+clientes por riesgo.
+
+% ============================================================================
+\section{Shiny y R Markdown}
+\label{sec:ap-b-shiny}
+% ============================================================================
+
+\subsection{Shiny: entradas, salidas y reactividad}
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.8cm}
+                    >{\raggedright\arraybackslash}p{4.3cm}
+                    >{\raggedright\arraybackslash}p{7.7cm}@{}}
+\caption{Controles de entrada (\emph{inputs}) de Shiny.}
+\label{tab:ap-b-inputs}\\
+\toprule
+\textbf{Función} & \textbf{Control} & \textbf{Ejemplo} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Función} & \textbf{Control} & \textbf{Ejemplo} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\codigo{selectInput()} & Lista desplegable (una u varias opciones). & \codigo{selectInput("ciudad", "Ciudad", choices = ciudades, multiple = TRUE)} \\
+\codigo{sliderInput()} & Deslizador numérico o de rango. & \codigo{sliderInput("desc", "Descuento", min = 0, max = 20, value = c(0, 20))} \\
+\codigo{dateRangeInput()} & Rango de fechas. & \codigo{dateRangeInput("fechas", "Periodo", start = "2023-01-01", end = "2023-12-31")} \\
+\codigo{dateInput()} & Una fecha. & \codigo{dateInput("corte", "Fecha de corte")} \\
+\codigo{numericInput()} & Número. & \codigo{numericInput("meta", "Meta mensual", value = 40000)} \\
+\codigo{textInput()} & Texto libre. & \codigo{textInput("buscar", "Buscar producto")} \\
+\codigo{checkboxInput()} & Casilla sí/no. & \codigo{checkboxInput("premium", "Solo premium", FALSE)} \\
+\codigo{checkboxGroupInput()} & Varias casillas. & \codigo{checkboxGroupInput("pago", "Método", choices = metodos)} \\
+\codigo{radioButtons()} & Una opción entre varias. & \codigo{radioButtons("metrica", "Métrica", c("Ventas", "Tickets"))} \\
+\codigo{actionButton()} & Botón (dispara acciones). & \codigo{actionButton("actualizar", "Actualizar")} \\
+\codigo{fileInput()} & Subir un archivo. & \codigo{fileInput("archivo", "Sube tu CSV", accept = ".csv")} \\
+\end{longtable}
+\endgroup
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{4.4cm}
+                    >{\raggedright\arraybackslash}p{4.4cm}
+                    >{\raggedright\arraybackslash}p{7.0cm}@{}}
+\caption{Pares salida (en \codigo{ui}) $\leftrightarrow$ render (en \codigo{server}).}
+\label{tab:ap-b-outputs}\\
+\toprule
+\textbf{En la \codigo{ui}} & \textbf{En el \codigo{server}} & \textbf{Muestra} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{En la \codigo{ui}} & \textbf{En el \codigo{server}} & \textbf{Muestra} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\codigo{plotOutput("g")} & \codigo{output\$g <- renderPlot(\{...\})} & Gráfico de ggplot2 o base. \\
+\codigo{plotly::plotlyOutput("g")} & \codigo{renderPlotly(\{ggplotly(p)\})} & Gráfico interactivo. \\
+\codigo{tableOutput("t")} & \codigo{renderTable(\{...\})} & Tabla simple. \\
+\codigo{DT::DTOutput("t")} & \codigo{DT::renderDT(\{...\})} & Tabla con búsqueda, orden y paginación. \\
+\codigo{textOutput("x")} & \codigo{renderText(\{...\})} & Texto (un KPI, un mensaje). \\
+\codigo{verbatimTextOutput("x")} & \codigo{renderPrint(\{...\})} & Salida de consola (p. ej., \codigo{summary(modelo)}). \\
+\codigo{uiOutput("x")} & \codigo{renderUI(\{...\})} & Controles creados dinámicamente. \\
+\codigo{valueBoxOutput("x")} & \codigo{renderValueBox(\{valueBox(...)\})} & Tarjeta de KPI (\paquete{shinydashboard}). \\
+\codigo{downloadButton("d")} & \codigo{downloadHandler(filename, content)} & Botón para descargar CSV o Excel. \\
+\end{longtable}
+\endgroup
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{4.0cm}
+                    >{\raggedright\arraybackslash}p{5.6cm}
+                    >{\raggedright\arraybackslash}p{6.2cm}@{}}
+\caption{Funciones reactivas y de diseño de Shiny.}
+\label{tab:ap-b-reactivas}\\
+\toprule
+\textbf{Función} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Función} & \textbf{Qué hace} & \textbf{Ejemplo} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\codigo{reactive()} & Cálculo reutilizable que se actualiza solo cuando cambian sus entradas. Se usa como función: \codigo{datos()}. & \codigo{datos <- reactive(\{ventas \%>\% filter(ciudad \%in\% input\$ciudad)\})} \\
+\codigo{eventReactive()} & Como \codigo{reactive()}, pero solo se recalcula al pulsar un botón. & \codigo{eventReactive(input\$actualizar, \{...\})} \\
+\codigo{observeEvent()} & Ejecuta una acción (efecto) cuando ocurre un evento. & \codigo{observeEvent(input\$guardar, \{write\_csv(...)\})} \\
+\codigo{observe()} & Acción que se repite cuando cambian sus entradas. & \codigo{observe(\{print(input\$ciudad)\})} \\
+\codigo{reactiveVal()} & Valor que puedes modificar desde el server. & \codigo{contador <- reactiveVal(0)} \\
+\codigo{req()} & Detiene en silencio si falta una entrada. & \codigo{req(input\$archivo)} \\
+\codigo{validate(need())} & Muestra un mensaje amable en lugar de un error. & \codigo{validate(need(nrow(datos()) > 0, "Sin datos"))} \\
+\codigo{isolate()} & Lee una entrada sin reaccionar a ella. & \codigo{isolate(input\$meta)} \\
+\codigo{update*Input()} & Cambia opciones de un control. & \codigo{updateSelectInput(session, "tienda", choices = t)} \\
+\midrule
+\codigo{fluidPage()}, \codigo{sidebarLayout()} & Página con panel lateral de filtros y panel principal. & \codigo{sidebarLayout(sidebarPanel(...), mainPanel(...))} \\
+\codigo{fluidRow()}, \codigo{column()} & Rejilla de 12 columnas. & \codigo{fluidRow(column(4, ...), column(8, ...))} \\
+\codigo{tabsetPanel()}, \codigo{navbarPage()} & Pestañas / menú superior. & \codigo{tabsetPanel(tabPanel("Ventas", ...))} \\
+\codigo{dashboardPage()} & Estructura de \paquete{shinydashboard}. & \codigo{dashboardPage(dashboardHeader(), dashboardSidebar(), dashboardBody())} \\
+\codigo{box()}, \codigo{valueBox()}, \codigo{menuItem()} & Piezas de \paquete{shinydashboard}. & \codigo{box(plotOutput("g"), width = 8)} \\
+\end{longtable}
+\endgroup
+
+El esqueleto mínimo de una app (se ejecuta en RStudio con el botón
+\menu{Run App}):
+
+\begin{rnoejecutar}[title=Esqueleto de app Shiny]
+library(shiny)
+library(tidyverse)
+ventas <- read_csv("datasets/ventas_retail.csv", show_col_types = FALSE)
+
+ui <- fluidPage(
+  titlePanel("Ventas por tienda"),
+  sidebarLayout(
+    sidebarPanel(selectInput("tienda", "Tienda", sort(unique(ventas$tienda_id)))),
+    mainPanel(textOutput("kpi"), plotOutput("grafico"))
+  )
+)
+
+server <- function(input, output, session) {
+  datos <- reactive(filter(ventas, tienda_id == input$tienda))
+  output$kpi <- renderText(paste("Ventas:", scales::dollar(sum(datos()$total))))
+  output$grafico <- renderPlot(
+    ggplot(datos(), aes(fecha, total)) + geom_line(linewidth = 0.8)
+  )
+}
+
+shinyApp(ui, server)
+\end{rnoejecutar}
+
+\subsection{R Markdown: opciones de bloques y formatos}
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.8cm}
+                    >{\raggedright\arraybackslash}p{7.5cm}
+                    >{\raggedright\arraybackslash}p{4.5cm}@{}}
+\caption{Opciones de los bloques (\emph{chunks}) de código en R Markdown.}
+\label{tab:ap-b-chunks}\\
+\toprule
+\textbf{Opción} & \textbf{Qué hace} & \textbf{Uso típico} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Opción} & \textbf{Qué hace} & \textbf{Uso típico} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\codigo{echo = FALSE} & Oculta el código, muestra el resultado. & Reportes para directivos. \\
+\codigo{eval = FALSE} & Muestra el código sin ejecutarlo. & Ejemplos, código de referencia. \\
+\codigo{include = FALSE} & Ejecuta pero no muestra nada. & Bloque de carga de paquetes y datos. \\
+\codigo{message = FALSE}, \codigo{warning = FALSE} & Oculta mensajes y advertencias. & Evitar el ruido de \codigo{library()}. \\
+\codigo{error = TRUE} & Continúa aunque el bloque falle. & Material didáctico. \\
+\codigo{results = "hide"} / \codigo{"asis"} & Oculta la salida / la inserta como texto tal cual. & Tablas generadas como Markdown. \\
+\codigo{fig.width}, \codigo{fig.height} & Tamaño de la figura en pulgadas. & \codigo{fig.width = 8, fig.height = 4.5} \\
+\codigo{fig.cap}, \codigo{fig.align} & Pie y alineación de figura. & \codigo{fig.align = "center"} \\
+\codigo{out.width} & Ancho en el documento final. & \codigo{out.width = "100\%"} \\
+\codigo{dpi} & Resolución de la imagen. & \codigo{dpi = 300} para impresión. \\
+\codigo{cache = TRUE} & Guarda resultados para no recalcular. & Modelos lentos. \\
+\codigo{knitr::opts\_chunk\$set()} & Opciones por omisión para todo el documento. & \codigo{knitr::opts\_chunk\$set(echo = FALSE, message = FALSE)} \\
+\codigo{`r expresión`} & Código en línea dentro del texto. & ``Las ventas fueron de `r dollar(total)`''. \\
+\end{longtable}
+\endgroup
+
+Formatos de salida más comunes en el encabezado YAML:
+\codigo{html\_document} (interactivo, admite \codigo{toc}, \codigo{toc\_float},
+\codigo{code\_folding}), \codigo{pdf\_document} (requiere LaTeX, p. ej.
+\paquete{tinytex}), \codigo{word\_document} (editable por otras áreas),
+\codigo{powerpoint\_presentation}, \codigo{ioslides\_presentation} y
+\codigo{flexdashboard::flex\_dashboard} (tablero estático). Un reporte
+parametrizado se ve así:
+
+\begin{textocodigo}[title=Encabezado YAML de un reporte parametrizado]
+---
+title: "Reporte mensual de ventas"
+author: "Área de BI"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+params:
+  tienda: 3
+  mes: "2023-06"
+---
+\end{textocodigo}
+
+Dentro del documento usas \codigo{params\$tienda}, y para generar un reporte
+por tienda: \codigo{rmarkdown::render("reporte.Rmd", params = list(tienda =
+5), output\_file = "reporte\_t5.html")} dentro de un bucle.
+
+% ============================================================================
+\section{Errores frecuentes de R}
+\label{sec:ap-b-errores}
+% ============================================================================
+
+R muestra sus mensajes en el idioma de tu sistema. Los mensajes de R base
+suelen estar traducidos al español; los de \paquete{dplyr},
+\paquete{ggplot2} y otros paquetes del tidyverse casi siempre aparecen en
+inglés, a veces mezclados (por ejemplo, \texttt{Caused by error: !~objeto
+'b' no encontrado}). La tabla muestra el mensaje exacto en inglés y, debajo,
+en cursiva, la versión en español cuando R la traduce. Los nombres como
+\codigo{'x'} o \codigo{`b`} cambian según tu código.
+
+\begin{consejo}
+Para buscar un error en internet, conviene tenerlo en inglés (hay muchas
+más respuestas). Ejecuta \codigo{Sys.setenv(LANGUAGE = "en")} y vuelve a
+correr la línea: el mensaje saldrá en inglés. Busca la parte del mensaje que
+no depende de tus nombres de variables. En la consola, después de un error
+del tidyverse, \codigo{rlang::last\_trace()} muestra dónde ocurrió.
+\end{consejo}
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.2}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{6.0cm}
+                    >{\raggedright\arraybackslash}p{4.4cm}
+                    >{\raggedright\arraybackslash}p{5.4cm}@{}}
+\caption{Errores y advertencias más frecuentes: mensaje, causa y solución.}
+\label{tab:ap-b-errores}\\
+\toprule
+\textbf{Mensaje (inglés / \emph{español})} & \textbf{Causa típica} & \textbf{Solución} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Mensaje (inglés / \emph{español})} & \textbf{Causa típica} & \textbf{Solución} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\multicolumn{3}{@{}l}{\textbf{\color{secundario}Objetos, funciones y paquetes}} \\
+\texttt{object 'total\_ventas' not found} \newline \emph{\texttt{objeto 'total\_ventas' no encontrado}} & Error de escritura (mayúsculas, acentos), objeto aún no creado, o \codigo{filter()} de \paquete{stats} porque no cargaste dplyr. & Revisa el nombre con \codigo{ls()} o \codigo{names(df)}; ejecuta el script desde el inicio; carga los paquetes. \\
+\texttt{could not find function "\%>\%"} \newline \emph{\texttt{no se pudo encontrar la función "\%>\%"}} & No cargaste el paquete (aquí dplyr o tidyverse), o escribiste mal la función (\codigo{librery}). & \codigo{library(tidyverse)} al inicio del script; revisa la ortografía. \\
+\texttt{there is no package called \textquoteleft paquete\textquoteright} & El paquete no está instalado (o está mal escrito). & \codigo{install.packages("paquete")} una vez; después \codigo{library(paquete)}. \\
+\texttt{unused argument (digitos = 2)} & Nombre de argumento inexistente. & Consulta \codigo{?round}: el argumento se llama \codigo{digits}. \\
+\texttt{argument "x" is missing, with no default} \newline \emph{\texttt{el argumento "x" está ausente, sin valor por omisión}} & Llamaste a una función sin un argumento obligatorio. & Pásale el argumento o define un valor por omisión: \codigo{function(x = 0)}. \\
+\texttt{object of type 'closure' is not subsettable} \newline \emph{\texttt{objeto de tipo 'closure' no es subconjunto}} & Usaste \codigo{\$} o \codigo{[]} sobre una función: p. ej., \codigo{df\$total} cuando \codigo{df} no existe (y R encuentra la función \codigo{df()}). & Crea o carga el data frame antes; evita nombres de funciones (\codigo{df}, \codigo{data}, \codigo{c}). \\
+\texttt{no applicable method for 'mutate' applied to an object of class "character"} & Le pasaste texto (p. ej., el nombre del archivo) en lugar del data frame. & Primero lee los datos: \codigo{ventas <- read\_csv(...)} y luego \codigo{mutate(ventas, ...)}. \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\color{secundario}Sintaxis}} \\
+\texttt{unexpected symbol in "ventas total"} \newline \emph{\texttt{unexpected symbol en "ventas total"}} & Falta una coma, un operador o unas comillas entre dos nombres. & Revisa la línea señalada: \codigo{ventas\$total}, \codigo{c(a, b)}\ldots \\
+\texttt{unexpected ')' in "sum(1, 2))"} \newline \emph{\texttt{inesperado ')' en "sum(1, 2))"}} & Paréntesis (o llaves) de más o de menos. & RStudio resalta la pareja de cada paréntesis; usa \tecla{Ctrl}+\tecla{I} para reindentar y verlo. \\
+\texttt{unexpected end of input} & Falta cerrar un paréntesis, llave o comilla. & Busca el \codigo{(}, \codigo{\{} o \codigo{"} sin cerrar. Si la consola muestra \codigo{+}, pulsa \tecla{Esc}. \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\color{secundario}Tipos de datos}} \\
+\texttt{non-numeric argument to binary operator} \newline \emph{\texttt{argumento no-numérico para operador binario}} & Operación aritmética con texto: la columna se leyó como \codigo{character} (por \codigo{"\$1,250"} o comas). & \codigo{parse\_number()} o \codigo{as.numeric()}; revisa con \codigo{glimpse()}. \\
+\texttt{invalid 'type' (character) of argument} \newline \emph{\texttt{'type' (character) de argumento no válido}} & \codigo{sum()} sobre texto. & Convierte la columna a número. \\
+\texttt{argument is not numeric or logical: returning NA} (advertencia) & \codigo{mean()} sobre texto. & Igual que el anterior. \\
+\texttt{NAs introduced by coercion} (advertencia) \newline \emph{\texttt{NAs introducidos por coerción}} & \codigo{as.numeric()} encontró valores que no son números (\codigo{"diez"}, \codigo{"N/D"}). & Localízalos: \codigo{x[is.na(as.numeric(x))]}; límpialos o usa \codigo{parse\_number()}. \\
+\texttt{longer object length is not a multiple of shorter object length} (advertencia) \newline \emph{\texttt{longitud de objeto mayor no es múltiplo de la longitud de uno menor}} & Operaste vectores de distinta longitud: R ``recicla'' el corto. & Verifica \codigo{length()} de ambos; suele indicar un error de lógica. \\
+\texttt{Can't combine `..1\$x` <double> and `..2\$x` <character>.} & \codigo{bind\_rows()}, \codigo{case\_when()} o \codigo{if\_else()} con tipos distintos. & Iguala tipos: \codigo{as.character()}, o usa \codigo{NA\_character\_} en lugar de \codigo{NA}. \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\color{secundario}Condiciones e indexación}} \\
+\texttt{missing value where TRUE/FALSE needed} \newline \emph{\texttt{valor ausente donde TRUE/FALSE es necesario}} & El \codigo{if} recibió un \codigo{NA}. & Protege con \codigo{if (!is.na(x) \&\& x > 5)}. \\
+\texttt{the condition has length > 1} & \codigo{if} con un vector (desde R 4.2 es error). & Para columnas usa \codigo{if\_else()} o \codigo{case\_when()}; para un valor, \codigo{any()} o \codigo{all()}. \\
+\texttt{argument is of length zero} \newline \emph{\texttt{argumento tiene longitud cero}} & El \codigo{if} recibió un vector vacío (p. ej., un filtro sin resultados). & Comprueba \codigo{length(x) > 0} antes. \\
+\texttt{subscript out of bounds} \newline \emph{\texttt{subíndice fuera de los límites}} & Pediste un elemento que no existe (\codigo{lista[[5]]} con 3 elementos). & Revisa \codigo{length()} o \codigo{names()}. \\
+\texttt{\$ operator is invalid for atomic vectors} & Usaste \codigo{\$} sobre un vector. & Usa \codigo{x["nombre"]}, o verifica que el objeto sea un data frame. \\
+\texttt{undefined columns selected} & \codigo{df[, "col"]} con un nombre que no existe. & Revisa \codigo{names(df)}. \\
+\texttt{arguments imply differing number of rows: 3, 2} & \codigo{data.frame()} con columnas de distinta longitud. & Todas las columnas deben medir lo mismo. \\
+\texttt{replacement has 2 rows, data has 3} & Asignaste a una columna un vector de longitud distinta. & Calcula la columna sobre el mismo data frame (con \codigo{mutate()}). \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\color{secundario}dplyr y tidyr}} \\
+\texttt{Can't subset columns that don't exist.} \newline \texttt{x Column `b` doesn't exist.} & \codigo{select()} con un nombre mal escrito. & \codigo{names(df)}; cuidado con acentos y mayúsculas. \\
+\texttt{In argument: `c = b * 2`.} \newline \texttt{Caused by error: ! object 'b' not found} & \codigo{mutate()} usa una columna inexistente o que se creó en otro paso sin guardar. & Revisa el nombre y que asignaste el resultado previo con \codigo{<-}. \\
+\texttt{We detected a named input.} \newline \texttt{This usually means that you've used `=` instead of `==`.} & \codigo{filter(tienda\_id = 3)}. & Usa \codigo{==} para comparar: \codigo{filter(tienda\_id == 3)}. \\
+\texttt{`b` must be size 3 or 1, not 2.} & En \codigo{mutate()} creaste una columna con una longitud distinta a la del data frame. & Usa un valor único o un vector del mismo largo. \\
+\texttt{`n` must be a vector, not a function.} & Escribiste \codigo{n} en lugar de \codigo{n()}. & \codigo{summarise(n = n())}. \\
+\texttt{Must only be used inside data-masking verbs like `mutate()`, `filter()`, and `group\_by()`.} & Usaste \codigo{n()} fuera de un verbo de dplyr. & Úsalo dentro de \codigo{summarise()} o \codigo{mutate()}. \\
+\texttt{`summarise()` has grouped output by 'a'. You can override using the `.groups` argument.} (mensaje) & Agrupaste por dos o más columnas: el resultado sigue agrupado. & Añade \codigo{.groups = "drop"}. \\
+\texttt{Can't join `x\$id` with `y\$id` due to incompatible types.} & La llave es número en una tabla y texto en la otra. & Convierte antes: \codigo{mutate(id = as.character(id))}. \\
+\texttt{Join columns in `y` must be present in the data.} & La columna del \codigo{by} no existe en la tabla derecha. & Usa \codigo{by = c("id\_tienda" = "tienda\_id")}. \\
+\texttt{Detected an unexpected many-to-many relationship between `x` and `y`.} (advertencia) & Llaves repetidas en ambas tablas: se duplican filas. & Revisa duplicados con \codigo{count(tabla, llave) \%>\% filter(n > 1)}. \\
+\texttt{Values from `v` are not uniquely identified; output will contain list-cols.} (advertencia) & \codigo{pivot\_wider()} con varias filas por celda. & Resume antes o usa \codigo{values\_fn = sum}. \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\color{secundario}ggplot2}} \\
+\texttt{`mapping` must be created by `aes()`} \newline \texttt{Did you use `\%>\%` or `|>` instead of `+`?} & Uniste capas con el pipe. & Las capas se unen con \codigo{+}. \\
+\texttt{Cannot use `+` with a single argument} \newline \texttt{Did you accidentally put `+` on a new line?} & El \codigo{+} quedó al inicio de la línea siguiente. & Deja el \codigo{+} al \emph{final} de cada línea. \\
+\texttt{`stat\_count()` must only have an x or y aesthetic.} & \codigo{geom\_bar()} con \codigo{y}. & Con valores ya calculados usa \codigo{geom\_col()}. \\
+\texttt{Discrete value supplied to a continuous scale} & Escala continua para una variable de texto o factor. & Usa \codigo{scale\_x\_discrete()} o convierte la variable. \\
+\texttt{Aesthetics must be either length 1 or the same as the data (3)} & En \codigo{aes()} pusiste un vector externo de otra longitud. & Mapea columnas del data frame, no vectores sueltos. \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\color{secundario}Archivos, fechas y modelos}} \\
+\texttt{'ventas.csv' does not exist in current working directory ('...').} & \codigo{read\_csv()} no encuentra el archivo: ruta o carpeta de trabajo incorrecta. & Abre el proyecto \archivo{.Rproj}; revisa \codigo{getwd()} y \codigo{list.files()}. \\
+\texttt{cannot open the connection} + \texttt{cannot open file 'ventas.csv': No such file or directory} \newline \emph{\texttt{no se puede abrir la conexión}} + \emph{\texttt{no fue posible abrir el archivo}} & Lo mismo con \codigo{read.csv()} o \codigo{readRDS()}. & Igual que el anterior. \\
+\texttt{Sheet 'Ventas2024' not found} & Nombre de hoja de Excel incorrecto. & \codigo{readxl::excel\_sheets("archivo.xlsx")}. \\
+\texttt{cannot change working directory} \newline \emph{\texttt{no es posible cambiar el directorio de trabajo}} & \codigo{setwd()} a una carpeta que no existe (o con \codigo{\textbackslash{}} en Windows). & Usa \codigo{/} en las rutas, o mejor, proyectos de RStudio. \\
+\texttt{All formats failed to parse. No formats found.} (advertencia) & \codigo{ymd()} recibió fechas en otro orden o inválidas. & Usa la función del orden correcto (\codigo{dmy()}, \codigo{mdy()}). \\
+\texttt{factor factor(cyl) has new level 5} & \codigo{predict()} con una categoría que el modelo no vio. & Agrupa categorías raras o reentrena con todas. \\
+\texttt{missing values in object} & \codigo{randomForest()} (y otros) no aceptan NA. & \codigo{drop\_na()} o imputa antes de entrenar. \\
+\end{longtable}
+\endgroup
+
+% ============================================================================
+\section{Glosario de BI y analítica}
+\label{sec:ap-b-glosario}
+% ============================================================================
+
+\begin{description}[style=nextline, leftmargin=1.2em, itemsep=0.35em]
+\item[API (\emph{Application Programming Interface})] Puerta de acceso
+  para que un programa pida datos a otro sistema (por ejemplo, un CRM o una
+  tienda en línea), casi siempre en formato JSON.
+\item[Churn (tasa de abandono)] Porcentaje de clientes que dejan de comprar
+  o cancelan en un periodo. Es el complemento de la retención.
+\item[Clave foránea] Columna que apunta a la clave primaria de otra tabla
+  (\codigo{tienda\_id} en ventas apunta a la tabla de tiendas). Es la base
+  de los \emph{joins}.
+\item[Clave primaria] Columna (o combinación) que identifica de forma única
+  cada fila de una tabla, como \codigo{cliente\_id}.
+\item[CLV / LTV (\emph{Customer Lifetime Value})] Valor (ingreso o margen)
+  que se espera obtener de un cliente durante toda su relación con la
+  empresa. Sirve para decidir cuánto invertir en adquirirlo o retenerlo.
+\item[Cohorte] Grupo de clientes que comparten un evento inicial en el
+  mismo periodo (p. ej., ``clientes registrados en enero''). El análisis de
+  cohortes sigue su comportamiento en el tiempo.
+\item[Confianza] En reglas de asociación, probabilidad de comprar B dado
+  que se compró A: $P(B \mid A)$.
+\item[Conjunto de entrenamiento y de prueba] Partición de los datos: el
+  modelo aprende con el primero y se evalúa con el segundo, que no ha
+  visto.
+\item[Cross-selling (venta cruzada)] Ofrecer productos complementarios a lo
+  que el cliente ya compra (funda para el celular).
+\item[Dashboard (tablero)] Pantalla que reúne los KPIs clave en gráficos y
+  tablas para monitorear el negocio de un vistazo.
+\item[Data lake (lago de datos)] Repositorio que guarda grandes volúmenes
+  de datos en su formato original (estructurados o no) para procesarlos
+  después.
+\item[Data mart] Subconjunto de un data warehouse orientado a un área
+  (ventas, finanzas, RR.\,HH.).
+\item[Data warehouse (almacén de datos)] Base de datos central, integrada e
+  histórica, diseñada para análisis y reportes, no para operar el día a
+  día.
+\item[Dimensión] Tabla con atributos descriptivos para analizar los hechos:
+  tiempo, producto, tienda, cliente.
+\item[Drill-down / roll-up] Pasar de un nivel agregado a uno más detallado
+  (año $\rightarrow$ mes $\rightarrow$ día) o al revés.
+\item[ELT] \emph{Extract, Load, Transform}: primero se cargan los datos
+  crudos en el almacén y ahí se transforman. Común en plataformas en la
+  nube.
+\item[Esquema estrella] Modelo de data warehouse con una tabla de hechos en
+  el centro unida a varias tablas de dimensiones.
+\item[Estacionalidad] Patrón que se repite en periodos fijos (diciembre
+  alto, enero bajo; fines de semana).
+\item[ETL] \emph{Extract, Transform, Load}: extraer datos de las fuentes,
+  limpiarlos y transformarlos, y cargarlos en el destino. Con R: leer,
+  \paquete{dplyr}, escribir.
+\item[Feature (variable predictora)] Columna que el modelo usa como entrada
+  para predecir (antigüedad, número de compras, ticket promedio).
+\item[Forecast (pronóstico)] Estimación de valores futuros de una serie
+  (ventas, demanda), idealmente con un intervalo de incertidumbre.
+\item[Granularidad] Nivel de detalle de una tabla: una fila por
+  transacción, por día o por tienda-mes. Antes de unir o sumar, confirma
+  la granularidad.
+\item[Intervalo de confianza] Rango de valores plausibles para un
+  parámetro (p. ej., ticket promedio entre \$1,300 y \$1,500 con 95\% de
+  confianza).
+\item[Join (unión)] Combinar dos tablas usando columnas llave comunes.
+\item[KPI (\emph{Key Performance Indicator})] Indicador clave de desempeño:
+  métrica ligada a un objetivo del negocio, con meta y responsable.
+\item[Lift] En reglas de asociación, cuántas veces más probable es comprar
+  B cuando se compra A que en general (lift $>$ 1 = asociación positiva).
+  En modelos, cuánto mejor que el azar concentra a los positivos.
+\item[Margen bruto] Ingresos menos costo de lo vendido, a menudo expresado
+  como porcentaje de los ingresos.
+\item[Matriz de confusión] Tabla que cruza clases reales y predichas;
+  de ella salen exactitud, precisión y recall.
+\item[OLAP] \emph{Online Analytical Processing}: sistemas y consultas para
+  analizar datos agregados desde varias dimensiones (cubos, tablas
+  dinámicas).
+\item[OLTP] \emph{Online Transaction Processing}: sistemas que registran
+  operaciones del día a día (punto de venta, ERP). Optimizados para
+  escribir, no para analizar.
+\item[Outlier (valor atípico)] Observación muy alejada del resto; puede ser
+  un error de captura o un caso real importante.
+\item[Overfitting (sobreajuste)] Cuando un modelo memoriza los datos de
+  entrenamiento y falla con datos nuevos.
+\item[p-valor] Probabilidad de observar un resultado tan extremo como el
+  obtenido si no hubiera efecto real. Valores pequeños ($<$ 0.05) indican
+  evidencia contra la hipótesis nula.
+\item[Pipeline] Cadena de pasos automatizados (extraer, limpiar, modelar,
+  reportar). En R, también la cadena de funciones unidas con
+  \codigo{\%>\%}.
+\item[Prueba A/B] Experimento que compara dos versiones (de un correo, una
+  página, un precio) asignadas al azar para medir cuál funciona mejor.
+\item[Reproducibilidad] Capacidad de obtener los mismos resultados al
+  volver a ejecutar el análisis: scripts en lugar de clics, semillas
+  (\codigo{set.seed()}), datos y versiones documentados.
+\item[Retención] Porcentaje de clientes que siguen comprando de un periodo
+  al siguiente.
+\item[RFM] Segmentación por \emph{Recency} (hace cuánto compró),
+  \emph{Frequency} (cuántas veces) y \emph{Monetary} (cuánto gastó).
+\item[Segmentación] División de clientes (o productos) en grupos
+  homogéneos para tratarlos de forma diferenciada.
+\item[Serie de tiempo] Secuencia de valores medidos a intervalos regulares
+  (ventas diarias, mensuales).
+\item[Soporte] En reglas de asociación, proporción de tickets que contienen
+  un conjunto de productos.
+\item[SQL] \emph{Structured Query Language}: lenguaje estándar para
+  consultar y administrar bases de datos relacionales.
+\item[Tabla de hechos] Tabla central de un esquema estrella con los eventos
+  medibles (ventas, unidades, montos) y las llaves a las dimensiones.
+\item[Tasa de conversión] Proporción de visitantes o prospectos que
+  realizan la acción deseada (comprar, registrarse).
+\item[Ticket promedio] Monto promedio por transacción: ventas totales entre
+  número de tickets.
+\item[Tidy data (datos ordenados)] Formato en el que cada variable es una
+  columna, cada observación una fila y cada valor una celda. Es el formato
+  que esperan dplyr y ggplot2.
+\item[Up-selling] Ofrecer una versión superior o más cara de lo que el
+  cliente piensa comprar.
+\item[Validación cruzada] Técnica que divide los datos en $k$ partes,
+  entrena $k$ veces dejando una parte fuera para evaluar, y promedia el
+  desempeño. Da una estimación más estable que una sola partición.
+\item[Variable objetivo] Lo que el modelo quiere predecir (churn sí/no,
+  ventas del mes). También se llama variable respuesta o dependiente.
+\end{description}
+
+% ============================================================================
+\section{Recursos para seguir aprendiendo}
+\label{sec:ap-b-recursos}
+% ============================================================================
+
+Todos los recursos de esta lista son gratuitos en línea, salvo que se
+indique lo contrario.
+
+\begingroup
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{5.0cm}
+                    >{\raggedright\arraybackslash}p{5.3cm}
+                    >{\raggedright\arraybackslash}p{5.5cm}@{}}
+\caption{Libros, documentación y comunidades recomendados.}
+\label{tab:ap-b-recursos}\\
+\toprule
+\textbf{Recurso} & \textbf{Para qué} & \textbf{Dirección} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Recurso} & \textbf{Para qué} & \textbf{Dirección} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\multicolumn{3}{@{}l}{\textbf{\color{secundario}Libros}} \\
+\emph{R for Data Science} (2.ª ed.), H. Wickham, M. Çetinkaya-Rundel y G. Grolemund & La referencia del tidyverse: importar, transformar, visualizar, comunicar. & \url{https://r4ds.hadley.nz} \\
+\emph{R para Ciencia de Datos} (traducción) & Versión en español del libro anterior. & \url{https://es.r4ds.hadley.nz} \\
+\emph{R Graphics Cookbook}, W. Chang & Recetas para resolver cualquier gráfico con ggplot2. & \url{https://r-graphics.org} \\
+\emph{ggplot2: Elegant Graphics for Data Analysis}, H. Wickham & La gramática de gráficos a fondo. & \url{https://ggplot2-book.org} \\
+\emph{Mastering Shiny}, H. Wickham & Aplicaciones Shiny, de lo básico a producción. & \url{https://mastering-shiny.org} \\
+\emph{Forecasting: Principles and Practice}, R. J. Hyndman y G. Athanasopoulos & Pronósticos: 3.ª ed. con \paquete{fable}; 2.ª ed. con \paquete{forecast} (el paquete del curso). & \url{https://otexts.com/fpp3} \newline \url{https://otexts.com/fpp2} \\
+\emph{Tidy Modeling with R}, M. Kuhn y J. Silge & Machine learning moderno con \paquete{tidymodels}. & \url{https://www.tmwr.org} \\
+\emph{R Markdown: The Definitive Guide}, Y. Xie y otros & Reportes, documentos y presentaciones con R Markdown. & \url{https://bookdown.org/yihui/rmarkdown} \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\color{secundario}Documentación y chuletas}} \\
+Cheatsheets de Posit & Hojas de referencia de dplyr, ggplot2, tidyr, lubridate, Shiny, R Markdown\ldots (varias traducidas al español). & \url{https://posit.co/resources/cheatsheets/} \\
+Sitio del tidyverse & Documentación y ejemplos de cada paquete. & \url{https://www.tidyverse.org} \\
+Referencia de dplyr y ggplot2 & Todas las funciones con ejemplos. & \url{https://dplyr.tidyverse.org} \newline \url{https://ggplot2.tidyverse.org} \\
+Quarto & Sucesor de R Markdown para documentos y sitios. & \url{https://quarto.org} \\
+CRAN Task Views & Paquetes organizados por tema (series de tiempo, ML\ldots). & \url{https://cran.r-project.org/web/views/} \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{\color{secundario}Comunidades}} \\
+R-Ladies & Organización mundial que promueve la diversidad en R; hay capítulos en muchas ciudades de habla hispana. & \url{https://rladies.org} \\
+Comunidad R Hispano & Asociación de usuarios de R en español. & \url{https://r-es.org} \\
+LatinR & Conferencia latinoamericana de R. & \url{https://latin-r.com} \\
+Stack Overflow en español & Preguntas y respuestas de programación en español. & \url{https://es.stackoverflow.com} \\
+Stack Overflow (etiqueta R) & La mayor base de preguntas resueltas sobre R (en inglés). & \url{https://stackoverflow.com/questions/tagged/r} \\
+Posit Community & Foro oficial de RStudio / Posit. & \url{https://forum.posit.co} \\
+\end{longtable}
+\endgroup
+
+\begin{negocio}{Rutas de carrera en BI y analítica}
+Lo que aprendiste en este libro es la base de varios puestos, que suelen
+recorrerse en este orden (aunque no hay un único camino):
+\begin{itemize}
+\item \textbf{Analista de datos / analista de BI}: SQL, Excel, una
+  herramienta de visualización y un lenguaje como R; construye reportes y
+  dashboards y responde preguntas del negocio.
+\item \textbf{Ingeniero de analítica o de datos}: automatiza la extracción
+  y transformación de datos (ETL/ELT), modela el data warehouse y cuida la
+  calidad de los datos.
+\item \textbf{Científico de datos}: estadística y machine learning para
+  pronosticar, segmentar y optimizar decisiones.
+\item \textbf{Líder o gerente de analítica}: define KPIs, prioriza
+  proyectos y traduce los hallazgos en decisiones.
+\end{itemize}
+En cuanto a certificaciones, existen tres familias útiles: las de
+\emph{proveedores de herramientas de BI} (por ejemplo, Microsoft Power BI
+o Tableau), las de \emph{plataformas de datos en la nube} (AWS, Google
+Cloud, Microsoft Azure) y los programas de análisis de datos y ciencia de
+datos de universidades y plataformas de cursos en línea. Consulta el sitio
+oficial de cada proveedor para conocer requisitos y contenidos vigentes.
+Aun así, lo que más pesa en una entrevista suele ser un
+\textbf{portafolio}: publica en GitHub proyectos como el del
+Módulo~\ref{cap:proyecto}, con código limpio, un reporte en R Markdown y un
+dashboard en Shiny.
+\end{negocio}
+
+\begin{consejo}
+La mejor manera de no olvidar lo aprendido es usarlo cada semana: toma un
+reporte que hoy haces a mano en Excel y automatízalo con un script de R.
+Cuando funcione, conviértelo en un R Markdown parametrizado. Cuando lo pidan
+otras áreas, conviértelo en un dashboard. Esta referencia rápida estará aquí
+cada vez que necesites recordar un detalle.
+\end{consejo}

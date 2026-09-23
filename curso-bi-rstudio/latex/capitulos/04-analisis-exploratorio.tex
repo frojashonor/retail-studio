@@ -1595,7 +1595,7 @@ lógica con detalle).
 cor.test(perfil_clientes$edad, perfil_clientes$gasto)
 \end{rcode}
 \begin{rsalida}
-	Pearson's product-moment correlation
+        Pearson's product-moment correlation
 
 data:  perfil_clientes$edad and perfil_clientes$gasto
 t = -1.0311, df = 196, p-value = 0.3038
@@ -2204,7 +2204,7 @@ prueba_premium <- t.test(total_transaccion ~ es_premium,
 prueba_premium
 \end{rcode}
 \begin{rsalida}
-	Welch Two Sample t-test
+        Welch Two Sample t-test
 
 data:  total_transaccion by es_premium
 t = -0.52255, df = 741.31, p-value = 0.6014
@@ -2312,8 +2312,8 @@ prueba_ab <- prop.test(x = resumen_ab$conversiones,
 prueba_ab
 \end{rcode}
 \begin{rsalida}
-	2-sample test for equality of proportions with continuity
-	correction
+        2-sample test for equality of proportions with continuity
+        correction
 
 data:  resumen_ab$conversiones out of resumen_ab$enviados
 X-squared = 3.602, df = 1, p-value = 0.05771
@@ -2365,8 +2365,8 @@ resumen_4000 <- campana_4000 %>%
 prop.test(x = resumen_4000$conversiones, n = resumen_4000$enviados)
 \end{rcode}
 \begin{rsalida}
-	2-sample test for equality of proportions with continuity
-	correction
+        2-sample test for equality of proportions with continuity
+        correction
 
 data:  resumen_4000$conversiones out of resumen_4000$enviados
 X-squared = 5.0351, df = 1, p-value = 0.02484
@@ -2566,7 +2566,7 @@ prueba_chi
 round(prueba_chi$expected[, 1:5], 1)   # conteos esperados (5 tiendas)
 \end{rcode}
 \begin{rsalida}
-	Pearson's Chi-squared test
+        Pearson's Chi-squared test
 
 data:  tabla_pago
 X-squared = 28.953, df = 27, p-value = 0.3632
@@ -2631,3 +2631,1005 @@ Usa \codigo{t.test()} para comparar el ticket de clientes hombres y mujeres
 significativo? ¿Cuál es la diferencia en pesos? Guarda tu respuesta: la
 retomaremos en la sección de errores comunes.
 \end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Regresión lineal}
+\label{sec:m4-regresion}
+
+La correlación dice \emph{si} dos variables se mueven juntas; la
+\termino{regresión lineal} dice \emph{cuánto}: ``por cada mil pesos extra en
+publicidad, las ventas suben en promedio tantos miles''. Además permite
+predecir y, con varias variables, separar el efecto de cada una.
+
+\subsection{Regresión lineal simple}
+
+La regresión simple ajusta la línea recta que mejor pasa por una nube de
+puntos:
+\[
+  \text{ventas} = \beta_0 + \beta_1 \times \text{publicidad} + \varepsilon
+\]
+\begin{itemize}
+  \item $\beta_0$ (\termino{intercepto}): las ventas esperadas con
+        publicidad cero.
+  \item $\beta_1$ (\termino{pendiente}): cuánto cambian las ventas por cada
+        unidad adicional de publicidad.
+  \item $\varepsilon$ (\termino{error} o residuo): todo lo que la línea no
+        explica.
+\end{itemize}
+R elige $\beta_0$ y $\beta_1$ con el método de \termino{mínimos cuadrados}:
+la línea que hace más pequeña la suma de los errores al cuadrado.
+
+\begin{ejemplo}{¿Cuánto vende cada peso de publicidad?}
+La directora preguntó: ``si invertimos más en publicidad local, ¿cuánto
+deberíamos esperar vender?''. Nuestros datos del curso no tienen inversión
+publicitaria, así que \textbf{simulamos} 60 sucursales de una cadena con una
+relación conocida: ventas mensuales (miles de pesos) $= 120 + 3.5 \times$
+publicidad (miles de pesos) $+ 0.25 \times$ tamaño (m$^2$) $+$ ruido
+aleatorio. Así podremos comprobar si la regresión ``descubre'' los
+verdaderos coeficientes.
+\end{ejemplo}
+
+\begin{rcode}
+set.seed(123)
+sucursales <- tibble(
+  publicidad = round(runif(60, min = 5, max = 50), 1),   # miles de $
+  tamano_m2  = round(runif(60, min = 300, max = 800))    # m2
+) %>%
+  mutate(ventas = round(120 + 3.5 * publicidad + 0.25 * tamano_m2 +
+                          rnorm(60, sd = 30), 1))        # miles de $
+
+head(sucursales, 4)
+cor(sucursales$publicidad, sucursales$ventas)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 3
+  publicidad tamano_m2 ventas
+       <dbl>     <dbl>  <dbl>
+1       17.9       633   352.
+2       40.5       347   333.
+3       23.4       492   315.
+4       44.7       437   355.
+[1] 0.7253112
+\end{rsalida}
+
+La función \codigo{lm()} (\emph{linear model}) ajusta la regresión. Se
+escribe con una fórmula: la variable a explicar, una tilde
+(\codigo{\textasciitilde{}}) y la variable explicativa.
+
+\begin{rcode}
+modelo_simple <- lm(ventas ~ publicidad, data = sucursales)
+summary(modelo_simple)
+\end{rcode}
+\begin{rsalida}
+Call:
+lm(formula = ventas ~ publicidad, data = sucursales)
+
+Residuals:
+     Min       1Q   Median       3Q      Max
+-102.991  -26.073   -8.259   36.544  101.151
+
+Coefficients:
+            Estimate Std. Error t value Pr(>|t|)
+(Intercept) 261.4845    12.9860  20.136  < 2e-16 ***
+publicidad    3.3904     0.4225   8.024 5.59e-11 ***
+---
+...
+
+Residual standard error: 43.23 on 58 degrees of freedom
+Multiple R-squared:  0.5261,    Adjusted R-squared:  0.5179
+F-statistic: 64.38 on 1 and 58 DF,  p-value: 5.586e-11
+\end{rsalida}
+
+\begin{concepto}{Cómo leer \texttt{summary()} de una regresión}
+\begin{itemize}
+  \item \codigo{Residuals}: resumen de los errores (real menos predicho). La
+        mediana cercana a cero y un mínimo y máximo parecidos en tamaño son
+        buena señal.
+  \item \codigo{Coefficients}, columna \codigo{Estimate}: el intercepto es
+        261.5 y la pendiente de \codigo{publicidad} es 3.39. Traducción:
+        \textbf{por cada mil pesos adicionales en publicidad, las ventas
+        mensuales suben en promedio 3.39 mil pesos}. El verdadero valor
+        simulado era 3.5: la regresión se acercó bastante.
+  \item \codigo{Std. Error}: la incertidumbre de cada coeficiente. Un IC
+        aproximado del 95\% es el coeficiente $\pm$ 2 errores estándar:
+        $3.39 \pm 2 \times 0.42$, es decir, de 2.5 a 4.2.
+  \item \codigo{t value} y \codigo{Pr(>|t|)}: prueba de hipótesis de que el
+        coeficiente es cero ($H_0$: ``la publicidad no tiene relación con las
+        ventas''). Un p-valor de \codigo{5.59e-11} ($0.0000000000559$) es
+        prácticamente cero: la relación es clarísima.
+  \item \codigo{Residual standard error}: 43.23. Las predicciones se
+        equivocan típicamente por unos 43 mil pesos.
+  \item \codigo{Multiple R-squared}: 0.526. El \termino{coeficiente de
+        determinación} ($R^2$) indica que la publicidad explica el 52.6\% de
+        las diferencias de ventas entre sucursales. El resto se debe a otras
+        cosas (el tamaño, el azar\ldots). \codigo{Adjusted R-squared}
+        corrige el $R^2$ por el número de variables; úsalo para comparar
+        modelos con distinto número de variables.
+  \item \codigo{F-statistic} y su \codigo{p-value}: prueba si el modelo en
+        conjunto explica algo. Aquí sí.
+  \item Las estrellas (\codigo{***}) marcan los p-valores muy pequeños; la
+        línea \codigo{Signif. codes} con su leyenda la recortamos.
+\end{itemize}
+\end{concepto}
+
+Para usar los coeficientes en otros cálculos, extráelos con
+\codigo{coef()} y obtén sus intervalos de confianza con \codigo{confint()}:
+
+\begin{rcode}
+coef(modelo_simple)
+confint(modelo_simple)
+\end{rcode}
+\begin{rsalida}
+(Intercept)  publicidad
+ 261.484542    3.390407
+                 2.5 %     97.5 %
+(Intercept) 235.490330 287.478754
+publicidad    2.544602   4.236212
+\end{rsalida}
+
+\begin{rcode}
+p_regresion <- ggplot(sucursales, aes(x = publicidad, y = ventas)) +
+  geom_point(color = color_principal, size = 2, alpha = 0.8) +
+  # recta de regresión con su banda de confianza del 95%
+  geom_smooth(method = "lm", formula = y ~ x, color = color_resalte,
+              fill = color_resalte, alpha = 0.15, linewidth = 0.9) +
+  annotate("text", x = 6, y = 480, hjust = 0, size = 3.5,
+           label = "ventas = 261.5 + 3.39 × publicidad\nR² = 0.53") +
+  scale_x_continuous(labels = label_dollar(suffix = "k")) +
+  scale_y_continuous(labels = label_dollar(suffix = "k")) +
+  labs(title = "Publicidad mensual vs ventas por sucursal (datos simulados)",
+       subtitle = "Cada punto es una sucursal; banda = IC 95% de la recta",
+       x = "Inversión en publicidad (miles)",
+       y = "Ventas mensuales (miles)") +
+  tema_libro()
+
+p_regresion
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m04-regresion}
+\caption{Recta de regresión de ventas sobre publicidad. La pendiente indica
+cuánto suben las ventas por cada mil pesos de publicidad.}
+\label{fig:m04-regresion}
+\end{figure}
+
+\subsection{Predecir con \texorpdfstring{\codigo{predict()}}{predict()}}
+
+Con el modelo podemos responder la pregunta de la directora. ¿Cuánto
+esperamos vender en una sucursal que invierta 30 o 40 mil pesos al mes?
+
+\begin{rcode}
+nuevas <- tibble(publicidad = c(30, 40))
+
+# Intervalo de confianza: para las ventas PROMEDIO de muchas sucursales
+predict(modelo_simple, newdata = nuevas, interval = "confidence")
+
+# Intervalo de predicción: para UNA sucursal concreta
+predict(modelo_simple, newdata = nuevas, interval = "prediction")
+\end{rcode}
+\begin{rsalida}
+       fit      lwr      upr
+1 363.1967 351.8641 374.5294
+2 397.1008 381.8640 412.3376
+       fit      lwr      upr
+1 363.1967 275.9223 450.4712
+2 397.1008 309.2341 484.9675
+\end{rsalida}
+
+Con 30 mil pesos de publicidad esperamos ventas de 363 mil pesos al mes
+(\codigo{fit}). Fíjate en la diferencia entre los dos intervalos:
+\begin{itemize}
+  \item \codigo{confidence}: el \emph{promedio} de todas las sucursales que
+        inviertan 30 mil estará entre 351 y 374 mil. Es angosto.
+  \item \codigo{prediction}: \emph{una} sucursal concreta que invierta 30 mil
+        venderá entre 276 y 450 mil. Es mucho más ancho, porque cada
+        sucursal tiene su propia variación.
+\end{itemize}
+Para presupuestar \emph{una} tienda usa el intervalo de predicción; para
+estimar el total de la cadena, el de confianza.
+
+\begin{advertencia}
+\textbf{No extrapoles.} Los datos van de 5 a 50 mil pesos de publicidad. Si
+predices con 200 mil, el modelo dará un número (\emph{261.5 + 3.39 $\times$
+200 = 939.6}), pero nada garantiza que la relación siga siendo una recta tan
+lejos: la publicidad suele tener rendimientos decrecientes (el mercado se
+satura). Predice solo dentro del rango de los datos que usaste.
+\end{advertencia}
+
+\subsection{Regresión lineal múltiple}
+
+En la vida real las ventas dependen de muchas cosas a la vez. La
+\termino{regresión múltiple} incluye varias variables explicativas y estima
+el efecto de cada una \emph{manteniendo constantes las demás}:
+
+\begin{rcode}
+modelo_multiple <- lm(ventas ~ publicidad + tamano_m2, data = sucursales)
+summary(modelo_multiple)
+\end{rcode}
+\begin{rsalida}
+Call:
+lm(formula = ventas ~ publicidad + tamano_m2, data = sucursales)
+
+Residuals:
+    Min      1Q  Median      3Q     Max
+-67.498 -17.754  -3.576  15.366  65.949
+
+Coefficients:
+             Estimate Std. Error t value Pr(>|t|)
+(Intercept) 118.86100   16.83335   7.061 2.52e-09 ***
+publicidad    3.64007    0.26384  13.797  < 2e-16 ***
+tamano_m2     0.24322    0.02519   9.654 1.34e-13 ***
+---
+...
+
+Residual standard error: 26.86 on 57 degrees of freedom
+Multiple R-squared:  0.8202,    Adjusted R-squared:  0.8138
+F-statistic:   130 on 2 and 57 DF,  p-value: < 2.2e-16
+\end{rsalida}
+
+Ahora el modelo dice: \textbf{a igual tamaño de tienda}, cada mil pesos de
+publicidad se asocian con 3.64 mil pesos más de ventas; y \textbf{a igual
+publicidad}, cada metro cuadrado adicional suma 0.243 mil pesos (243 pesos)
+al mes. Ambos coeficientes están cerca de los valores reales (3.5 y 0.25) y
+sus p-valores son prácticamente cero. El $R^2$ ajustado subió de 0.518 a
+0.814: añadir el tamaño mejoró mucho el modelo, y el error típico de las
+predicciones bajó de 43 a 27 mil pesos.
+
+\begin{ejemplo}{Controlar por una variable de confusión}
+¿Recuerdas los helados y los ventiladores de la
+sección~\ref{sec:m4-causalidad}? Si incluimos la temperatura en el modelo,
+podemos ver qué pasa con el efecto aparente de los helados.
+\end{ejemplo}
+
+\begin{rcode}
+lm(ventiladores ~ helados, data = dias_verano) %>% coef()
+lm(ventiladores ~ helados + temperatura, data = dias_verano) %>%
+  summary() %>%
+  coef() %>%
+  round(3)
+\end{rcode}
+\begin{rsalida}
+(Intercept)     helados
+  4.1419801   0.4138884
+            Estimate Std. Error t value Pr(>|t|)
+(Intercept)    4.627      2.916   1.587    0.116
+helados        0.029      0.079   0.365    0.716
+temperatura    1.408      0.272   5.180    0.000
+\end{rsalida}
+
+Sin la temperatura, cada helado adicional parece ``traer'' 0.41
+ventiladores. Al controlar por la temperatura, el coeficiente de los
+helados cae casi a cero (0.03) y su p-valor (0.716) indica que no es
+significativo; la temperatura se queda con todo el efecto (1.4 ventiladores
+por grado, muy cerca del 1.5 simulado). Así se desenmascara una variable de
+confusión.
+
+\subsection{Supuestos y diagnóstico básico}
+
+La regresión lineal da resultados confiables si se cumplen algunos
+\termino{supuestos}:
+\begin{enumerate}
+  \item \textbf{Linealidad}: la relación es aproximadamente una recta.
+  \item \textbf{Independencia}: cada observación es independiente (cuidado
+        con series de tiempo, donde un mes depende del anterior).
+  \item \textbf{Varianza constante}: los errores tienen más o menos la misma
+        dispersión en todo el rango.
+  \item \textbf{Normalidad de los residuos}: importante sobre todo con
+        muestras pequeñas.
+\end{enumerate}
+La herramienta básica es la gráfica de \termino{residuos contra valores
+ajustados}: si el modelo es adecuado, los puntos forman una nube sin patrón
+alrededor de cero.
+
+\begin{rcode}
+diagnostico <- tibble(
+  ajustado = fitted(modelo_multiple),     # ventas que predice el modelo
+  residuo  = residuals(modelo_multiple)   # real - predicho
+)
+
+p_residuos <- ggplot(diagnostico, aes(x = ajustado, y = residuo)) +
+  geom_hline(yintercept = 0, color = color_resalte, linewidth = 0.8) +
+  geom_point(color = color_principal, size = 2, alpha = 0.8) +
+  labs(title = "Residuos vs valores ajustados (modelo múltiple)",
+       subtitle = "Nube sin patrón alrededor de cero: los supuestos se ven razonables",
+       x = "Ventas ajustadas (miles)", y = "Residuo (miles)") +
+  tema_libro()
+
+p_residuos
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m04-residuos}
+\caption{Diagnóstico de residuos. Un embudo (residuos que se abren) o una
+curva indicarían problemas con los supuestos.}
+\label{fig:m04-residuos}
+\end{figure}
+
+La figura~\ref{fig:m04-residuos} no muestra patrones: ni curvas (que
+indicarían una relación no lineal) ni forma de embudo (que indicaría
+varianza no constante). En RStudio también puedes ejecutar
+\codigo{plot(modelo\_multiple)}, que dibuja cuatro gráficas de diagnóstico
+estándar de R base.
+
+\begin{hazlotu}
+Con el modelo múltiple, predice las ventas de una sucursal de 500 m$^2$ que
+invierta 25 mil pesos en publicidad, con su intervalo de predicción. Pista:
+\codigo{nuevas <- tibble(publicidad = 25, tamano\_m2 = 500)}.
+\end{hazlotu}
+
+\begin{negocio}{La regresión en BI}
+La regresión es la puerta de entrada al \emph{machine learning} del
+Módulo~\ref{cap:ml}. En BI se usa para: estimar la elasticidad del precio
+(¿cuánto bajan las unidades si subo el precio 1\%?), medir el retorno de la
+publicidad por canal, explicar diferencias de productividad entre tiendas y
+construir pronósticos sencillos. Recuerda que con datos observacionales (no
+experimentales) los coeficientes muestran asociaciones: para afirmar
+causalidad necesitas controlar las variables de confusión relevantes o, mejor
+aún, un experimento.
+\end{negocio}
+
+% ----------------------------------------------------------------------------
+\section{Caso práctico integral: diagnóstico comercial}
+\label{sec:m4-caso}
+
+Es momento de juntar todo. La directora pidió un \textbf{diagnóstico
+comercial de 2023} con hallazgos y recomendaciones concretas. Seguiremos la
+lista de verificación de la tabla~\ref{tab:m4-checklist} con las cuatro
+tablas del negocio.
+
+\subsubsection{Paso 1. Integrar los datos}
+
+\begin{rcode}
+base <- transacciones %>%
+  left_join(clientes %>%
+              select(cliente_id, es_premium, segmento, fecha_registro),
+            by = "cliente_id") %>%
+  left_join(productos %>%
+              select(producto_id, categoria, precio_catalogo, costo),
+            by = "producto_id") %>%
+  left_join(tiendas %>%
+              select(tienda_id, nombre_tienda, tipo, tamano_m2, empleados),
+            by = "tienda_id") %>%
+  mutate(costo_total = cantidad * costo,                 # costo de lo vendido
+         utilidad    = total_transaccion - costo_total)  # utilidad bruta
+
+dim(base)
+sum(is.na(base$categoria)) + sum(is.na(base$nombre_tienda))  # sin pareja
+\end{rcode}
+\begin{rsalida}
+[1] 1000   26
+[1] 0
+\end{rsalida}
+
+La base integrada tiene las mismas 1,000 filas (los \codigo{left\_join()} no
+duplicaron nada) y todas las transacciones encontraron su producto y su
+tienda.
+
+\subsubsection{Paso 2. Calidad de datos}
+
+\begin{rcode}
+base %>%
+  summarise(
+    antes_registro  = sum(fecha < fecha_registro),   # compras "imposibles"
+    clientes_afect  = n_distinct(cliente_id[fecha < fecha_registro]),
+    bajo_costo      = sum(precio_venta < costo),     # vendidas con pérdida
+    pct_bajo_costo  = mean(precio_venta < costo)
+  )
+
+# Productos cuyo costo supera su precio de catálogo
+productos %>% filter(costo > precio_catalogo) %>% nrow()
+\end{rcode}
+\begin{rsalida}
+# A tibble: 1 x 4
+  antes_registro clientes_afect bajo_costo pct_bajo_costo
+           <int>          <int>      <int>          <dbl>
+1            114             34        252          0.252
+[1] 10
+\end{rsalida}
+
+Aparecen tres problemas que hay que reportar antes de cualquier conclusión:
+\begin{itemize}
+  \item 114 transacciones (de 34 clientes) ocurrieron \emph{antes} de la
+        fecha de registro del cliente. O la fecha de registro se sobrescribe
+        al actualizar datos, o las compras se asignan al cliente equivocado.
+  \item El 25.2\% de las transacciones se vendió por debajo del costo
+        unitario.
+  \item 10 de los 50 productos tienen un costo mayor que su precio de
+        catálogo: aun vendiendo al precio de lista, pierden dinero.
+\end{itemize}
+
+\subsubsection{Paso 3. Panorama general (univariado)}
+
+\begin{rcode}
+base %>%
+  summarise(
+    ventas          = sum(total_transaccion),
+    utilidad        = sum(utilidad),
+    margen          = sum(utilidad) / sum(total_transaccion),
+    clientes        = n_distinct(cliente_id),
+    ticket_promedio = mean(total_transaccion),
+    ticket_mediano  = median(total_transaccion)
+  )
+\end{rcode}
+\begin{rsalida}
+# A tibble: 1 x 6
+   ventas utilidad margen clientes ticket_promedio ticket_mediano
+    <dbl>    <dbl>  <dbl>    <int>           <dbl>          <dbl>
+1 959993.  444637.  0.463      198            960.           713.
+\end{rsalida}
+
+\subsubsection{Paso 4. Segmentos: productividad de las tiendas}
+
+Las ventas totales favorecen a las tiendas grandes. Una comparación más justa
+es la \termino{productividad}: ventas por metro cuadrado y por empleado.
+
+\begin{rcode}
+productividad <- base %>%
+  group_by(nombre_tienda, tipo, tamano_m2, empleados) %>%
+  summarise(ventas = sum(total_transaccion),
+            margen = sum(utilidad) / sum(total_transaccion),
+            .groups = "drop") %>%
+  mutate(ventas_m2       = ventas / tamano_m2,
+         ventas_empleado = ventas / empleados) %>%
+  arrange(desc(ventas_m2))
+
+productividad %>%
+  select(nombre_tienda, tipo, ventas, margen, ventas_m2, ventas_empleado)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 10 x 6
+   nombre_tienda    tipo       ventas margen ventas_m2 ventas_empleado
+   <chr>            <chr>       <dbl>  <dbl>     <dbl>           <dbl>
+ 1 Sucursal Express Express   102791.  0.443      343.           8566.
+ 2 Sucursal Outlet  Outlet    114377.  0.542      327.           7625.
+ 3 Sucursal Este    Estándar   88420.  0.527      221.           4912.
+ 4 Sucursal Norte   Estándar   89024.  0.418      198.           4451.
+ 5 Sucursal Centro  Principal  88414.  0.523      177.           3537.
+ 6 Sucursal Sur     Estándar  105305.  0.432      176.           3510.
+ 7 Sucursal Plaza B Estándar   80236.  0.369      167.           3821.
+ 8 Sucursal Oeste   Estándar   84672.  0.411      154.           3849.
+ 9 Sucursal Plaza A Principal 105216.  0.457      150.           3006.
+10 Sucursal Premium Premium   101538.  0.484      127.           2538.
+\end{rsalida}
+
+\begin{rcode}
+# ¿El tamaño se relaciona con las ventas totales?
+cor(productividad$tamano_m2, productividad$ventas, method = "spearman")
+\end{rcode}
+\begin{rsalida}
+[1] -0.03030303
+\end{rsalida}
+
+Las ventas de las 10 tiendas son muy parecidas (entre 80 y 114 mil pesos) y
+no se relacionan con el tamaño (correlación de Spearman de $-0.03$). Por
+eso las tiendas pequeñas son mucho más productivas: la sucursal Express
+(300 m$^2$) vende \$343 por metro cuadrado y la Premium (800 m$^2$) solo
+\$127.
+
+\subsubsection{Paso 5. Hipótesis: ¿qué diferencias son reales?}
+
+Juntamos en una tabla los p-valores de las pruebas que hicimos en el módulo
+y de una más: el ticket de las tiendas.
+
+\begin{rcode}
+pruebas <- tibble(
+  pregunta = c("Ticket: premium vs no premium",
+               "Ticket: entre categorías",
+               "Ticket: entre tiendas",
+               "Método de pago vs tienda"),
+  p_valor = c(
+    t.test(total_transaccion ~ es_premium, data = base)$p.value,
+    summary(aov(total_transaccion ~ categoria, data = base))[[1]]$`Pr(>F)`[1],
+    summary(aov(total_transaccion ~ nombre_tienda, data = base))[[1]]$`Pr(>F)`[1],
+    chisq.test(table(base$metodo_pago, base$tienda_id))$p.value
+  )
+) %>%
+  mutate(significativo = p_valor < 0.05)
+
+pruebas
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 3
+  pregunta                      p_valor significativo
+  <chr>                           <dbl> <lgl>
+1 Ticket: premium vs no premium   0.601 FALSE
+2 Ticket: entre categorías        0.166 FALSE
+3 Ticket: entre tiendas           0.863 FALSE
+4 Método de pago vs tienda        0.363 FALSE
+\end{rsalida}
+
+\codigo{summary(aov(...))} devuelve una lista; \codigo{[[1]]} toma la tabla
+y \codigo{\$`Pr(>F)`[1]} extrae el primer p-valor (las comillas invertidas
+son necesarias porque el nombre de la columna tiene símbolos). Ninguna de las
+cuatro diferencias es significativa.
+
+\subsubsection{Paso 6. Hallazgos y recomendaciones}
+
+\begin{negocio}{Diagnóstico comercial 2023: cinco hallazgos}
+\begin{enumerate}
+  \item \textbf{Ventas en la meta, con un camino irregular.} Se vendieron
+        \$959,993, prácticamente la meta anual (\$960,000), pero la meta
+        mensual solo se cumplió en 7 de 12 meses y hubo caídas fuertes en
+        abril y en el otoño (sección~\ref{sec:m4-kpis}).
+  \item \textbf{Un margen erosionado por ventas bajo costo.} El margen bruto
+        es de 46.3\%, pero el 25.2\% de las transacciones se vendió por
+        debajo del costo y 10 productos tienen costo mayor al precio de
+        catálogo.
+  \item \textbf{Las tiendas pequeñas son las más productivas.} Express y
+        Outlet venden más de \$320 por m$^2$; Premium y Plaza A, menos de
+        \$150. Las ventas no crecen con el tamaño de la tienda.
+  \item \textbf{El ticket no distingue segmentos.} Premium y no premium,
+        categorías, tiendas y métodos de pago tienen tickets estadísticamente
+        iguales. El crecimiento vendrá de la \emph{frecuencia} (el gasto
+        anual se correlaciona 0.79 con el número de compras), no del ticket.
+  \item \textbf{Ingresos repartidos, pero con productos clave sin stock.}
+        No hay dependencia de pocos productos (el 72\% del catálogo genera
+        el 80\% del ingreso), pero 4 productos clase A, incluido el más
+        vendido, tienen stock bajo.
+\end{enumerate}
+\end{negocio}
+
+\begin{negocio}{Tres recomendaciones}
+\begin{enumerate}
+  \item \textbf{Revisar precios y costos} de los 10 productos con costo
+        mayor al precio de catálogo y establecer un piso de precio en el
+        punto de venta que impida vender bajo costo sin autorización.
+  \item \textbf{Replicar el formato compacto}: antes de abrir o remodelar
+        tiendas grandes, estudiar qué hacen Express y Outlet (surtido,
+        ubicación, horario) y evaluar un formato más pequeño.
+  \item \textbf{Programa de frecuencia en lugar de membresía premium}:
+        como los premium no gastan más por ticket, rediseñar el beneficio
+        para premiar la recompra (cupones de regreso) y medirlo con una
+        prueba A/B de 4,000 clientes por grupo, como en la
+        sección~\ref{sec:m4-ab}.
+\end{enumerate}
+Además, corregir el proceso de registro de clientes (114 compras anteriores
+a la fecha de registro) para que el análisis de antigüedad sea confiable.
+\end{negocio}
+
+\begin{consejo}
+Observa la estructura: cada hallazgo tiene un número que lo respalda, y cada
+recomendación es una acción concreta que se puede medir. Evita hallazgos
+vagos como ``las ventas se comportan de forma variable''. Una buena prueba:
+si la directora pregunta ``¿y eso cómo lo sabes?'', debes poder señalar la
+salida de R exacta.
+\end{consejo}
+
+% ----------------------------------------------------------------------------
+\section{Errores comunes}
+\label{sec:m4-errores}
+
+\subsection{Confundir correlación con causa}
+
+Ya lo viste con los helados y los ventiladores
+(sección~\ref{sec:m4-causalidad}). Antes de afirmar ``X causa Y'' pregúntate:
+¿hay una tercera variable que mueva a ambas?, ¿podría ser al revés (Y causa
+X)?, ¿se hizo un experimento? Si no, habla de ``asociación'', no de causa.
+
+\subsection{El p-hacking: probar hasta que algo salga}
+
+Si haces muchas pruebas, alguna saldrá significativa por puro azar: con
+$\alpha = 0.05$, en promedio 1 de cada 20 pruebas sin ningún efecto real da
+$p < 0.05$. Para verlo, \textbf{simulamos} 100 variables de puro ruido (sin
+ninguna relación con el ticket): cada una reparte los 1,000 tickets al azar
+en dos grupos, A y B. Luego las probamos una por una con \codigo{t.test()}:
+
+\begin{rcode}
+set.seed(123)
+p_valores_ruido <- replicate(100, {
+  grupo_al_azar <- sample(c("A", "B"), size = length(ticket),
+                          replace = TRUE)          # variable sin sentido
+  t.test(ticket ~ grupo_al_azar)$p.value
+})
+sum(p_valores_ruido < 0.05)     # "descubrimientos" falsos
+which(p_valores_ruido < 0.05)   # ¿cuáles variables?
+round(min(p_valores_ruido), 4)  # el p-valor más pequeño
+\end{rcode}
+\begin{rsalida}
+[1] 2
+[1] 42 44
+[1] 0.0369
+\end{rsalida}
+
+Aunque ninguna variable tiene relación real con el ticket, dos de las 100
+salieron ``significativas''. Si solo hubieras reportado esas dos, habrías
+anunciado un descubrimiento falso. En este módulo probamos varias
+segmentaciones del ticket (premium, categoría, tienda, método de pago,
+segmento de edad, género\ldots) y dos salieron significativas: el segmento
+($p = 0.044$) y el género (en el ``Hazlo tú'' de la
+sección~\ref{sec:m4-hipotesis}). Con tantas pruebas, conviene tratarlas como
+\emph{hipótesis para confirmar} con datos nuevos, no como verdades.
+
+\begin{advertencia}
+\textbf{P-hacking} es probar muchas variantes (variables, filtros, periodos)
+y reportar solo la que dio $p < 0.05$. Para evitarlo: define tus hipótesis
+antes de ver los datos, reporta todas las pruebas que hiciste y confirma los
+hallazgos sorprendentes con datos nuevos. Si haces muchas comparaciones,
+ajusta los p-valores con \codigo{p.adjust(p, method = "holm")}.
+\end{advertencia}
+
+\subsection{Promedios de promedios}
+
+Calcular el promedio de los tickets promedio de cada tienda \textbf{no} da el
+ticket promedio de la empresa, porque cada tienda tiene un número distinto de
+transacciones. El efecto es enorme cuando los grupos son muy distintos en
+tamaño:
+
+\begin{rcode}
+canales <- tibble(
+  canal   = c("Tienda física", "Tienda en línea"),
+  tickets = c(9500, 500),
+  ticket_promedio = c(400, 1500)
+)
+
+mean(canales$ticket_promedio)          # promedio de promedios: MAL
+weighted.mean(canales$ticket_promedio,
+              w = canales$tickets)     # promedio ponderado: BIEN
+\end{rcode}
+\begin{rsalida}
+[1] 950
+[1] 455
+\end{rsalida}
+
+El ticket de la empresa es de \$455, no de \$950. El promedio simple le da el
+mismo peso al canal en línea (500 tickets) que a la tienda física (9,500).
+Usa \codigo{weighted.mean()} o, mejor aún, recalcula desde los datos
+originales: \codigo{sum(ventas) / sum(tickets)}.
+
+\subsection{Ignorar los valores faltantes}
+
+En R, casi cualquier cálculo con un \codigo{NA} devuelve \codigo{NA}. Es una
+protección: te obliga a decidir qué hacer con los faltantes.
+
+\begin{rcode}
+ventas_con_faltantes <- c(1200, 950, NA, 1100, 870)
+mean(ventas_con_faltantes)                 # NA
+mean(ventas_con_faltantes, na.rm = TRUE)   # ignora el NA
+sum(is.na(ventas_con_faltantes))           # ¿cuántos faltan?
+\end{rcode}
+\begin{rsalida}
+[1] NA
+[1] 1030
+[1] 1
+\end{rsalida}
+
+\begin{advertencia}
+\codigo{na.rm = TRUE} resuelve el síntoma, no el problema. Antes de usarlo
+cuenta los faltantes y pregúntate \emph{por qué} faltan. Si faltan las ventas
+de los días en que el sistema falló (días de mucho tráfico), ignorarlas
+subestima el promedio. En \codigo{cor()} el argumento equivalente es
+\codigo{use = "complete.obs"}.
+\end{advertencia}
+
+\subsection{Comparar grupos de tamaño muy distinto}
+
+En la exploración de ciudades, los clientes de León tienen el ticket
+promedio más alto. Pero, ¿con cuántos tickets?
+
+\begin{rcode}
+tx_clientes %>%
+  group_by(ciudad) %>%
+  summarise(tickets = n(),
+            clientes_distintos = n_distinct(cliente_id),
+            media = mean(total_transaccion),
+            ee    = sd(total_transaccion) / sqrt(n()),
+            .groups = "drop") %>%
+  arrange(desc(media)) %>%
+  head(4)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 5
+  ciudad      tickets clientes_distintos media    ee
+  <chr>         <int>              <int> <dbl> <dbl>
+1 León             98                 18 1140.  90.3
+2 Toluca          116                 20  992.  73.4
+3 Guadalajara     118                 22  977.  66.1
+4 Querétaro        90                 17  967.  82.6
+\end{rsalida}
+
+Los grupos pequeños tienen promedios más ``nerviosos'' (error estándar más
+grande): basta un par de clientes con compras grandes para subirlos o
+bajarlos. Por eso los ``primeros lugares'' de un ranking suelen ser grupos
+pequeños. Reporta siempre el tamaño del grupo (\codigo{n()}) y, si puedes, el
+error estándar o el intervalo de confianza.
+
+\subsection{La paradoja de Simpson}
+
+La \termino{paradoja de Simpson} ocurre cuando una tendencia que aparece en
+cada grupo se invierte al juntar los grupos. Con datos \textbf{simulados} muy
+pequeños: dos vendedores atienden clientes nuevos (difíciles de convencer) y
+clientes recurrentes (fáciles).
+
+\begin{rcode}
+cierres <- tibble(
+  vendedor = rep(c("Ana", "Beto"), each = 2),
+  tipo_cliente = rep(c("Nuevo", "Recurrente"), times = 2),
+  atendidos = c(80, 20, 20, 80),
+  ventas_cerradas = c(24, 18, 4, 64)
+)
+
+# Tasa de cierre por tipo de cliente: Ana gana en AMBOS
+cierres %>%
+  mutate(tasa = ventas_cerradas / atendidos) %>%
+  select(vendedor, tipo_cliente, tasa) %>%
+  pivot_wider(names_from = vendedor, values_from = tasa)
+
+# Tasa de cierre total: ¡Beto gana!
+cierres %>%
+  group_by(vendedor) %>%
+  summarise(tasa_total = sum(ventas_cerradas) / sum(atendidos),
+            .groups = "drop")
+\end{rcode}
+\begin{rsalida}
+# A tibble: 2 x 3
+  tipo_cliente   Ana  Beto
+  <chr>        <dbl> <dbl>
+1 Nuevo          0.3   0.2
+2 Recurrente     0.9   0.8
+# A tibble: 2 x 2
+  vendedor tasa_total
+  <chr>         <dbl>
+1 Ana            0.42
+2 Beto           0.68
+\end{rsalida}
+
+Ana tiene mejor tasa de cierre con clientes nuevos (30\% contra 20\%) y con
+recurrentes (90\% contra 80\%), pero en el total Beto gana (68\% contra
+42\%). ¿Cómo? A Ana le tocaron sobre todo clientes nuevos, los difíciles, y a
+Beto los recurrentes. Si pagas bonos por la tasa total, premiarías al
+vendedor equivocado. La lección: cuando compares grupos, revisa si la
+\emph{mezcla} (de clientes, productos o regiones) es la misma; si no lo es,
+compara dentro de cada segmento.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Resumen de errores comunes y cómo evitarlos.}
+\label{tab:m4-errores-comunes}
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+\toprule
+\textbf{Error} & \textbf{Cómo evitarlo} \\
+\midrule
+Usar la media con datos asimétricos & Reporta media y mediana; usa la
+  mediana para el caso típico. \\
+Borrar atípicos sin investigar & Clasifícalos (error, caso legítimo,
+  oportunidad) y documenta cualquier exclusión. \\
+Confundir correlación con causa & Busca variables de confusión; usa
+  experimentos (A/B) o regresión múltiple. \\
+P-hacking & Define hipótesis antes; reporta todas las pruebas; ajusta con
+  \codigo{p.adjust()}. \\
+Significancia sin tamaño del efecto & Reporta la diferencia en pesos o
+  puntos porcentuales y su intervalo. \\
+``No significativo'' = ``no hay diferencia'' & Di ``no hay evidencia
+  suficiente''; revisa el tamaño de la muestra. \\
+Promedio de promedios & \codigo{weighted.mean()} o recalcular con los datos
+  originales. \\
+Ignorar \codigo{NA} & Cuenta faltantes con \codigo{is.na()} antes de usar
+  \codigo{na.rm = TRUE}. \\
+Rankings con grupos pequeños & Muestra \codigo{n()} y el error estándar. \\
+Paradoja de Simpson & Compara dentro de segmentos homogéneos. \\
+Extrapolar una regresión & Predice solo dentro del rango de los datos. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Y tres mensajes de error reales que verás al empezar:
+
+\begin{rnoejecutar}
+t.test(total_transaccion ~ metodo_pago, data = transacciones)
+# Error in t.test.formula(...) : grouping factor must have exactly 2 levels
+# Solución: t.test() compara 2 grupos; con 3 o más usa aov().
+
+cor(transacciones$metodo_pago, transacciones$total_transaccion)
+# Error in cor(...) : 'x' must be numeric
+# Solución: cor() solo acepta columnas numéricas; para una categórica
+# y una numérica compara grupos (t.test, aov).
+
+chisq.test(matrix(c(3, 5, 2, 8), nrow = 2))
+# Warning message: Chi-squared approximation may be incorrect
+# Solución: hay conteos esperados menores a 5; usa fisher.test().
+\end{rnoejecutar}
+
+% ----------------------------------------------------------------------------
+\section{Resumen del módulo}
+\label{sec:m4-resumen}
+
+\begin{resumen}
+\begin{itemize}
+  \item El \textbf{análisis exploratorio} sigue un proceso: estructura,
+        calidad, univariado, bivariado, segmentos, atípicos e hipótesis.
+        \codigo{skim()} y \codigo{summary()} son el primer vistazo.
+  \item La \textbf{media} sirve para totales; la \textbf{mediana}, para
+        describir el caso típico. Con datos asimétricos (como el ticket)
+        reporta ambas, junto con la \textbf{desviación estándar}, el
+        \textbf{IQR}, el \textbf{coeficiente de variación} y los
+        \textbf{percentiles}.
+  \item Los \textbf{atípicos} se detectan con la regla de 1.5 $\times$ IQR o
+        con $|z| > 3$, pero se investigan antes de decidir: pueden ser
+        errores, casos legítimos o tus mejores clientes. Las reglas de negocio
+        complementan a las estadísticas.
+  \item Los \textbf{KPIs} comparan: contra el mes anterior (MoM), contra lo
+        acumulado, contra una base 100 y contra la meta. El
+        \textbf{promedio móvil} muestra la tendencia sin el ruido.
+  \item El \textbf{análisis de Pareto/ABC} mide la concentración de los
+        ingresos y orienta las políticas de inventario.
+  \item La \textbf{correlación} (Pearson o Spearman) mide asociación, no
+        causalidad; cuidado con las variables de confusión.
+  \item Las distribuciones \textbf{normal}, \textbf{binomial} y
+        \textbf{Poisson} responden preguntas de probabilidad con las
+        funciones \codigo{p}, \codigo{q}, \codigo{d} y \codigo{r}.
+  \item Los \textbf{intervalos de confianza} (con fórmula o con
+        \textbf{bootstrap}) expresan la incertidumbre de una estimación.
+  \item Las \textbf{pruebas de hipótesis} (t, proporciones, ANOVA,
+        chi-cuadrada) responden ``¿es real o es azar?''. ``No significativo''
+        significa ``no hay evidencia suficiente'', y la significancia
+        estadística no garantiza importancia práctica.
+  \item La \textbf{regresión lineal} cuantifica relaciones, predice con
+        intervalos y, con varias variables, controla factores de confusión.
+        Revisa los residuos y no extrapoles.
+\end{itemize}
+\end{resumen}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Funciones clave del Módulo 4.}
+\label{tab:m4-funciones}
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+\toprule
+\textbf{Función} & \textbf{Para qué sirve} \\
+\midrule
+\codigo{skim()}, \codigo{summary()} & Resumen rápido de un data frame. \\
+\codigo{mean()}, \codigo{median()}, \codigo{table()} & Media, mediana y
+  frecuencias (para la moda). \\
+\codigo{sd()}, \codigo{var()}, \codigo{IQR()}, \codigo{range()} & Medidas
+  de dispersión. \\
+\codigo{quantile(x, probs)} & Percentiles y cuartiles. \\
+\codigo{lag()}, \codigo{cumsum()}, \codigo{first()} & Crecimiento,
+  acumulados e índices base 100. \\
+\codigo{cor()}, \codigo{cor.test()}, \codigo{corrplot()} & Correlación, su
+  prueba y su gráfica. \\
+\codigo{pnorm()}, \codigo{qnorm()} & Probabilidades y cuantiles de la
+  normal. \\
+\codigo{dbinom()}, \codigo{pbinom()} & Probabilidades de la binomial. \\
+\codigo{dpois()}, \codigo{ppois()} & Probabilidades de Poisson. \\
+\codigo{replicate()}, \codigo{sample(replace = TRUE)} & Bootstrap y
+  simulaciones. \\
+\codigo{t.test()} & Prueba t e intervalo de confianza de medias. \\
+\codigo{prop.test()}, \codigo{power.prop.test()} & Pruebas A/B de
+  proporciones y tamaño de muestra. \\
+\codigo{aov()}, \codigo{TukeyHSD()} & ANOVA y comparaciones por pares. \\
+\codigo{chisq.test()} & Independencia entre dos variables categóricas. \\
+\codigo{lm()}, \codigo{coef()}, \codigo{confint()} & Regresión lineal y
+  sus coeficientes. \\
+\codigo{predict(interval = ...)} & Predicciones con intervalo de confianza
+  o de predicción. \\
+\codigo{fitted()}, \codigo{residuals()} & Diagnóstico de la regresión. \\
+\codigo{weighted.mean()} & Promedio ponderado (evita promedios de
+  promedios). \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ----------------------------------------------------------------------------
+\section{Ejercicios}
+\label{sec:m4-ejercicios}
+
+Todos los ejercicios usan los archivos de la carpeta \archivo{datasets/}.
+Empieza cada uno cargando \paquete{tidyverse} y los datos que necesites.
+
+\begin{ejercicio}{m4-1}{Descriptiva del precio de venta}
+\nivel{Básico}
+Con \archivo{transacciones.csv}, calcula para \codigo{precio\_venta}: media,
+mediana, desviación estándar, coeficiente de variación, rango
+intercuartílico y los percentiles 10 y 90. ¿La media y la mediana son
+parecidas? ¿Qué te dice eso sobre la forma de la distribución? Compara su
+coeficiente de variación con el del ticket (0.79).
+\end{ejercicio}
+
+\begin{ejercicio}{m4-2}{¿Qué día se vende más?}
+\nivel{Básico}
+Con \archivo{transacciones.csv}, usa la función \codigo{moda()} del módulo
+para encontrar el día de la semana con más transacciones. Luego construye una
+tabla con el número de transacciones, el porcentaje del total y las ventas
+de cada día, ordenada de mayor a menor número de transacciones. ¿El día con
+más transacciones es también el de más ventas?
+\end{ejercicio}
+
+\begin{ejercicio}{m4-3}{Salarios: ¿media o mediana?}
+\nivel{Básico}
+Con \archivo{empleados.csv}, calcula por \codigo{departamento}: número de
+empleados, media y mediana de \codigo{salario\_mensual}, y la diferencia
+entre ambas. ¿En qué departamento la media y la mediana son más distintas?
+¿Qué medida usarías para anunciar ``el salario típico'' de ese departamento
+y por qué?
+\end{ejercicio}
+
+\begin{ejercicio}{m4-4}{Atípicos en las ventas diarias}
+\nivel{Intermedio}
+Con \archivo{ventas\_retail.csv}, aplica la regla de 1.5 $\times$ IQR y la
+regla $|z| > 3$ a la columna \codigo{total}. ¿Cuántas ventas marca cada
+regla? Muestra las ventas atípicas con su fecha, cantidad,
+precio unitario y descuento. ¿Son errores o ventas legítimas? Calcula la
+asimetría de \codigo{total}.
+\end{ejercicio}
+
+\begin{ejercicio}{m4-5}{Tablero trimestral contra meta}
+\nivel{Intermedio}
+Con \archivo{ventas\_retail.csv}, construye una tabla por
+\codigo{trimestre} con: ventas, crecimiento contra el trimestre anterior,
+acumulado, índice base 100 (Q1 = 100) y variación contra una meta
+trimestral de \$130,000. ¿Cuántos trimestres cumplieron la meta? ¿Se cumplió
+la meta anual?
+\end{ejercicio}
+
+\begin{ejercicio}{m4-6}{¿Los premium compran más seguido?}
+\nivel{Intermedio}
+En la sección~\ref{sec:m4-hipotesis} vimos que los clientes premium no
+tienen un ticket distinto. Ahora compara la \emph{frecuencia}: calcula el
+número de compras de cada cliente en 2023, únelo con
+\archivo{clientes.csv} y aplica una prueba t para comparar el número
+promedio de compras de premium y no premium. Plantea $H_0$ y $H_1$, reporta
+el p-valor y la diferencia, y escribe la conclusión en una frase para la
+directora.
+\end{ejercicio}
+
+\begin{ejercicio}{m4-7}{Pareto de clientes}
+\nivel{Intermedio}
+Haz un análisis ABC de los \emph{clientes} por gasto total en 2023 (A hasta
+80\% acumulado, B hasta 95\%, C el resto). ¿Cuántos clientes hay en cada
+clase y qué porcentaje de la clientela representan? ¿Qué porcentaje de los
+ingresos aporta el 20\% de clientes que más gasta? Compara con el resultado
+de los productos.
+\end{ejercicio}
+
+\begin{ejercicio}{m4-8}{Tres preguntas de probabilidad}
+\nivel{Avanzado}
+Responde con las funciones de R adecuadas:
+\begin{enumerate}
+  \item Las ventas semanales siguen una Normal con media \$18,445 y
+        desviación estándar \$4,591. ¿Qué probabilidad hay de que una semana
+        venda entre \$15,000 y \$20,000? ¿Qué venta semanal solo se supera
+        el 5\% de las veces?
+  \item El 3\% de las ventas se devuelven. En un día con 150 ventas, ¿cuál
+        es la probabilidad de tener más de 8 devoluciones? ¿Y de no tener
+        ninguna?
+  \item Al centro de atención llegan en promedio 4 llamadas cada 10
+        minutos. ¿Qué probabilidad hay de recibir 8 o más llamadas en 10
+        minutos?
+\end{enumerate}
+\end{ejercicio}
+
+\begin{ejercicio}{m4-9}{Prueba A/B y ANOVA de salarios}
+\nivel{Avanzado}
+\begin{enumerate}
+  \item Se probaron dos diseños de la página de pago: el diseño A tuvo 180
+        compras de 3,000 visitas y el B, 225 compras de 3,000 visitas.
+        ¿Hay evidencia de que las tasas de conversión son distintas? Reporta
+        las tasas, el p-valor y el intervalo de la diferencia.
+  \item Con \archivo{empleados.csv}, ¿el salario mensual promedio es
+        distinto entre departamentos? Usa ANOVA e interpreta el resultado.
+        ¿Tiene sentido aplicar \codigo{TukeyHSD()} en este caso?
+\end{enumerate}
+\end{ejercicio}
+
+\begin{ejercicio}{m4-10}{Reto: elasticidad del precio}
+\nivel{Reto}
+Simula 52 semanas de venta de un producto con \codigo{set.seed(123)}: el
+precio varía entre \$80 y \$120 (\codigo{runif()}) y las unidades vendidas
+siguen la relación $\text{unidades} = 500 - 3 \times \text{precio} +$ ruido
+normal con desviación estándar 15. Luego:
+\begin{enumerate}
+  \item Ajusta una regresión de unidades sobre precio e interpreta la
+        pendiente, su intervalo de confianza y el $R^2$. ¿Recupera el valor
+        real de $-3$?
+  \item Predice las unidades de una semana con precio de \$100 (intervalo de
+        predicción).
+  \item Predice con un precio de \$200. ¿Qué pasa? Explica por qué no debes
+        confiar en esa predicción.
+  \item Revisa los residuos contra los valores ajustados (basta con un
+        resumen numérico o una gráfica).
+\end{enumerate}
+\end{ejercicio}

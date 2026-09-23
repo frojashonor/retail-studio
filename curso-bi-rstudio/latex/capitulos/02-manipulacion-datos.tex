@@ -283,16 +283,9 @@ curso, ya estás ahí; si no, revisa el Módulo~\ref{cap:fundamentos}.
 # Leer el archivo de ventas y guardarlo en el objeto "ventas"
 ventas <- read_csv("datasets/ventas_retail.csv")
 \end{rcode}
+En la consola aparece este mensaje:
 \begin{rsalida}
-Rows: 365 Columns: 14
--- Column specification ----------------------------------------------
-Delimiter: ","
-chr   (3): dia_semana, mes, trimestre
-dbl  (10): producto_id, cliente_id, cantidad, precio_unitario, des...
-date  (1): fecha
-
-i Use `spec()` to retrieve the full column specification for this data.
-i Specify the column types or set `show_col_types = FALSE` to quiet this message.
+@@SALIDA@@
 \end{rsalida}
 
 Este mensaje, la \termino{especificación de columnas}, no es un error: es
@@ -490,8 +483,7 @@ inventario <- read_csv("datos/inventario.csv",
                        col_types = cols(existencias = col_double()))
 \end{rcode}
 \begin{rsalida}
-Warning message:
-One or more parsing issues, call `problems()` on your data frame for
+Warning: One or more parsing issues, call `problems()` on your data frame for
 details, e.g.:
   dat <- vroom(...)
   problems(dat)
@@ -1654,12 +1646,12 @@ tabla nueva con una fila por grupo.
   \node[tit] at (11.6,0.55) {combinar};
   \node[celda, fill=gray!15, font=\ttfamily\scriptsize\bfseries]
        at (11.0,-0.84) {trim.};
-  \node[celda, fill=gray!15, font=\ttfamily\scriptsize\bfseries]
-       at (12.25,-0.84) {ingresos};
+  \node[celda, fill=gray!15, font=\ttfamily\scriptsize\bfseries,
+        minimum width=1.4cm] at (12.33,-0.84) {ingresos};
   \node[celda, fill=primario!25] at (11.0,-1.26) {Q1};
-  \node[celda, fill=primario!25] at (12.25,-1.26) {600};
+  \node[celda, fill=primario!25, minimum width=1.4cm] at (12.33,-1.26) {600};
   \node[celda, fill=secundario!25] at (11.0,-1.68) {Q2};
-  \node[celda, fill=secundario!25] at (12.25,-1.68) {300};
+  \node[celda, fill=secundario!25, minimum width=1.4cm] at (12.33,-1.68) {300};
   % Flechas
   \draw[flecha] (2.05,-1.26) -- (2.8,-1.26);
   \draw[flecha] (5.65,-0.84) -- (6.9,-0.84);
@@ -2228,3 +2220,2440 @@ Repite el cálculo de MoM y YTD, pero con \codigo{transacciones} y la columna
 acumulado superó el medio millón de pesos? Pista: después de calcular
 \codigo{ytd}, usa \codigo{filter(ytd > 500000) \%>\% slice\_head(n = 1)}.
 \end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Fechas con \texorpdfstring{\paquete{lubridate}}{lubridate}}
+\label{sec:m2-fechas}
+
+Casi todo análisis de BI tiene una dimensión de tiempo: ventas por mes,
+comparaciones contra el año anterior, antigüedad de clientes, días sin
+comprar. \paquete{lubridate} (incluido en el \emph{tidyverse} desde la
+versión 2.0) hace que trabajar con fechas sea sencillo.
+
+\subsection{Convertir texto en fechas}
+
+Las fechas llegan como texto en mil formatos: \texttt{2023-03-15},
+\texttt{15/03/2023}, \texttt{03/15/2023} (formato de Estados Unidos)\ldots{}
+\paquete{lubridate} tiene una función por cada \emph{orden} de los
+componentes: \codigo{ymd()} (año-mes-día), \codigo{dmy()} (día-mes-año) y
+\codigo{mdy()} (mes-día-año). Los separadores no importan.
+
+\begin{rcode}
+ymd("2023-03-15")            # año, mes, día
+dmy("15/03/2023")            # día, mes, año (formato de México)
+mdy("03-15-2023")            # mes, día, año (formato de EE. UU.)
+dmy("15 de marzo de 2023")   # ¡entiende meses en español!
+ymd(20230315)                # también números tipo AAAAMMDD
+\end{rcode}
+\begin{rsalida}
+[1] "2023-03-15"
+[1] "2023-03-15"
+[1] "2023-03-15"
+[1] "2023-03-15"
+[1] "2023-03-15"
+\end{rsalida}
+
+Las cinco dan la misma fecha. El resultado es un objeto de clase
+\codigo{Date}: R ya sabe que es una fecha y puede ordenarla, restarla o
+extraer sus partes. El texto \texttt{"15/03/2023"}, en cambio, es solo una
+cadena de caracteres.
+
+\begin{advertencia}
+¿\texttt{03/04/2023} es 3 de abril o 4 de marzo? Depende de quién lo
+escribió. Antes de convertir, pregunta de qué sistema viene el archivo y
+revisa un valor con día mayor a 12 (como \texttt{15/03}) para confirmar el
+orden. Si una fecha no se puede interpretar, \paquete{lubridate} devuelve
+\codigo{NA} con la advertencia \texttt{failed to parse}.
+\end{advertencia}
+
+\subsection{Extraer componentes de una fecha}
+
+\begin{ejemplo}{Enriquecer las ventas con atributos de calendario}
+Para analizar estacionalidad necesitamos, por cada venta, el año, el número
+y el nombre del mes, el trimestre, el día de la semana y la semana del año.
+\end{ejemplo}
+
+\begin{rcode}
+ventas_cal <- ventas %>%
+  mutate(
+    anio       = year(fecha),                           # 2023
+    mes_num    = month(fecha),                          # 1 a 12
+    mes_nombre = month(fecha, label = TRUE),            # ene, feb...
+    trim       = quarter(fecha),                        # 1 a 4
+    dia_sem    = wday(fecha, label = TRUE, abbr = FALSE), # lunes...
+    semana     = week(fecha)                            # 1 a 53
+  )
+ventas_cal %>%
+  select(fecha, anio, mes_num, mes_nombre, trim, dia_sem, semana) %>%
+  head(4)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 7
+  fecha       anio mes_num mes_nombre  trim dia_sem   semana
+  <date>     <dbl>   <dbl> <ord>      <int> <ord>      <dbl>
+1 2023-01-01  2023       1 ene            1 domingo        1
+2 2023-01-02  2023       1 ene            1 lunes          1
+3 2023-01-03  2023       1 ene            1 martes         1
+4 2023-01-04  2023       1 ene            1 miércoles      1
+\end{rsalida}
+
+Fíjate en los tipos: \codigo{mes\_nombre} y \codigo{dia\_sem} son
+\texttt{<ord>}, \termino{factores ordenados}. Eso significa que R sabe que
+``ene'' va antes que ``feb'' y ``domingo'' antes que ``lunes'', así que al
+agrupar o graficar respetará el orden del calendario y no el alfabético (que
+pondría ``abr'' antes que ``ene''). Los nombres salen en español porque la
+configuración regional de la computadora está en español; con
+\codigo{label = TRUE, abbr = FALSE} obtienes el nombre completo.
+
+\begin{ejemplo}{¿Qué día de la semana vendemos más?}
+El gerente de operaciones quiere saber qué días necesita más personal.
+\end{ejemplo}
+
+\begin{rcode}
+ventas_cal %>%
+  group_by(dia_sem) %>%
+  summarise(ventas = n(), ingresos = sum(total),
+            ticket_promedio = mean(total), .groups = "drop")
+\end{rcode}
+\begin{rsalida}
+# A tibble: 7 x 4
+  dia_sem   ventas ingresos ticket_promedio
+  <ord>      <int>    <dbl>           <dbl>
+1 domingo       53   69334.           1308.
+2 lunes         52   76889.           1479.
+3 martes        52   74728.           1437.
+4 miércoles     52   73081.           1405.
+5 jueves        52   76647.           1474.
+6 viernes       52   70125.           1349.
+7 sábado        52   73113.           1406.
+\end{rsalida}
+
+Gracias al factor ordenado, los días aparecen de domingo a sábado y no en
+orden alfabético. El lunes es el día más fuerte (\$76,889) y el domingo el
+más débil (\$69,334), aunque el domingo tuvo una venta más (53, porque 2023
+empezó y terminó en domingo). La diferencia entre el mejor y el peor día es
+de apenas 11\%: no hay un día claramente ``pico'', así que la plantilla de
+personal puede ser pareja durante la semana. Observa que el domingo tiene
+el ticket promedio más bajo (\$1,308).
+
+\subsection{Redondear fechas: \texorpdfstring{\codigo{floor\_date()}}{floor\_date()} y \texorpdfstring{\codigo{make\_date()}}{make\_date()}}
+
+La columna \codigo{mes} de \codigo{ventas} es texto (\texttt{"2023-01"}).
+Funciona para agrupar, pero no es una fecha. \codigo{floor\_date()}
+``redondea hacia abajo'' cada fecha al inicio de su periodo: el primer día
+del mes, de la semana o del trimestre. El resultado sigue siendo una fecha,
+ideal para gráficas de series de tiempo (Módulo~\ref{cap:visualizacion}).
+
+\begin{rcode}
+ventas %>%
+  mutate(mes_fecha = floor_date(fecha, unit = "month")) %>%
+  group_by(mes_fecha) %>%
+  summarise(ingresos = sum(total), .groups = "drop") %>%
+  head(3)
+
+# Ventas por semana (las semanas empiezan en lunes: week_start = 1)
+ventas %>%
+  mutate(semana_inicio = floor_date(fecha, "week", week_start = 1)) %>%
+  count(semana_inicio) %>%
+  head(3)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 2
+  mes_fecha  ingresos
+  <date>        <dbl>
+1 2023-01-01   46884.
+2 2023-02-01   42656.
+3 2023-03-01   36733.
+# A tibble: 3 x 2
+  semana_inicio     n
+  <date>        <int>
+1 2022-12-26        1
+2 2023-01-02        7
+3 2023-01-09        7
+\end{rsalida}
+
+La primera ``semana'' empieza el lunes 26 de diciembre de 2022 porque el 1
+de enero de 2023 fue domingo: esa semana solo tiene un día de datos. Tenlo
+en cuenta al reportar semanas incompletas en los extremos.
+
+Si tienes año, mes y día en columnas separadas (muy común en reportes de
+sistemas antiguos), \codigo{make\_date()} los junta en una fecha:
+
+\begin{rcode}
+metas_mensuales <- tibble(anio = 2023, mes = 1:3,
+                          meta = c(45000, 42000, 40000)) %>%
+  mutate(fecha_mes = make_date(anio, mes, 1))    # día 1 de cada mes
+metas_mensuales
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 4
+   anio   mes  meta fecha_mes 
+  <dbl> <int> <dbl> <date>    
+1  2023     1 45000 2023-01-01
+2  2023     2 42000 2023-02-01
+3  2023     3 40000 2023-03-01
+\end{rsalida}
+
+\subsection{Diferencias entre fechas: antigüedad y recencia}
+
+Restar dos fechas da un número de días (un objeto \codigo{difftime}). Hay
+dos formas recomendadas de convertirlo en un número utilizable:
+
+\begin{itemize}
+  \item \codigo{as.numeric(difftime(fin, inicio, units = "days"))}: días
+        (o semanas, horas\ldots) como número.
+  \item \codigo{time\_length(interval(inicio, fin), "years")}: años (o
+        meses) exactos, considerando años bisiestos y meses de distinta
+        longitud.
+\end{itemize}
+
+Para que tus resultados sean reproducibles, usa siempre una \termino{fecha
+de corte} fija en lugar de \codigo{Sys.Date()} (la fecha de hoy, que cambia
+cada día). Nosotros usaremos el 1 de enero de 2024, justo después del cierre
+del año de datos.
+
+\begin{ejemplo}{Antigüedad de los clientes}
+¿Cuántos años llevan registrados nuestros clientes? ¿Cuántos son clientes
+nuevos (menos de un año)?
+\end{ejemplo}
+
+\begin{rcode}
+fecha_corte <- as.Date("2024-01-01")     # fija: resultados reproducibles
+
+clientes_antig <- clientes %>%
+  mutate(
+    dias_registro  = as.numeric(difftime(fecha_corte, fecha_registro,
+                                         units = "days")),
+    anios_registro = time_length(interval(fecha_registro, fecha_corte),
+                                 "years"),
+    tipo_cliente   = if_else(anios_registro < 1, "Nuevo", "Recurrente")
+  )
+clientes_antig %>%
+  select(cliente_id, fecha_registro, dias_registro, anios_registro) %>%
+  head(3)
+clientes_antig %>% count(tipo_cliente)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 4
+  cliente_id fecha_registro dias_registro anios_registro
+       <dbl> <date>                 <dbl>          <dbl>
+1          1 2023-10-12                81          0.221
+2          2 2020-01-30              1432          3.92 
+3          3 2020-10-17              1171          3.21 
+# A tibble: 2 x 2
+  tipo_cliente     n
+  <chr>        <int>
+1 Nuevo           50
+2 Recurrente     150
+\end{rsalida}
+
+El cliente 1 se registró el 12 de octubre de 2023: lleva 81 días, es decir,
+0.22 años. La cuarta parte de la base (50 de 200 clientes) se registró
+durante 2023: una base joven, lo que obliga a cuidar la experiencia de las
+primeras compras.
+
+\begin{ejemplo}{Recencia: días desde la última compra}
+La \termino{recencia} (cuántos días lleva un cliente sin comprar) es uno de
+los mejores predictores de abandono y la primera letra del análisis RFM
+(Recencia, Frecuencia, Monto) que harás en el Módulo~\ref{cap:eda}. ¿Qué
+clientes llevan más tiempo sin comprar?
+\end{ejemplo}
+
+\begin{rcode}
+recencia <- ventas %>%
+  group_by(cliente_id) %>%
+  summarise(
+    primera_compra = min(fecha),
+    ultima_compra  = max(fecha),
+    compras        = n(),
+    monto          = sum(total),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    dias_sin_comprar = as.numeric(fecha_corte - ultima_compra),
+    estado = case_when(
+      dias_sin_comprar <= 90  ~ "Activo",
+      dias_sin_comprar <= 180 ~ "En riesgo",
+      .default                = "Inactivo"
+    )
+  )
+recencia %>%
+  arrange(desc(dias_sin_comprar)) %>%
+  select(cliente_id, ultima_compra, compras, dias_sin_comprar, estado) %>%
+  head(3)
+recencia %>% count(estado)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 5
+  cliente_id ultima_compra compras dias_sin_comprar estado  
+       <dbl> <date>          <int>            <dbl> <chr>   
+1         82 2023-01-07          1              359 Inactivo
+2        113 2023-01-11          1              355 Inactivo
+3         16 2023-01-21          1              345 Inactivo
+# A tibble: 3 x 2
+  estado        n
+  <chr>     <int>
+1 Activo       68
+2 En riesgo    50
+3 Inactivo     54
+\end{rsalida}
+
+El cliente 82 compró una sola vez, el 7 de enero, y no ha vuelto en 359 días.
+De los 172 clientes que compraron en 2023, 68 están activos (compraron en
+los últimos 90 días), 50 están en riesgo y 54 inactivos. Esa última lista es
+la base de una campaña de reactivación. Observa que \codigo{fecha\_corte -
+ultima\_compra} da días directamente; \codigo{as.numeric()} lo convierte en
+número simple.
+
+\begin{hazlotu}
+Con \codigo{tiendas} y la misma \codigo{fecha\_corte}, calcula la
+antigüedad de cada tienda en años con \codigo{time\_length()} y ordénalas de
+la más antigua a la más nueva. Luego, con \codigo{empleados}, cuenta cuántos
+empleados ingresaron en cada año usando \codigo{year(fecha\_ingreso)}.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Texto con \texorpdfstring{\paquete{stringr}}{stringr}}
+\label{sec:m2-stringr}
+
+Nombres de clientes, ciudades, categorías, códigos de producto, correos:
+buena parte de los datos de negocio es texto, y el texto casi siempre viene
+``sucio''. Todas las funciones de \paquete{stringr} empiezan con
+\codigo{str\_} (escribe \codigo{str\_} en RStudio y pulsa \tecla{Tab} para
+ver la lista) y reciben el texto como primer argumento.
+
+\subsection{Mayúsculas, minúsculas y espacios}
+
+\begin{rcode}
+ciudades <- c("  cdmx", "Guadalajara ", "MONTERREY", "san  luis   potosí")
+
+str_to_upper(ciudades)    # TODO EN MAYÚSCULAS
+str_to_lower(ciudades)    # todo en minúsculas
+str_to_title(ciudades)    # Tipo Título
+str_trim(ciudades)        # quita espacios al inicio y al final
+str_squish(ciudades)      # además, reduce espacios internos repetidos
+\end{rcode}
+\begin{rsalida}
+[1] "  CDMX"             "GUADALAJARA "       "MONTERREY"         
+[4] "SAN  LUIS   POTOSÍ"
+[1] "  cdmx"             "guadalajara "       "monterrey"         
+[4] "san  luis   potosí"
+[1] "  Cdmx"             "Guadalajara "       "Monterrey"         
+[4] "San  Luis   Potosí"
+[1] "cdmx"               "Guadalajara"        "MONTERREY"         
+[4] "san  luis   potosí"
+[1] "cdmx"            "Guadalajara"     "MONTERREY"      
+[4] "san luis potosí"
+\end{rsalida}
+
+Para R, \texttt{"CDMX"}, \texttt{"cdmx"} y \texttt{" CDMX"} son tres valores
+distintos: al agrupar aparecerían como tres ciudades. Por eso el primer
+paso de limpieza de cualquier columna de texto suele ser
+\codigo{str\_squish()} seguido de \codigo{str\_to\_upper()} o
+\codigo{str\_to\_title()}.
+
+\subsection{Buscar, reemplazar y extraer}
+
+\begin{itemize}
+  \item \codigo{str\_detect(x, patrón)}: ¿contiene el patrón?
+        (\codigo{TRUE}/\codigo{FALSE}).
+  \item \codigo{str\_replace\_all(x, patrón, reemplazo)}: reemplaza todas las
+        apariciones (\codigo{str\_replace()} solo la primera).
+  \item \codigo{str\_sub(x, inicio, fin)}: extrae por posición.
+  \item \codigo{str\_length(x)}: número de caracteres.
+\end{itemize}
+
+\begin{ejemplo}{Una campaña para la familia García}
+Mercadotecnia prepara una campaña de apellidos y quiere a los clientes cuyo
+nombre contiene ``García''. Además, para el CRM necesita el teléfono sin
+guiones y la clave de área (los primeros dos dígitos).
+\end{ejemplo}
+
+\begin{rcode}
+clientes %>%
+  filter(str_detect(nombre, "García")) %>%          # contiene García
+  mutate(
+    tel_limpio = str_replace_all(telefono, "-", ""), # quita guiones
+    lada       = str_sub(telefono, 1, 2)             # caracteres 1 a 2
+  ) %>%
+  select(cliente_id, nombre, telefono, tel_limpio, lada) %>%
+  head(4)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 5
+  cliente_id nombre          telefono     tel_limpio lada 
+       <dbl> <chr>           <chr>        <chr>      <chr>
+1         12 Laura García    55-2447-4702 5524474702 55   
+2         35 Isabel García   55-4055-2849 5540552849 55   
+3         42 Fernando García 55-3697-8875 5536978875 55   
+4         58 Sofia García    55-4141-3516 5541413516 55   
+\end{rsalida}
+
+\codigo{str\_detect()} distingue mayúsculas de minúsculas y acentos:
+``garcia'' no encontraría a ``García''. Si no estás seguro de cómo viene
+escrito, normaliza antes con \codigo{str\_to\_lower()}.
+
+\begin{consejo}
+Los patrones de \paquete{stringr} son \termino{expresiones regulares}
+(\emph{regex}), un minilenguaje para describir texto. No necesitas dominarlas
+para empezar; estos cuatro símbolos resuelven la mayoría de los casos:
+\codigo{\textasciicircum{}} (inicio del texto: \codigo{"\textasciicircum{}Tarjeta"}),
+\codigo{\$} (final: \codigo{"com\$"}), \codigo{|} (o:
+\codigo{"CDMX|Toluca"}) y \codigo{[0-9]} (cualquier dígito). Si buscas un
+carácter especial como punto o signo de pesos de forma literal, usa
+\codigo{fixed(".")}.
+\end{consejo}
+
+\subsection{Rellenar y armar códigos: \texorpdfstring{\codigo{str\_pad()}}{str\_pad()} y \texorpdfstring{\codigo{str\_c()}}{str\_c()}}
+
+\begin{ejemplo}{Códigos de producto para el sistema de inventarios}
+El nuevo sistema de inventarios exige claves con formato
+\texttt{SKU-0001}: el prefijo, un guion y el identificador con ceros a la
+izquierda hasta completar cuatro dígitos.
+\end{ejemplo}
+
+\begin{rcode}
+productos %>%
+  mutate(
+    sku = str_c("SKU-", str_pad(producto_id, width = 4, pad = "0")),
+    nombre_corto = str_replace(nombre_producto, "Producto", "Prod.")
+  ) %>%
+  select(producto_id, sku, nombre_producto, nombre_corto) %>%
+  slice(c(1, 9, 10, 50))                  # filas 1, 9, 10 y 50
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 4
+  producto_id sku      nombre_producto nombre_corto
+        <dbl> <chr>    <chr>           <chr>       
+1           1 SKU-0001 Producto 01     Prod. 01    
+2           9 SKU-0009 Producto 09     Prod. 09    
+3          10 SKU-0010 Producto 10     Prod. 10    
+4          50 SKU-0050 Producto 50     Prod. 50    
+\end{rsalida}
+
+\codigo{str\_pad(x, width = 4, pad = "0")} completa con ceros \emph{a la
+izquierda} (el lado por defecto) hasta llegar a 4 caracteres, y
+\codigo{str\_c()} pega textos, igual que \codigo{paste0()}. \codigo{slice()}
+elige filas por su posición.
+
+\subsection{Partir texto: \texorpdfstring{\codigo{str\_split()}}{str\_split()} y \texorpdfstring{\codigo{separate\_wider\_delim()}}{separate\_wider\_delim()}}
+
+\codigo{str\_split()} parte un texto en pedazos según un separador y
+devuelve una lista. Dentro de una tabla es más práctico
+\codigo{separate\_wider\_delim()} de \paquete{tidyr}, que reparte los
+pedazos en columnas nuevas.
+
+\begin{rcode}
+str_split("maria.lopez@email.com", "@")     # devuelve una lista
+
+clientes %>%
+  select(cliente_id, nombre, email) %>%
+  separate_wider_delim(nombre, delim = " ",
+                       names = c("nombre_pila", "apellido")) %>%
+  separate_wider_delim(email, delim = "@",
+                       names = c("usuario", "dominio")) %>%
+  head(3)
+\end{rcode}
+\begin{rsalida}
+[[1]]
+[1] "maria.lopez" "email.com"  
+
+# A tibble: 3 x 5
+  cliente_id nombre_pila apellido usuario         dominio  
+       <dbl> <chr>       <chr>    <chr>           <chr>    
+1          1 Ricardo     Morales  juan.ramírez    email.com
+2          2 Miguel      Cruz     alberto.jiménez email.com
+3          3 Miguel      Flores   pedro.sánchez   email.com
+\end{rsalida}
+
+La columna original desaparece y se reemplaza por las nuevas. Si alguna fila
+tuviera más o menos pedazos de los esperados (por ejemplo, un cliente con
+dos apellidos), la función se detendría con un error explicativo; los
+argumentos \codigo{too\_many = "merge"} y \codigo{too\_few = "align\_start"}
+indican qué hacer en esos casos.
+
+\begin{negocio}{Un hallazgo en los correos}
+¿Notaste algo raro en la salida anterior? El cliente 1 se llama
+\emph{Ricardo Morales}, pero su correo es \texttt{juan.ramírez@email.com}.
+En estos datos simulados el nombre y el correo se generaron por separado,
+así que casi nunca coinciden. En una empresa real, esta discrepancia sería un
+problema serio de calidad (¿el correo pertenece a otra persona?) que
+tendrías que reportar antes de lanzar una campaña de correo.
+\end{negocio}
+
+\begin{hazlotu}
+En \codigo{transacciones}, la columna \codigo{hora} tiene formato
+\texttt{hh:mm}. Conviértela a texto con \codigo{as.character()}, extrae la
+hora con \codigo{str\_sub(\ldots, 1, 2)}, conviértela a número y cuenta
+cuántas transacciones hay por hora del día. ¿Cuál es la hora pico?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Unir tablas: los \emph{joins}}
+\label{sec:m2-joins}
+
+La tabla \codigo{ventas} dice que el 1 de enero se vendió el producto 31 al
+cliente 94 en la tienda 6. Pero ¿qué producto es el 31? ¿De qué categoría?
+¿En qué ciudad está la tienda 6? Esa información vive en otras tablas. Un
+\termino{join} (unión) combina dos tablas usando una o más columnas en común,
+llamadas \termino{llaves} (\emph{keys}). Es el equivalente de
+\codigo{BUSCARV}/\codigo{XLOOKUP} de Excel, pero para todas las columnas y
+todas las filas a la vez, y es la operación más importante de BI.
+
+\subsection{Tipos de \emph{join}}
+
+Todos los \emph{joins} de \paquete{dplyr} tienen la forma
+\codigo{tipo\_join(x, y, by = "llave")}, donde \codigo{x} es la tabla
+``izquierda'' (normalmente la de hechos) y \codigo{y} la ``derecha''
+(normalmente la dimensión). La figura~\ref{fig:m2-joins} resume qué filas
+conserva cada uno.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+  \def\r{0.62}
+  \foreach \nom/\cod/\desc [count=\i from 0] in {
+      left\_join/L/{todas las filas\\de x},
+      inner\_join/I/{solo filas con\\coincidencia},
+      full\_join/F/{todas las filas\\de x y de y},
+      semi\_join/S/{filas de x con\\pareja (sin\\columnas de y)},
+      anti\_join/A/{filas de x\\sin pareja}}{
+    \begin{scope}[xshift=\i*3.05cm]
+      % relleno según el tipo
+      \if\cod L \fill[secundario!55] (0,0) circle (\r); \fi
+      \if\cod F \fill[secundario!55] (0,0) circle (\r);
+                 \fill[secundario!55] (0.72,0) circle (\r); \fi
+      \if\cod I \begin{scope} \clip (0,0) circle (\r);
+                 \fill[secundario!55] (0.72,0) circle (\r); \end{scope} \fi
+      \if\cod S \begin{scope} \clip (0,0) circle (\r);
+                 \fill[acento!55] (0.72,0) circle (\r); \end{scope} \fi
+      \if\cod A \fill[acento!55] (0,0) circle (\r);
+                 \begin{scope} \clip (0,0) circle (\r);
+                 \fill[white] (0.72,0) circle (\r); \end{scope} \fi
+      \draw[primario, thick] (0,0) circle (\r);
+      \draw[primario, thick] (0.72,0) circle (\r);
+      \node at (-0.25,0) {\textbf{x}};
+      \node at (0.97,0) {\textbf{y}};
+      \node[font=\ttfamily\scriptsize\bfseries, text=primario]
+           at (0.36,1.0) {\nom};
+      \node[align=center, text=gristexto, anchor=north]
+           at (0.36,-0.8) {\desc};
+    \end{scope}
+  }
+\end{tikzpicture}
+\caption{Qué conserva cada tipo de \emph{join}. En azul, los que
+\emph{agregan} columnas de \codigo{y} (\emph{mutating joins}); en naranja,
+los que solo \emph{filtran} filas de \codigo{x} (\emph{filtering joins}).}
+\label{fig:m2-joins}
+\end{figure}
+
+Para verlos en acción usemos dos tablas diminutas donde es fácil seguir cada
+fila: tres ventas y un catálogo de tres productos. Fíjate en que la venta 3
+es del producto 99, que no existe en el catálogo, y que el producto 30 del
+catálogo no tiene ventas.
+
+\begin{rcode}
+ventas_mini <- tibble(venta = 1:3, producto_id = c(10, 20, 99),
+                      unidades = c(2, 5, 1))
+catalogo_mini <- tibble(producto_id = c(10, 20, 30),
+                        nombre = c("Café", "Té", "Azúcar"))
+
+left_join(ventas_mini, catalogo_mini, by = "producto_id")
+inner_join(ventas_mini, catalogo_mini, by = "producto_id")
+full_join(ventas_mini, catalogo_mini, by = "producto_id")
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 4
+  venta producto_id unidades nombre
+  <int>       <dbl>    <dbl> <chr> 
+1     1          10        2 Café  
+2     2          20        5 Té    
+3     3          99        1 <NA>  
+# A tibble: 2 x 4
+  venta producto_id unidades nombre
+  <int>       <dbl>    <dbl> <chr> 
+1     1          10        2 Café  
+2     2          20        5 Té    
+# A tibble: 4 x 4
+  venta producto_id unidades nombre
+  <int>       <dbl>    <dbl> <chr> 
+1     1          10        2 Café  
+2     2          20        5 Té    
+3     3          99        1 <NA>  
+4    NA          30       NA Azúcar
+\end{rsalida}
+
+\begin{itemize}
+  \item \codigo{left\_join()} conserva las 3 ventas; la del producto 99 queda
+        con \codigo{NA} en \codigo{nombre}. Es el \emph{join} que usarás el
+        90\% de las veces, porque nunca pierde filas de tu tabla de hechos.
+  \item \codigo{inner\_join()} solo conserva las 2 ventas con producto
+        conocido. Cuidado: la venta 3 \emph{desaparece en silencio} y tus
+        totales bajan.
+  \item \codigo{full\_join()} conserva todo: las 3 ventas y el producto 30
+        sin ventas (con \codigo{NA} en \codigo{venta} y \codigo{unidades}).
+  \item \codigo{right\_join(x, y)} es un \codigo{left\_join(y, x)} con las
+        columnas en otro orden; casi no se usa.
+\end{itemize}
+
+Los \emph{filtering joins} no agregan columnas: solo deciden qué filas de
+\codigo{x} se quedan.
+
+\begin{rcode}
+semi_join(ventas_mini, catalogo_mini, by = "producto_id") # con pareja
+anti_join(ventas_mini, catalogo_mini, by = "producto_id") # sin pareja
+anti_join(catalogo_mini, ventas_mini, by = "producto_id") # sin ventas
+\end{rcode}
+\begin{rsalida}
+# A tibble: 2 x 3
+  venta producto_id unidades
+  <int>       <dbl>    <dbl>
+1     1          10        2
+2     2          20        5
+# A tibble: 1 x 3
+  venta producto_id unidades
+  <int>       <dbl>    <dbl>
+1     3          99        1
+# A tibble: 1 x 2
+  producto_id nombre
+        <dbl> <chr> 
+1          30 Azúcar
+\end{rsalida}
+
+El último \codigo{anti\_join()} invierte las tablas y responde otra
+pregunta: ¿qué productos del catálogo no se vendieron? El orden de las
+tablas importa.
+
+\subsection{Enriquecer las ventas con las dimensiones}
+
+\begin{ejemplo}{Ventas por categoría de producto}
+La tabla \codigo{ventas} no tiene la categoría; \codigo{productos}, sí.
+¿Cuánto vendió cada categoría?
+\end{ejemplo}
+
+\begin{rcode}
+ventas_prod <- ventas %>%
+  left_join(productos, by = "producto_id")   # agrega 12 columnas
+dim(ventas_prod)                              # mismas 365 filas
+
+ventas_prod %>%
+  group_by(categoria) %>%
+  summarise(ingresos = sum(total), unidades = sum(cantidad),
+            productos_vendidos = n_distinct(producto_id),
+            .groups = "drop") %>%
+  arrange(desc(ingresos))
+\end{rcode}
+\begin{rsalida}
+[1] 365  26
+# A tibble: 10 x 4
+   categoria   ingresos unidades productos_vendidos
+   <chr>          <dbl>    <dbl>              <int>
+ 1 Belleza      104840.      430                  9
+ 2 Electrónica   83949.      301                  7
+ 3 Juguetes      72754.      246                  6
+ 4 Automotriz    46865.      207                  5
+ 5 Alimentos     46178.      195                  6
+ 6 Deportes      43319.      183                  4
+ 7 Hogar         41729.      146                  3
+ 8 Mascotas      26518.      117                  4
+ 9 Libros        25537.      127                  4
+10 Ropa          22227.      105                  2
+\end{rsalida}
+
+La tabla creció a lo ancho (de 14 a 26 columnas) pero no a lo largo: siguen
+siendo 365 filas, como debe ser al unir hechos con una dimensión cuya llave
+no se repite. Belleza lidera con \$104,840 (20\% del total), en buena medida
+porque es la categoría con más productos en el catálogo (9). Ropa, con solo 2
+productos, queda en último lugar.
+
+\begin{consejo}
+Después de cada \emph{join}, compara el número de filas antes y después
+(\codigo{nrow()}). En un \codigo{left\_join()} contra una dimensión, deben
+ser iguales. Si aumentaron, tienes llaves duplicadas en la tabla derecha (lo
+veremos en un momento).
+\end{consejo}
+
+\subsubsection{Llaves con nombres distintos: \texorpdfstring{\codigo{by = c(...)}}{by = c(...)} y \texorpdfstring{\codigo{join\_by()}}{join\_by()}}
+
+En \codigo{ventas} el vendedor se identifica con \codigo{vendedor\_id}, pero
+en \codigo{empleados} la llave se llama \codigo{empleado\_id}. Hay dos formas
+de indicarlo:
+
+\begin{rcode}
+# Forma clásica: c("nombre en x" = "nombre en y")
+v1 <- ventas %>%
+  left_join(empleados, by = c("vendedor_id" = "empleado_id"))
+
+# Forma moderna (dplyr 1.1+): join_by() con ==
+v2 <- ventas %>%
+  left_join(empleados, join_by(vendedor_id == empleado_id))
+
+identical(v1, v2)       # ¿dan exactamente lo mismo?
+\end{rcode}
+\begin{rsalida}
+[1] TRUE
+\end{rsalida}
+
+\codigo{join\_by()} se lee más natural y además permite uniones por
+desigualdad (por ejemplo, \codigo{join\_by(producto\_id, fecha >= inicio)}
+para buscar el precio vigente en cada fecha), que son muy útiles pero
+rebasan este módulo.
+
+\begin{ejemplo}{¿Quiénes son nuestros vendedores?}
+Recursos Humanos quiere saber de qué departamento son los empleados que
+aparecen como vendedores y cuánto vendió cada departamento.
+\end{ejemplo}
+
+\begin{rcode}
+v2 %>%
+  group_by(departamento) %>%
+  summarise(vendedores = n_distinct(vendedor_id),
+            ingresos = sum(total), .groups = "drop") %>%
+  arrange(desc(ingresos))
+\end{rcode}
+\begin{rsalida}
+# A tibble: 7 x 3
+  departamento        vendedores ingresos
+  <chr>                    <int>    <dbl>
+1 Atención al Cliente         10  227419.
+2 Ventas                       4   91570.
+3 RRHH                         4   73760.
+4 Marketing                    3   50821.
+5 Finanzas                     2   42522.
+6 IT                           1   20292.
+7 Operaciones                  1    7534.
+\end{rsalida}
+
+\begin{negocio}{Un hallazgo que hay que reportar}
+Solo 4 de los 25 vendedores pertenecen al departamento de \emph{Ventas};
+10 son de Atención al Cliente (y generan \$227,419, el 44\% de los
+ingresos) y hay vendedores de RRHH, Finanzas, IT y Operaciones. En estos datos simulados la
+tabla de empleados se generó sin relación con las ventas, pero en una
+empresa real este resultado indicaría un problema: o el catálogo de
+empleados está desactualizado, o \codigo{vendedor\_id} no significa lo que
+creemos (quizá es el cajero, no el vendedor). Antes de pagar comisiones con
+estos datos, habría que aclararlo con el dueño del sistema.
+\end{negocio}
+
+\subsubsection{Columnas con el mismo nombre: \texorpdfstring{\codigo{suffix}}{suffix}}
+
+Si las dos tablas tienen una columna con el mismo nombre que \emph{no} es la
+llave, \paquete{dplyr} conserva ambas y les agrega los sufijos \codigo{.x} y
+\codigo{.y}. Pasa con \codigo{ciudad}, que existe en \codigo{clientes} y en
+\codigo{tiendas}. Con \codigo{suffix} eliges sufijos que se entiendan.
+
+\begin{ejemplo}{¿Nuestros clientes compran en su ciudad?}
+¿Qué porcentaje de las ventas se hace en una tienda de la misma ciudad donde
+vive el cliente?
+\end{ejemplo}
+
+\begin{rcode}
+ventas_ciudad <- ventas %>%
+  left_join(clientes, by = "cliente_id") %>%
+  left_join(tiendas, by = "tienda_id",
+            suffix = c("_cliente", "_tienda"))   # en vez de .x / .y
+
+ventas_ciudad %>%
+  select(fecha, ciudad_cliente, ciudad_tienda) %>%
+  head(3)
+
+ventas_ciudad %>%
+  summarise(pct_misma_ciudad =
+              mean(ciudad_cliente == ciudad_tienda) * 100)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 3
+  fecha      ciudad_cliente ciudad_tienda
+  <date>     <chr>          <chr>        
+1 2023-01-01 CDMX           CDMX         
+2 2023-01-02 León           Puebla       
+3 2023-01-03 Monterrey      Guadalajara  
+# A tibble: 1 x 1
+  pct_misma_ciudad
+             <dbl>
+1             12.3
+\end{rsalida}
+
+Solo el 12.3\% de las ventas ocurre en la ciudad del cliente. De nuevo es un
+efecto de la simulación (clientes y tiendas se asignaron al azar), pero la
+técnica es la que usarías para medir, por ejemplo, cuántas compras son de
+turistas o de clientes que viajan. El truco \codigo{mean(condición)} da la
+proporción de filas donde la condición es verdadera.
+
+\subsection{La trampa de las llaves duplicadas}
+
+Un \codigo{left\_join()} conserva todas las filas de \codigo{x}\ldots{} y
+puede \emph{agregar} filas. Si una llave aparece dos veces en \codigo{y},
+cada fila de \codigo{x} con esa llave se duplica. A esto se le llama la
+\termino{explosión de filas}, y es la causa número uno de totales inflados
+en los reportes.
+
+\begin{ejemplo}{La tabla de precios con historial}
+Compras te pasa una tabla de precios, sin avisarte que el producto 31 tiene
+dos registros: el precio anterior y el vigente. La unes con las ventas del
+1 de enero.
+\end{ejemplo}
+
+\begin{rcode}
+precios_compras <- tibble(
+  producto_id = c(31, 31, 15),
+  vigencia    = c("2022", "2023", "2023"),
+  precio_lista = c(340, 355, 290)
+)
+ventas_ene <- ventas %>%
+  filter(fecha <= as.Date("2023-01-02")) %>%
+  select(fecha, producto_id, total)
+ventas_ene
+ventas_ene %>% left_join(precios_compras, by = "producto_id")
+\end{rcode}
+\begin{rsalida}
+# A tibble: 2 x 3
+  fecha      producto_id total
+  <date>           <dbl> <dbl>
+1 2023-01-01          31 3333.
+2 2023-01-02          15 2262 
+# A tibble: 3 x 5
+  fecha      producto_id total vigencia precio_lista
+  <date>           <dbl> <dbl> <chr>           <dbl>
+1 2023-01-01          31 3333. 2022              340
+2 2023-01-01          31 3333. 2023              355
+3 2023-01-02          15 2262  2023              290
+\end{rsalida}
+
+¡Dos ventas se convirtieron en tres! Si ahora sumaras \codigo{total}, el
+1 de enero contaría doble. \paquete{dplyr} no se queja porque, en esta
+dirección, cada fila de \codigo{precios\_compras} encaja con una sola venta.
+Tres defensas:
+
+\begin{enumerate}
+  \item \textbf{Revisa la llave antes de unir.} En una dimensión, cada llave
+        debe aparecer una sola vez:
+\end{enumerate}
+
+\begin{rcode}
+precios_compras %>%
+  count(producto_id) %>%
+  filter(n > 1)             # llaves repetidas: debería salir vacío
+\end{rcode}
+\begin{rsalida}
+# A tibble: 1 x 2
+  producto_id     n
+        <dbl> <int>
+1          31     2
+\end{rsalida}
+
+\begin{enumerate}[resume]
+  \item \textbf{Declara la relación que esperas.} Con
+        \codigo{relationship = "many-to-one"} (muchas ventas por cada
+        producto, un producto por llave) \paquete{dplyr} se detiene con un
+        error si la tabla derecha tiene llaves repetidas, en lugar de
+        duplicar filas en silencio:
+\end{enumerate}
+
+\begin{rnoejecutar}
+ventas_ene %>%
+  left_join(precios_compras, by = "producto_id",
+            relationship = "many-to-one")
+\end{rnoejecutar}
+\begin{rsalida}
+Error in `left_join()`:
+! Each row in `x` must match at most 1 row in `y`.
+i Row 1 of `x` matches multiple rows in `y`.
+\end{rsalida}
+
+\begin{enumerate}[resume]
+  \item \textbf{Compara filas antes y después} del \emph{join}, como vimos
+        en el consejo anterior.
+\end{enumerate}
+
+Cuando las llaves se repiten en \emph{ambas} tablas (relación
+``muchos a muchos''), \paquete{dplyr} sí te avisa con una advertencia
+(\texttt{Detected an unexpected many-to-many relationship}). No la ignores:
+casi siempre significa que te falta una columna en la llave (por ejemplo,
+unir por producto \emph{y} por fecha de vigencia).
+
+\subsection{\texorpdfstring{\codigo{anti\_join()}}{anti\_join()} para auditar la calidad de los datos}
+
+Los \emph{filtering joins} son la herramienta favorita del auditor de datos.
+Preguntas como ``¿hay ventas de productos que no existen?'' o ``¿qué
+clientes nunca compraron?'' se responden con una línea.
+
+\begin{rcode}
+# 1. ¿Ventas con un producto que no está en el catálogo? (huérfanas)
+ventas %>% anti_join(productos, by = "producto_id") %>% nrow()
+
+# 2. ¿Productos del catálogo que no se vendieron en ventas?
+productos %>% anti_join(ventas, by = "producto_id") %>% nrow()
+
+# 3. ¿Clientes registrados que no compraron en 2023?
+clientes_sin_compra <- clientes %>%
+  anti_join(ventas, by = "cliente_id")
+nrow(clientes_sin_compra)
+
+# 4. De los que sí compraron (semi_join), ¿cuántos son premium?
+clientes %>%
+  semi_join(ventas, by = "cliente_id") %>%
+  count(es_premium)
+\end{rcode}
+\begin{rsalida}
+[1] 0
+[1] 0
+[1] 28
+# A tibble: 2 x 2
+  es_premium     n
+  <lgl>      <int>
+1 FALSE        107
+2 TRUE          65
+\end{rsalida}
+
+La integridad referencial está bien: no hay ventas huérfanas y los 50
+productos se vendieron al menos una vez. En cambio, 28 de los 200 clientes
+registrados (14\%) no compraron nada en 2023: otra lista para
+mercadotecnia. De los 172 que sí compraron, 65 (38\%) son premium.
+
+Un \emph{join} también sirve para comparar fechas de dos tablas. Una regla
+de negocio obvia es que nadie puede comprar antes de registrarse como
+cliente:
+
+\begin{rcode}
+ventas %>%
+  left_join(select(clientes, cliente_id, fecha_registro),
+            by = "cliente_id") %>%
+  filter(fecha < fecha_registro) %>%          # compra antes del registro
+  select(fecha, cliente_id, fecha_registro, total) %>%
+  arrange(fecha_registro - fecha) %>%
+  head(3)
+
+ventas %>%
+  left_join(select(clientes, cliente_id, fecha_registro),
+            by = "cliente_id") %>%
+  summarise(ventas_antes_registro = sum(fecha < fecha_registro))
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 4
+  fecha      cliente_id fecha_registro total
+  <date>          <dbl> <date>         <dbl>
+1 2023-06-30        162 2023-07-04      505.
+2 2023-10-11         71 2023-10-23      362.
+3 2023-06-01        128 2023-06-15     1487.
+# A tibble: 1 x 1
+  ventas_antes_registro
+                  <int>
+1                    42
+\end{rsalida}
+
+Las tres primeras filas son los casos más ``cercanos'': compras hechas
+entre 4 y 14 días antes del registro. En total, 42 ventas (11.5\%) son de
+clientes que, según el sistema, todavía no existían. En una empresa real las explicaciones típicas son: el cliente
+compró como invitado y se registró después, o la fecha de registro se
+sobrescribió al actualizar sus datos. Sea cual sea la causa, es un hallazgo
+que conviene documentar. Observa el truco de unir solo las columnas que
+necesitas con \codigo{select()} dentro del \emph{join}: la tabla resultante
+queda más limpia.
+
+\subsection{Apilar tablas: \texorpdfstring{\codigo{bind\_rows()}}{bind\_rows()} y \texorpdfstring{\codigo{bind\_cols()}}{bind\_cols()}}
+
+A veces no necesitas unir por una llave, sino \emph{apilar}: cada mes el
+sistema te manda un archivo con las ventas de ese mes y quieres un solo
+archivo del año. \codigo{bind\_rows()} pone tablas una debajo de otra,
+emparejando las columnas por nombre.
+
+\begin{rcode}
+# Simulamos tres archivos mensuales
+enero   <- ventas %>% filter(mes == "2023-01")
+febrero <- ventas %>% filter(mes == "2023-02")
+marzo   <- ventas %>% filter(mes == "2023-03") %>%
+  select(-dia_semana)               # a marzo le falta una columna
+
+primer_trimestre <- bind_rows(enero, febrero, marzo,
+                              .id = "archivo")   # de qué tabla vino
+primer_trimestre %>% count(archivo)
+primer_trimestre %>% filter(is.na(dia_semana)) %>% nrow()
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 2
+  archivo     n
+  <chr>   <int>
+1 1          31
+2 2          28
+3 3          31
+[1] 31
+\end{rsalida}
+
+El argumento \codigo{.id} agrega una columna con el número de tabla de
+origen (con una lista con nombres, \codigo{list(ene = enero, \ldots)},
+pondría el nombre). Como a marzo le faltaba \codigo{dia\_semana},
+\codigo{bind\_rows()} no falla: llena esa columna con \codigo{NA} en sus 31
+filas. Si en lugar de faltar una columna tuviera otro \emph{tipo} (texto en
+un archivo y número en otro), sí fallaría; lo verás en la
+sección~\ref{sec:m2-errores}.
+
+\codigo{bind\_cols()} pega tablas lado a lado \emph{por posición}. Úsala
+con mucho cuidado: no verifica que la fila 1 de una tabla corresponda a la
+fila 1 de la otra. Si existe una llave, usa un \emph{join}.
+
+\begin{consejo}
+Para leer y apilar de una vez todos los CSV de una carpeta, \paquete{readr}
+acepta un vector de rutas:
+\codigo{read\_csv(list.files("datos/mensuales", full.names = TRUE), id =
+"archivo")}. El argumento \codigo{id} guarda la ruta de origen de cada fila.
+\end{consejo}
+
+\begin{hazlotu}
+(a) Une \codigo{transacciones} con \codigo{tiendas} y calcula los ingresos
+por \codigo{zona}. (b) Une \codigo{ventas} con \codigo{productos} y encuentra
+las 5 ventas donde \codigo{precio\_unitario} está más por debajo del
+\codigo{costo}. (c) Usa \codigo{anti\_join()} para contar cuántos clientes no
+aparecen en \codigo{transacciones}.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Cambiar la forma de las tablas con \texorpdfstring{\paquete{tidyr}}{tidyr}}
+\label{sec:m2-tidyr}
+
+\paquete{dplyr} transforma el \emph{contenido} de las tablas;
+\paquete{tidyr} cambia su \emph{forma}. Sus dos funciones centrales son
+inversas una de la otra (figura~\ref{fig:m2-pivot}):
+
+\begin{itemize}
+  \item \codigo{pivot\_wider()}: de largo a ancho. Los valores de una columna
+        se convierten en nombres de columnas. Es lo que hace una
+        \emph{tabla dinámica} de Excel.
+  \item \codigo{pivot\_longer()}: de ancho a largo. Varias columnas se
+        ``derriten'' en dos: una con el nombre y otra con el valor. Es lo que
+        necesitas para ordenar un reporte de Excel.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  c/.style={draw=white, minimum width=1.05cm, minimum height=0.4cm,
+            font=\ttfamily\scriptsize, inner sep=1pt},
+  h/.style={c, fill=gray!20, font=\ttfamily\scriptsize\bfseries}]
+  % Largo
+  \node[h] at (0,0) {tienda}; \node[h] at (1.05,0) {mes};
+  \node[h] at (2.1,0) {ventas};
+  \foreach \ti/\me/\va/\co [count=\i] in {A/ene/10/primario,
+      A/feb/12/primario, B/ene/7/secundario, B/feb/9/secundario}{
+    \node[c, fill=\co!20] at (0,-\i*0.4) {\ti};
+    \node[c, fill=acento!20] at (1.05,-\i*0.4) {\me};
+    \node[c, fill=exito!20] at (2.1,-\i*0.4) {\va};
+  }
+  \node[font=\sffamily\scriptsize\bfseries, text=gristexto] at (1.05,0.5)
+       {largo (ordenado)};
+  % Ancho
+  \node[h] at (6.6,-0.4) {tienda}; \node[h, fill=acento!30] at (7.65,-0.4) {ene};
+  \node[h, fill=acento!30] at (8.7,-0.4) {feb};
+  \node[c, fill=primario!20] at (6.6,-0.8) {A};
+  \node[c, fill=exito!20] at (7.65,-0.8) {10};
+  \node[c, fill=exito!20] at (8.7,-0.8) {12};
+  \node[c, fill=secundario!20] at (6.6,-1.2) {B};
+  \node[c, fill=exito!20] at (7.65,-1.2) {7};
+  \node[c, fill=exito!20] at (8.7,-1.2) {9};
+  \node[font=\sffamily\scriptsize\bfseries, text=gristexto] at (7.65,0.1)
+       {ancho (reporte)};
+  % Flechas
+  \draw[-{Stealth[length=2.2mm]}, thick, acento] (3.0,-0.6) --
+       node[above, font=\ttfamily\scriptsize] {pivot\_wider()} (5.7,-0.6);
+  \draw[-{Stealth[length=2.2mm]}, thick, secundario] (5.7,-1.3) --
+       node[below, font=\ttfamily\scriptsize] {pivot\_longer()} (3.0,-1.3);
+\end{tikzpicture}
+\caption{\codigo{pivot\_wider()} convierte los valores de \codigo{mes} en
+columnas; \codigo{pivot\_longer()} hace el camino inverso.}
+\label{fig:m2-pivot}
+\end{figure}
+
+\subsection{\texorpdfstring{\codigo{pivot\_wider()}}{pivot\_wider()}: tu tabla dinámica}
+
+\begin{ejemplo}{Ventas por trimestre y categoría}
+La directora quiere una tabla para leer de un vistazo: una fila por
+categoría y una columna por trimestre, con los ingresos en miles de pesos.
+\end{ejemplo}
+
+\begin{rcode}
+tabla_trim_cat <- ventas_prod %>%              # ventas + productos
+  group_by(categoria, trimestre) %>%
+  summarise(ingresos = sum(total) / 1000, .groups = "drop") %>%
+  pivot_wider(
+    names_from  = trimestre,    # de dónde salen los nombres de columna
+    values_from = ingresos      # de dónde salen los valores
+  ) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 1)))
+tabla_trim_cat
+\end{rcode}
+\begin{rsalida}
+# A tibble: 10 x 5
+   categoria      Q1    Q2    Q3    Q4
+   <chr>       <dbl> <dbl> <dbl> <dbl>
+ 1 Alimentos    18.6   8.6   8    10.9
+ 2 Automotriz    8.4  12.6  10.9  14.9
+ 3 Belleza      19.9  25.5  32.4  27  
+ 4 Deportes     14.4   9.6   8.6  10.8
+ 5 Electrónica  21.2  18.7  24.1  19.9
+ 6 Hogar         7.7   9.9  16.5   7.6
+ 7 Juguetes     15.1  15.6  23.7  18.4
+ 8 Libros        3.3   9.1   5.1   8  
+ 9 Mascotas     14.2   4.1  NA     8.2
+10 Ropa          3.5   6.9   5.1   6.7
+\end{rsalida}
+
+Primero resumimos en formato largo (una fila por categoría y trimestre) y
+\emph{al final} lo pasamos a ancho para presentarlo. Esta es la regla de oro:
+\textbf{analiza en largo, presenta en ancho}. La tabla deja ver patrones que
+en formato largo costaría encontrar: Belleza crece hasta su pico en el Q3
+(\$32.4 mil), Alimentos se desploma después del Q1 (de \$18.6 mil a \$8.6
+mil) y Mascotas tiene un hueco: \codigo{NA} en el Q3.
+
+Ese \codigo{NA} aparece porque la combinación no existe: Mascotas no tuvo
+ninguna venta en el Q3, así que no había fila que pivotar. En un reporte de ventas lo
+correcto es mostrar 0; para eso está \codigo{values\_fill}:
+
+\begin{rcode}
+ventas_prod %>%
+  count(categoria, mes) %>%            # número de ventas
+  pivot_wider(names_from = mes, values_from = n,
+              values_fill = 0) %>%     # 0 donde no hubo ventas
+  select(categoria, `2023-01`:`2023-06`)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 10 x 7
+   categoria   `2023-01` `2023-02` `2023-03` `2023-04` `2023-05`
+   <chr>           <int>     <int>     <int>     <int>     <int>
+ 1 Alimentos           4         4         5         2         3
+ 2 Automotriz          3         0         3         6         4
+ 3 Belleza             5         2         4         5         6
+ 4 Deportes            4         3         2         3         3
+ 5 Electrónica         3         5         3         3         4
+ 6 Hogar               2         4         1         3         2
+ 7 Juguetes            3         5         7         1         4
+ 8 Libros              1         1         2         2         2
+ 9 Mascotas            4         2         3         4         2
+10 Ropa                2         2         1         1         1
+# i 1 more variable: `2023-06` <int>
+\end{rsalida}
+
+Observa las comillas invertidas (\emph{backticks}) en
+\codigo{`2023-01`}: los nombres de columna que empiezan con un número o
+tienen guiones o espacios no son nombres ``válidos'' en R, y hay que
+escribirlos entre \codigo{`} \codigo{`}.
+
+\subsection{\texorpdfstring{\codigo{pivot\_longer()}}{pivot\_longer()}: ordenar un reporte de Excel}
+
+\begin{ejemplo}{El presupuesto que llegó en Excel}
+Finanzas te manda el presupuesto de ventas del primer semestre por tienda,
+con un mes por columna (el formato ``bonito'' de la tabla~\ref{tab:m2-tidy}).
+Para compararlo contra las ventas reales necesitas ordenarlo.
+\end{ejemplo}
+
+\begin{rcode}
+presupuesto <- tibble(
+  tienda_id = c(1, 2, 3),
+  Ene = c(5000, 4500, 4800), Feb = c(4800, 4300, 4600),
+  Mar = c(5200, 4700, 5000), Abr = c(5100, 4600, 4900),
+  May = c(5300, 4900, 5100), Jun = c(5000, 4400, 4700)
+)
+presupuesto_largo <- presupuesto %>%
+  pivot_longer(
+    cols      = Ene:Jun,          # columnas a "derretir"
+    names_to  = "mes_texto",      # los nombres van a esta columna
+    values_to = "presupuesto"     # los valores van a esta otra
+  )
+presupuesto_largo
+\end{rcode}
+\begin{rsalida}
+# A tibble: 18 x 3
+   tienda_id mes_texto presupuesto
+       <dbl> <chr>           <dbl>
+ 1         1 Ene              5000
+ 2         1 Feb              4800
+ 3         1 Mar              5200
+ 4         1 Abr              5100
+ 5         1 May              5300
+ 6         1 Jun              5000
+...
+\end{rsalida}
+
+De 3 filas $\times$ 7 columnas pasamos a 18 filas $\times$ 3 columnas: una
+fila por tienda y mes. Ahora podemos convertir el mes de texto a su formato
+\texttt{"2023-01"} y unirlo con las ventas reales para calcular el
+cumplimiento:
+
+\begin{rcode}
+meses_abrev <- c("Ene", "Feb", "Mar", "Abr", "May", "Jun")
+
+# Ventas reales por tienda y mes
+real_tienda_mes <- ventas %>%
+  group_by(tienda_id, mes) %>%
+  summarise(real = sum(total), .groups = "drop")
+
+cumplimiento <- presupuesto_largo %>%
+  mutate(mes = str_c("2023-", str_pad(match(mes_texto, meses_abrev),
+                                      2, pad = "0"))) %>%
+  left_join(real_tienda_mes,
+            by = c("tienda_id", "mes")) %>%    # llave de 2 columnas
+  mutate(cumplimiento_pct = round(real / presupuesto * 100))
+
+cumplimiento %>%
+  select(tienda_id, mes, presupuesto, real, cumplimiento_pct) %>%
+  filter(tienda_id == 1)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 6 x 5
+  tienda_id mes     presupuesto  real cumplimiento_pct
+      <dbl> <chr>         <dbl> <dbl>            <dbl>
+1         1 2023-01        5000 7280.              146
+2         1 2023-02        4800 6355.              132
+3         1 2023-03        5200 3076.               59
+4         1 2023-04        5100 2182.               43
+5         1 2023-05        5300 3043.               57
+6         1 2023-06        5000  802.               16
+\end{rsalida}
+
+La tienda 1 arrancó el año por encima del presupuesto (146\% en enero, 132\%
+en febrero) y luego se desplomó hasta 16\% en junio. Es la misma tienda que
+vimos fuerte en el Q1 y ausente del podio a mitad de año: ahora tenemos un
+número para llevar a la junta. Nota dos detalles: \codigo{match()} devuelve la posición de cada mes en el vector
+\codigo{meses\_abrev} (``Mar'' $\rightarrow$ 3), y el \emph{join} usa una
+llave de \emph{dos} columnas, \codigo{c("tienda\_id", "mes")}: cada fila
+debe coincidir en ambas.
+
+\subsection{Separar y unir columnas}
+
+\codigo{separate\_wider\_delim()} (que ya usaste con los nombres de
+clientes) parte una columna en varias; \codigo{unite()} hace lo contrario.
+
+\begin{rcode}
+codigos <- tibble(clave_tienda = c("CDMX-Centro-001", "GDL-Norte-002",
+                                   "MTY-Sur-003"),
+                  ventas = c(43899, 54846, 54066))
+codigos_sep <- codigos %>%
+  separate_wider_delim(clave_tienda, delim = "-",
+                       names = c("ciudad", "zona", "numero"))
+codigos_sep
+
+codigos_sep %>%
+  unite("etiqueta", ciudad, zona, sep = " / ")   # une en una columna
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 4
+  ciudad zona   numero ventas
+  <chr>  <chr>  <chr>   <dbl>
+1 CDMX   Centro 001     43899
+2 GDL    Norte  002     54846
+3 MTY    Sur    003     54066
+# A tibble: 3 x 3
+  etiqueta      numero ventas
+  <chr>         <chr>   <dbl>
+1 CDMX / Centro 001     43899
+2 GDL / Norte   002     54846
+3 MTY / Sur     003     54066
+\end{rsalida}
+
+\subsection{Datos faltantes: \texorpdfstring{\codigo{fill()}}{fill()}, \texorpdfstring{\codigo{replace\_na()}}{replace\_na()} y \texorpdfstring{\codigo{drop\_na()}}{drop\_na()}}
+
+\begin{ejemplo}{El reporte con celdas combinadas}
+En Excel, alguien combinó las celdas de la región: el nombre aparece solo en
+la primera fila de cada bloque. Al leer el archivo, las demás filas quedan
+vacías (\codigo{NA}). Además hay devoluciones sin capturar.
+\end{ejemplo}
+
+\begin{rcode}
+reporte_regional <- tibble(
+  region      = c("Norte", NA, NA, "Centro", NA, "Sur"),
+  tienda      = c("Monterrey", "Tijuana", "Guadalajara",
+                  "CDMX", "Puebla", "Mérida"),
+  ventas      = c(54066, 70155, 54846, 43899, 53611, NA),
+  devoluciones = c(1200, NA, 800, NA, 650, 300)
+)
+reporte_regional %>%
+  fill(region, .direction = "down")    # copia el valor hacia abajo
+\end{rcode}
+\begin{rsalida}
+# A tibble: 6 x 4
+  region tienda      ventas devoluciones
+  <chr>  <chr>        <dbl>        <dbl>
+1 Norte  Monterrey    54066         1200
+2 Norte  Tijuana      70155           NA
+3 Norte  Guadalajara  54846          800
+4 Centro CDMX         43899           NA
+5 Centro Puebla       53611          650
+6 Sur    Mérida          NA          300
+\end{rsalida}
+
+\codigo{fill()} copia el último valor no vacío hacia abajo, exactamente como
+harías a mano en Excel. Para los demás faltantes hay que decidir según el
+negocio: una devolución no capturada probablemente es 0, pero una venta
+faltante \emph{no} es 0 (la tienda sí vendió; solo no tenemos el dato), así
+que es mejor excluirla del análisis y reportarlo.
+
+\begin{rcode}
+reporte_limpio <- reporte_regional %>%
+  fill(region) %>%
+  replace_na(list(devoluciones = 0)) %>%   # NA -> 0 solo aquí
+  drop_na(ventas)                          # quita filas sin ventas
+reporte_limpio
+\end{rcode}
+\begin{rsalida}
+# A tibble: 5 x 4
+  region tienda      ventas devoluciones
+  <chr>  <chr>        <dbl>        <dbl>
+1 Norte  Monterrey    54066         1200
+2 Norte  Tijuana      70155            0
+3 Norte  Guadalajara  54846          800
+4 Centro CDMX         43899            0
+5 Centro Puebla       53611          650
+\end{rsalida}
+
+\codigo{replace\_na()} recibe una lista con el valor de reemplazo para cada
+columna, y \codigo{drop\_na(ventas)} elimina las filas con \codigo{NA} en
+\codigo{ventas} (sin argumentos, eliminaría las filas con \codigo{NA} en
+\emph{cualquier} columna, lo cual suele ser demasiado agresivo).
+
+\subsection{Rellenar periodos sin ventas: \texorpdfstring{\codigo{complete()}}{complete()}}
+\label{sec:m2-complete}
+
+Recuerda la advertencia sobre \codigo{lag()}: si falta un mes, el
+crecimiento ``mes contra mes'' se calcula contra el mes equivocado. Y los
+meses sin ventas no aparecen en un resumen, simplemente porque no hay filas.
+
+\begin{ejemplo}{¿Hubo tiendas con meses en cero?}
+Con 10 tiendas y 12 meses deberíamos tener 120 combinaciones de tienda y
+mes. ¿Las tenemos?
+\end{ejemplo}
+
+\begin{rcode}
+ventas_tienda_mes <- ventas %>%
+  group_by(tienda_id, mes) %>%
+  summarise(ingresos = sum(total), .groups = "drop")
+nrow(ventas_tienda_mes)            # ¿120?
+
+ventas_tienda_mes_completa <- ventas_tienda_mes %>%
+  complete(tienda_id, mes,                 # todas las combinaciones
+           fill = list(ingresos = 0))      # con 0 donde no hubo ventas
+nrow(ventas_tienda_mes_completa)
+
+ventas_tienda_mes_completa %>% filter(ingresos == 0)
+\end{rcode}
+\begin{rsalida}
+[1] 118
+[1] 120
+# A tibble: 2 x 3
+  tienda_id mes     ingresos
+      <dbl> <chr>      <dbl>
+1         1 2023-08        0
+2         4 2023-06        0
+\end{rsalida}
+
+Solo había 118 combinaciones: la tienda 1 no vendió nada en agosto y la
+tienda 4 nada en junio. \codigo{complete()} crea las filas faltantes con
+todas las combinaciones de los valores existentes de \codigo{tienda\_id} y
+\codigo{mes}, y \codigo{fill} les pone 0. Ahora sí, un \codigo{lag()} por
+tienda compararía cada mes contra el anterior real. (Si un mes no aparece en
+\emph{ninguna} tienda, \codigo{complete()} no puede inventarlo; en ese caso
+se le da la lista completa, por ejemplo \codigo{complete(mes =
+meses\_del\_anio)}.)
+
+\begin{hazlotu}
+Con \codigo{transacciones}, construye una tabla dinámica con una fila por
+\codigo{metodo\_pago} y una columna por \codigo{trimestre}, con el número de
+transacciones. Después regrésala a formato largo con
+\codigo{pivot\_longer()} y comprueba que obtienes 16 filas.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Limpieza de datos: un caso real paso a paso}
+\label{sec:m2-limpieza}
+
+Los datos del curso están bastante limpios. Los de tu empresa no lo estarán.
+Imagina que el área de sucursales te manda un registro de ventas capturado a
+mano en Excel por distintas personas. Lo reproducimos con todos los
+problemas típicos:
+
+\begin{rcode}
+ventas_sucias <- tibble(
+  folio    = c(101, 102, 102, 103, 104, 105, 106, 107, 108, 109),
+  fecha    = c("2023-03-01", "02/03/2023", "02/03/2023", "2023-03-03",
+               "03/03/2023", "2023-03-04", "05/03/2023", "2023-03-06",
+               NA, "2023-03-07"),
+  ciudad   = c("CDMX", "cdmx", "cdmx", "CDMX ", "Cd. de México",
+               " guadalajara", "Guadalajara", "GDL", "Monterrey",
+               "monterrey"),
+  categoria = c("Electrónica", "electronica", "electronica", "Ropa",
+                "ROPA", "Hogar", "hogar ", "Electrónica", "Ropa", "Hogar"),
+  monto    = c("$1,234.50", "980", "980", "$2,100.00", "450.5",
+               "$3,050", "1,120.00", "$899.99", "560", "$1,780.25"),
+  cantidad = c(2, 1, 1, 3, 1, 4, 2, -1, 1, 2)
+)
+ventas_sucias
+\end{rcode}
+\begin{rsalida}
+# A tibble: 10 x 6
+   folio fecha      ciudad          categoria     monto     cantidad
+   <dbl> <chr>      <chr>           <chr>         <chr>        <dbl>
+ 1   101 2023-03-01 "CDMX"          "Electrónica" $1,234.50        2
+ 2   102 02/03/2023 "cdmx"          "electronica" 980              1
+ 3   102 02/03/2023 "cdmx"          "electronica" 980              1
+ 4   103 2023-03-03 "CDMX "         "Ropa"        $2,100.00        3
+ 5   104 03/03/2023 "Cd. de México" "ROPA"        450.5            1
+ 6   105 2023-03-04 " guadalajara"  "Hogar"       $3,050           4
+ 7   106 05/03/2023 "Guadalajara"   "hogar "      1,120.00         2
+ 8   107 2023-03-06 "GDL"           "Electrónica" $899.99         -1
+ 9   108 <NA>       "Monterrey"     "Ropa"        560              1
+10   109 2023-03-07 "monterrey"     "Hogar"       $1,780.25        2
+\end{rsalida}
+
+Haz un diagnóstico antes de corregir nada. Los problemas son:
+\begin{enumerate}
+  \item El folio 102 aparece dos veces, idéntico: un \textbf{duplicado
+        exacto} (alguien pegó la fila dos veces).
+  \item \codigo{fecha} es texto con \textbf{dos formatos} mezclados
+        (\texttt{AAAA-MM-DD} y \texttt{DD/MM/AAAA}) y un faltante.
+  \item \codigo{ciudad} tiene \textbf{espacios sobrantes, mayúsculas
+        inconsistentes y sinónimos}: ``CDMX'', ``cdmx'', ``Cd. de México'';
+        ``GDL'' y ``Guadalajara''.
+  \item \codigo{categoria} tiene \textbf{errores de escritura}: sin acento,
+        en mayúsculas, con espacios.
+  \item \codigo{monto} es \textbf{texto} con signo de pesos y comas de
+        miles: no se puede sumar.
+  \item Hay una \textbf{cantidad negativa}, imposible en una venta.
+\end{enumerate}
+
+\subsection{Paso 1: duplicados exactos}
+
+\begin{rcode}
+ventas_sucias %>% count(folio) %>% filter(n > 1)   # ¿folios repetidos?
+paso1 <- ventas_sucias %>% distinct()              # quita filas idénticas
+nrow(ventas_sucias); nrow(paso1)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 1 x 2
+  folio     n
+  <dbl> <int>
+1   102     2
+[1] 10
+[1] 9
+\end{rsalida}
+
+\codigo{distinct()} sin argumentos elimina las filas que son idénticas en
+\emph{todas} las columnas. Si dos filas tuvieran el mismo folio pero algún
+dato distinto, no las quitaría: ese caso requiere investigar cuál es la
+correcta. (\codigo{distinct(folio, .keep\_all = TRUE)} conservaría la
+primera aparición de cada folio.)
+
+\subsection{Paso 2: texto (ciudades y categorías)}
+
+\begin{rcode}
+paso2 <- paso1 %>%
+  mutate(
+    ciudad = str_squish(str_to_upper(ciudad)),     # " cdmx" -> "CDMX"
+    ciudad = case_when(                            # unificar sinónimos
+      ciudad %in% c("CDMX", "CD. DE MÉXICO") ~ "CDMX",
+      ciudad %in% c("GUADALAJARA", "GDL")   ~ "Guadalajara",
+      ciudad == "MONTERREY"                 ~ "Monterrey",
+      .default = ciudad                     # por si aparece otra
+    ),
+    categoria = str_to_title(str_squish(categoria)),
+    categoria = recode(categoria, "Electronica" = "Electrónica")
+  )
+paso2 %>% count(ciudad)
+paso2 %>% count(categoria)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 2
+  ciudad          n
+  <chr>       <int>
+1 CDMX            4
+2 Guadalajara     3
+3 Monterrey       2
+# A tibble: 3 x 2
+  categoria       n
+  <chr>       <int>
+1 Electrónica     3
+2 Hogar           3
+3 Ropa            3
+\end{rsalida}
+
+El patrón es siempre el mismo: primero \emph{normalizar} (quitar espacios y
+unificar mayúsculas) para que las variantes triviales colapsen, y después
+\emph{mapear} a mano los sinónimos que quedan con \codigo{case\_when()} o
+\codigo{recode()} (esta última cambia valores específicos con la sintaxis
+\codigo{"viejo" = "nuevo"}). Terminamos con 3 ciudades y 3 categorías, como
+debe ser.
+
+\subsection{Paso 3: montos y fechas}
+
+\begin{rcode}
+paso3 <- paso2 %>%
+  mutate(
+    monto = parse_number(monto),        # "$1,234.50" -> 1234.5
+    fecha = parse_date_time(fecha,      # prueba ambos formatos
+                            orders = c("ymd", "dmy")),
+    fecha = as_date(fecha)              # de fecha-hora a fecha
+  )
+paso3 %>% select(folio, fecha, monto)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 9 x 3
+  folio fecha      monto
+  <dbl> <date>     <dbl>
+1   101 2023-03-01 1234.
+2   102 2023-03-02  980 
+3   103 2023-03-03 2100 
+4   104 2023-03-03  450.
+5   105 2023-03-04 3050 
+6   106 2023-03-05 1120 
+7   107 2023-03-06  900.
+8   108 NA          560 
+9   109 2023-03-07 1780.
+\end{rsalida}
+
+\codigo{parse\_number()} de \paquete{readr} extrae el número de un texto,
+ignorando símbolos de moneda y separadores de miles. Para las fechas,
+\codigo{parse\_date\_time()} de \paquete{lubridate} prueba cada formato de la
+lista \codigo{orders} hasta que uno funcione, y \codigo{as\_date()} descarta
+la hora. El faltante sigue siendo \codigo{NA}: no hay forma de inventarlo.
+
+\subsection{Paso 4: reglas de negocio y valores imposibles}
+
+\begin{rcode}
+# Revisar antes de borrar: ¿qué filas violan las reglas?
+paso3 %>% filter(cantidad <= 0 | is.na(fecha))
+
+ventas_limpias <- paso3 %>%
+  filter(cantidad > 0,              # cantidades imposibles fuera
+         !is.na(fecha)) %>%         # sin fecha no se puede asignar mes
+  mutate(precio_unitario = monto / cantidad)
+
+ventas_limpias %>%
+  group_by(ciudad) %>%
+  summarise(ventas = n(), ingresos = sum(monto), .groups = "drop")
+\end{rcode}
+\begin{rsalida}
+# A tibble: 2 x 6
+  folio fecha      ciudad      categoria   monto cantidad
+  <dbl> <date>     <chr>       <chr>       <dbl>    <dbl>
+1   107 2023-03-06 Guadalajara Electrónica  900.       -1
+2   108 NA         Monterrey   Ropa         560         1
+# A tibble: 3 x 3
+  ciudad      ventas ingresos
+  <chr>        <int>    <dbl>
+1 CDMX             4    4765 
+2 Guadalajara      2    4170 
+3 Monterrey        1    1780.
+\end{rsalida}
+
+De 10 filas originales quedaron 7 confiables: 1 duplicado, 1 cantidad
+negativa y 1 venta sin fecha salieron. Ahora sí, el resumen por ciudad tiene
+sentido. En un proyecto real \emph{no} borrarías esas filas en silencio: las
+guardarías en una tabla de ``rechazos'' para devolverla al área que capturó
+los datos.
+
+\begin{consejo}
+Escribe tu limpieza como un solo \emph{pipeline} en un script (no a mano en
+Excel). El mes que entra, cuando llegue el archivo nuevo con los mismos
+problemas, solo vuelves a ejecutar el script. Y documenta cada decisión con
+un comentario: ``los NA en devoluciones se tratan como 0 porque\ldots''.
+\end{consejo}
+
+\begin{table}[H]
+\centering
+\caption{Lista de verificación de calidad de datos.}
+\label{tab:m2-checklist}
+\small
+\begin{tabularx}{\textwidth}{@{}lXl@{}}
+\toprule
+Revisión & Pregunta & Herramienta \\
+\midrule
+Dimensiones & ¿Tiene las filas y columnas que esperaba? & \codigo{glimpse()}, \codigo{nrow()} \\
+Tipos & ¿Números como número, fechas como fecha? & \codigo{glimpse()}, \codigo{parse\_number()} \\
+Duplicados & ¿Filas o llaves repetidas? & \codigo{distinct()}, \codigo{count(llave) \%>\% filter(n > 1)} \\
+Faltantes & ¿Cuántos \codigo{NA} hay por columna? & \codigo{summarise(across(everything(), \textasciitilde{} sum(is.na(.x))))} \\
+Categorías & ¿Variantes de un mismo valor? & \codigo{count(columna)}, \codigo{str\_squish()} \\
+Rangos & ¿Valores imposibles (negativos, futuros)? & \codigo{summary()}, \codigo{filter()} \\
+Integridad & ¿Llaves sin pareja en la otra tabla? & \codigo{anti\_join()} \\
+Reglas de negocio & ¿Precio bajo el costo, compra antes del registro? & \codigo{filter()} tras un \emph{join} \\
+Totales & ¿Cuadran contra el sistema de origen? & \codigo{summarise(sum(\ldots))} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{hazlotu}
+Aplica la revisión de faltantes de la tabla~\ref{tab:m2-checklist} a
+\codigo{ventas\_sucias} y a \codigo{clientes}:
+\codigo{summarise(across(everything(), \textasciitilde{} sum(is.na(.x))))}.
+¿Qué columnas tienen faltantes?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Caso práctico integral: reporte mensual de ventas 2023}
+\label{sec:m2-caso}
+
+Regresemos al mensaje de la directora comercial del inicio del módulo. Vas a
+construir, con todo lo aprendido, un reporte completo que se exporta a un
+archivo de Excel con varias hojas. El código de esta sección está pensado
+para que lo copies en un script propio (por ejemplo
+\archivo{reporte\_mensual.R}) y lo vuelvas a ejecutar cada mes.
+
+\begin{negocio}{Qué se pide}
+\begin{enumerate}
+  \item KPIs globales del año: ingresos, ventas, unidades, ticket promedio,
+        clientes únicos, descuento promedio y utilidad bruta.
+  \item Ventas por mes con crecimiento contra el mes anterior y acumulado.
+  \item Ventas por categoría con participación y ranking.
+  \item Los cinco mejores clientes.
+  \item El ranking de tiendas y el desempeño de los vendedores.
+  \item Una tabla dinámica de mes $\times$ categoría.
+  \item Un apartado de calidad de datos con lo que haya que aclarar.
+\end{enumerate}
+\end{negocio}
+
+\subsection{Paso 1: la tabla maestra}
+
+En BI se acostumbra construir una \termino{tabla maestra} (o tabla
+``plana''): los hechos unidos con todas las dimensiones que se van a usar.
+Unimos solo las columnas necesarias y les damos nombres claros para evitar
+choques (\codigo{nombre} existe en clientes y en empleados; \codigo{ciudad},
+en clientes y en tiendas).
+
+\begin{rcode}[title=Reporte mensual: tabla maestra]
+maestra <- ventas %>%
+  left_join(select(productos, producto_id, nombre_producto, categoria,
+                   precio_catalogo, costo),
+            by = "producto_id") %>%
+  left_join(select(clientes, cliente_id, cliente = nombre,
+                   ciudad_cliente = ciudad, es_premium),
+            by = "cliente_id") %>%
+  left_join(select(tiendas, tienda_id, nombre_tienda,
+                   ciudad_tienda = ciudad, zona),
+            by = "tienda_id") %>%
+  left_join(select(empleados, empleado_id, vendedor = nombre),
+            join_by(vendedor_id == empleado_id)) %>%
+  mutate(
+    mes_fecha   = floor_date(fecha, "month"),
+    mes_nombre  = month(fecha, label = TRUE),
+    costo_total = costo * cantidad,          # costo de lo vendido
+    utilidad    = total - costo_total        # utilidad bruta
+  )
+
+# Control: los joins no deben agregar ni quitar filas
+stopifnot(nrow(maestra) == nrow(ventas))
+dim(maestra)
+\end{rcode}
+\begin{rsalida}
+[1] 365  29
+\end{rsalida}
+
+\codigo{stopifnot()} detiene el script con un error si la condición es
+falsa. Es un \termino{control automático}: si algún mes el catálogo trae una
+llave duplicada, el reporte no se generará con totales inflados, sino que
+se detendrá y te avisará. Dentro de \codigo{select()} renombramos al vuelo
+(\codigo{cliente = nombre}).
+
+\subsection{Paso 2: KPIs globales}
+
+\begin{rcode}[title=Reporte mensual: KPIs]
+kpis <- maestra %>%
+  summarise(
+    ingresos          = sum(total),
+    ventas            = n(),
+    unidades          = sum(cantidad),
+    ticket_promedio   = mean(total),
+    clientes_unicos   = n_distinct(cliente_id),
+    descuento_prom    = mean(descuento_pct),
+    utilidad_bruta    = sum(utilidad),
+    margen_bruto_pct  = utilidad_bruta / ingresos * 100
+  ) %>%
+  mutate(across(everything(), ~ round(.x, 2)))
+glimpse(kpis)
+\end{rcode}
+\begin{rsalida}
+Rows: 1
+Columns: 8
+$ ingresos         <dbl> 513916.6
+$ ventas           <dbl> 365
+$ unidades         <dbl> 2057
+$ ticket_promedio  <dbl> 1407.99
+$ clientes_unicos  <dbl> 172
+$ descuento_prom   <dbl> 4.78
+$ utilidad_bruta   <dbl> 150570.9
+$ margen_bruto_pct <dbl> 29.3
+\end{rsalida}
+
+En 2023 la empresa vendió \$513,916.60 en 365 ventas y 2,057 unidades, con un
+ticket promedio de \$1,407.99, 172 clientes distintos y un descuento promedio
+de 4.78\%. La utilidad bruta fue de \$150,570.90, un margen de 29.3\%.
+\textbf{Supuesto importante}: la utilidad se calculó con el \codigo{costo}
+unitario del catálogo multiplicado por la cantidad; si el costo cambió
+durante el año, esta cifra es aproximada. Declara siempre tus supuestos en
+el reporte.
+
+\subsection{Paso 3: tendencia mensual}
+
+\begin{rcode}[title=Reporte mensual: tendencia]
+por_mes <- maestra %>%
+  group_by(mes_fecha, mes_nombre) %>%
+  summarise(ingresos = sum(total), ventas = n(),
+            clientes = n_distinct(cliente_id), .groups = "drop") %>%
+  arrange(mes_fecha) %>%
+  mutate(
+    crecimiento_mom = round((ingresos / lag(ingresos) - 1) * 100, 1),
+    acumulado_ytd   = cumsum(ingresos),
+    ingresos        = round(ingresos, 2)
+  )
+por_mes %>% select(-mes_fecha)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 12 x 6
+   mes_nombre ingresos ventas clientes crecimiento_mom acumulado_ytd
+   <ord>         <dbl>  <int>    <int>           <dbl>         <dbl>
+ 1 ene          46884.     31       29            NA          46884.
+ 2 feb          42656.     28       26            -9          89540.
+ 3 mar          36734.     31       30           -13.9       126274.
+ 4 abr          34738.     30       27            -5.4       161012.
+ 5 may          48108.     31       29            38.5       209120.
+ 6 jun          37871.     30       26           -21.3       246991.
+ 7 jul          54056.     31       28            42.7       301047.
+ 8 ago          41421.     31       29           -23.4       342468.
+ 9 sep          38950.     30       29            -6         381418.
+10 oct          36584.     31       27            -6.1       418003.
+11 nov          50398.     30       29            37.8       468400.
+12 dic          45516.     31       26            -9.7       513917.
+\end{rsalida}
+
+El año tuvo tres picos (mayo, julio y noviembre, con crecimientos de 38 a
+43\% contra el mes anterior) seguidos de caídas: un patrón de
+``serrucho'' que merece investigarse (¿campañas?, ¿quincenas?, ¿promociones
+que adelantan compras?). El número de clientes distintos por mes es estable
+(entre 26 y 30), así que las variaciones vienen del monto de cada compra, no
+de cuántos clientes compran.
+
+\subsection{Paso 4: categorías}
+
+\begin{rcode}[title=Reporte mensual: categorías]
+por_categoria <- maestra %>%
+  group_by(categoria) %>%
+  summarise(ingresos = sum(total), unidades = sum(cantidad),
+            utilidad = sum(utilidad), .groups = "drop") %>%
+  mutate(
+    participacion_pct = round(ingresos / sum(ingresos) * 100, 1),
+    margen_pct        = round(utilidad / ingresos * 100, 1),
+    ranking           = min_rank(desc(ingresos))
+  ) %>%
+  arrange(ranking)
+por_categoria %>% select(ranking, categoria, ingresos,
+                         participacion_pct, margen_pct)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 10 x 5
+   ranking categoria   ingresos participacion_pct margen_pct
+     <int> <chr>          <dbl>             <dbl>      <dbl>
+ 1       1 Belleza      104840.              20.4        5  
+ 2       2 Electrónica   83949.              16.3       49.7
+ 3       3 Juguetes      72754.              14.2       38.2
+ 4       4 Automotriz    46865.               9.1       35.5
+ 5       5 Alimentos     46178.               9         42.4
+ 6       6 Deportes      43319.               8.4       47.5
+ 7       7 Hogar         41729.               8.1        2.9
+ 8       8 Mascotas      26518.               5.2       42.6
+ 9       9 Libros        25537.               5         16.3
+10      10 Ropa          22227.               4.3       10.9
+\end{rsalida}
+
+Este es el hallazgo más importante del reporte: \textbf{Belleza es la
+categoría número uno en ingresos (20.4\%), pero su margen es de apenas
+5\%}. Hogar está peor (2.9\%). En cambio, Electrónica y Deportes dejan
+márgenes cercanos al 50\%. Vender más Belleza casi no deja utilidad; si la
+dirección quiere crecer la utilidad, debe empujar Electrónica y Deportes o
+revisar los precios de Belleza. Sin el \emph{join} con el catálogo (que trae
+el costo) este hallazgo sería invisible.
+
+\subsection{Paso 5: clientes, tiendas y vendedores}
+
+\begin{rcode}[title=Reporte mensual: top clientes y tiendas]
+top_clientes <- maestra %>%
+  group_by(cliente_id, cliente, ciudad_cliente, es_premium) %>%
+  summarise(compras = n(), ingresos = sum(total),
+            ultima_compra = max(fecha), .groups = "drop") %>%
+  slice_max(ingresos, n = 5)
+top_clientes %>% select(cliente, es_premium, compras, ingresos,
+                        ultima_compra)
+
+ranking_tiendas <- maestra %>%
+  group_by(nombre_tienda, ciudad_tienda) %>%
+  summarise(ingresos = sum(total), ventas = n(),
+            ticket_promedio = mean(total), .groups = "drop") %>%
+  mutate(ranking = min_rank(desc(ingresos)),
+         vs_promedio_pct = round((ingresos / mean(ingresos) - 1) * 100,
+                                 1)) %>%
+  arrange(ranking)
+ranking_tiendas %>% select(ranking, nombre_tienda, ingresos, ventas,
+                           vs_promedio_pct)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 5 x 5
+  cliente          es_premium compras ingresos ultima_compra
+  <chr>            <lgl>        <int>    <dbl> <date>       
+1 Carlos García    TRUE             5   12875. 2023-11-09   
+2 Pedro Díaz       FALSE            5   11691. 2023-10-20   
+3 Diego Rivera     FALSE            5   10202. 2023-12-28   
+4 Diego Flores     FALSE            3    9180. 2023-11-05   
+5 Alberto González TRUE             4    8577. 2023-12-09   
+# A tibble: 10 x 5
+   ranking nombre_tienda    ingresos ventas vs_promedio_pct
+     <int> <chr>               <dbl>  <int>           <dbl>
+ 1       1 Sucursal Outlet    70155.     47            36.5
+ 2       2 Sucursal Premium   61369.     46            19.4
+ 3       3 Sucursal Plaza B   55290.     37             7.6
+ 4       4 Sucursal Norte     54846.     38             6.7
+ 5       5 Sucursal Sur       54066.     37             5.2
+ 6       6 Sucursal Plaza A   54050.     34             5.2
+ 7       7 Sucursal Oeste     53611.     37             4.3
+ 8       8 Sucursal Centro    43899.     32           -14.6
+ 9       9 Sucursal Express   42171.     34           -17.9
+10      10 Sucursal Este      24459.     23           -52.4
+\end{rsalida}
+
+El mejor cliente, Carlos García (premium, CDMX), compró 5 veces por
+\$12,875. Tres de los cinco mejores clientes \emph{no} son premium: son
+candidatos naturales para ofrecerles el programa. En tiendas, la Sucursal
+Outlet de Tijuana supera al promedio en 36.5\% y la Sucursal Este (CDMX) está
+52.4\% por debajo: es la respuesta a ``¿qué tienda va peor?''. La columna
+\codigo{vs\_promedio\_pct} usa \codigo{mean(ingresos)} dentro de
+\codigo{mutate()} sobre la tabla ya resumida, es decir, el promedio de las
+10 tiendas.
+
+\begin{rcode}[title=Reporte mensual: vendedores]
+vendedores <- maestra %>%
+  group_by(vendedor_id, vendedor) %>%
+  summarise(ventas = n(), ingresos = sum(total),
+            ticket_promedio = mean(total),
+            tiendas_distintas = n_distinct(tienda_id), .groups = "drop") %>%
+  mutate(ranking = min_rank(desc(ingresos))) %>%
+  arrange(ranking)
+bind_rows(head(vendedores, 3), tail(vendedores, 2)) %>%  # mejores/peores
+  select(ranking, vendedor, ventas, ingresos, ticket_promedio)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 5 x 5
+  ranking vendedor         ventas ingresos ticket_promedio
+    <int> <chr>             <int>    <dbl>           <dbl>
+1       1 Isabel Martínez      22   35744.           1625.
+2       2 Juan Sánchez         23   34579.           1503.
+3       3 Sofia Pérez          18   29500.           1639.
+4      24 Ricardo González      9    9968            1108.
+5      25 Pedro Morales         7    7534.           1076.
+\end{rsalida}
+
+La mejor vendedora, Isabel Martínez, generó \$35,744 en 22 ventas; el
+último lugar, Pedro Morales, \$7,534 en 7 ventas. La diferencia está sobre
+todo en el \emph{número} de ventas, no en el ticket. Antes de sacar
+conclusiones sobre el desempeño, recuerda el hallazgo de la
+sección~\ref{sec:m2-joins}: la mayoría de estos ``vendedores'' ni siquiera
+pertenece al departamento de Ventas.
+
+\subsection{Paso 6: tabla dinámica mes \texorpdfstring{$\times$}{x} categoría}
+
+\begin{rcode}[title=Reporte mensual: tabla dinámica]
+dinamica <- maestra %>%
+  group_by(mes_nombre, categoria) %>%
+  summarise(ingresos = round(sum(total)), .groups = "drop") %>%
+  pivot_wider(names_from = categoria, values_from = ingresos,
+              values_fill = 0) %>%
+  mutate(Total = rowSums(across(where(is.numeric))))  # total por mes
+dinamica %>% select(mes_nombre, Belleza, Electrónica, Juguetes, Total)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 12 x 5
+   mes_nombre Belleza Electrónica Juguetes Total
+   <ord>        <dbl>       <dbl>    <dbl> <dbl>
+ 1 ene           8606        2932     2324 46883
+ 2 feb           5607       11414     3506 42657
+ 3 mar           5652        6879     9248 36734
+ 4 abr           8240        3554      584 34739
+ 5 may           8647        7561     9302 48107
+ 6 jun           8608        7621     5744 37871
+ 7 jul           8829       13723     3268 54056
+ 8 ago          17165        2512    10943 41422
+ 9 sep           6438        7853     9471 38950
+10 oct          12893        2138     2594 36584
+11 nov          10045        8131    10867 50399
+12 dic           4112        9631     4903 45516
+\end{rsalida}
+
+\codigo{rowSums(across(\ldots))} suma, fila por fila, todas las columnas
+numéricas: es la columna ``Total general'' de una tabla dinámica. En la
+consola mostramos solo tres categorías, pero la hoja de Excel llevará las
+diez.
+
+\subsection{Paso 7: hallazgos de calidad de datos}
+
+Un buen reporte no solo presenta números: también advierte qué tan
+confiables son. Calculemos los hallazgos que fueron apareciendo en el
+módulo.
+
+\begin{rcode}[title=Reporte mensual: calidad de datos]
+calidad <- tibble(
+  revision = c(
+    "Productos con costo > precio de catálogo",
+    "Ventas con precio unitario < costo",
+    "Ventas con precio +/-10% vs. catálogo",
+    "Ventas antes del registro del cliente",
+    "Vendedores fuera del depto. de Ventas"
+  ),
+  casos = c(
+    sum(productos$costo > productos$precio_catalogo),
+    sum(maestra$precio_unitario < maestra$costo),
+    sum(abs(maestra$precio_unitario / maestra$precio_catalogo - 1) > 0.10),
+    maestra %>%
+      left_join(select(clientes, cliente_id, fecha_registro),
+                by = "cliente_id") %>%
+      filter(fecha < fecha_registro) %>% nrow(),
+    empleados %>%
+      filter(empleado_id %in% ventas$vendedor_id,
+             departamento != "Ventas") %>% nrow()
+  ),
+  de_un_total_de = c(nrow(productos), nrow(maestra), nrow(maestra),
+                     nrow(maestra), n_distinct(ventas$vendedor_id))
+)
+calidad
+\end{rcode}
+\begin{rsalida}
+# A tibble: 5 x 3
+  revision                                 casos de_un_total_de
+  <chr>                                    <int>          <int>
+1 Productos con costo > precio de catálogo    10             50
+2 Ventas con precio unitario < costo         119            365
+3 Ventas con precio +/-10% vs. catálogo      336            365
+4 Ventas antes del registro del cliente       42            365
+5 Vendedores fuera del depto. de Ventas       21             25
+\end{rsalida}
+
+El resumen de calidad es contundente y debe acompañar al reporte:
+\begin{itemize}
+  \item 10 de los 50 productos tienen un costo mayor que su precio de
+        catálogo (margen negativo).
+  \item 119 de las 365 ventas (33\%) se hicieron a un precio unitario
+        menor que el costo: se vendió con pérdida o el costo está mal
+        capturado.
+  \item En 336 ventas (92\%) el precio cobrado difiere más de 10\% del precio
+        de catálogo. O el catálogo está desactualizado, o hay descuentos
+        que no se registran en \codigo{descuento\_pct}.
+  \item 42 ventas son anteriores al registro del cliente y 21 de los 25
+        vendedores no son del departamento de Ventas.
+\end{itemize}
+Recuerda que son datos simulados, pero en tu trabajo real cada línea de esta
+tabla sería una pregunta para el dueño del dato. Los KPIs de ingresos son
+confiables (vienen directo de las ventas); los de utilidad y margen, no
+tanto, mientras no se aclare el costo.
+
+\subsection{Paso 8: exportar a Excel}
+
+\paquete{writexl} escribe un archivo \archivo{.xlsx} a partir de una
+\emph{lista con nombres}: cada elemento de la lista se convierte en una hoja
+cuyo nombre es el del elemento.
+
+\begin{rcode}[title=Reporte mensual: exportar]
+dir.create("resultados", showWarnings = FALSE)   # carpeta de salida
+
+hojas <- list(
+  "KPIs"           = kpis,
+  "Tendencia"      = por_mes,
+  "Categorias"     = por_categoria,
+  "Top clientes"   = top_clientes,
+  "Tiendas"        = ranking_tiendas,
+  "Vendedores"     = vendedores,
+  "Mes x categoria" = dinamica %>%
+                       mutate(mes_nombre = as.character(mes_nombre)),
+  "Calidad datos"  = calidad
+)
+write_xlsx(hojas, "resultados/reporte_ventas_2023.xlsx")
+
+# Comprobamos que el archivo existe y qué hojas tiene
+file.exists("resultados/reporte_ventas_2023.xlsx")
+readxl::excel_sheets("resultados/reporte_ventas_2023.xlsx")
+\end{rcode}
+\begin{rsalida}
+[1] TRUE
+[1] "KPIs"            "Tendencia"       "Categorias"     
+[4] "Top clientes"    "Tiendas"         "Vendedores"     
+[7] "Mes x categoria" "Calidad datos"  
+\end{rsalida}
+
+Convertimos \codigo{mes\_nombre} a texto porque Excel no conoce los factores
+de R. Abre el archivo en Excel: tienes ocho hojas listas para enviar. El mes
+que entra, cambia el archivo de datos, ejecuta el script completo y tendrás
+el reporte actualizado en segundos. En el Módulo~\ref{cap:reportes}
+aprenderás a convertir este script en un reporte automático con gráficas y
+texto usando R Markdown.
+
+\begin{consejo}
+Si necesitas dar formato al Excel (colores, anchos de columna, formato de
+moneda), \paquete{writexl} no lo permite: usa el paquete \paquete{openxlsx}.
+Para la mayoría de los reportes internos, un archivo limpio y bien
+organizado vale más que uno bonito.
+\end{consejo}
+
+\begin{hazlotu}
+Agrega al reporte una hoja ``Zonas'' con los ingresos, la utilidad y el
+margen por \codigo{zona} de la tienda, y otra hoja ``Premium'' que compare el
+ticket promedio de clientes premium contra no premium. Vuelve a exportar el
+archivo y ábrelo en Excel.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Si vienes de Excel o de SQL}
+\label{sec:m2-equivalencias}
+
+Si ya trabajas con Excel o SQL, la tabla~\ref{tab:m2-equivalencias} te
+ayudará a traducir lo que ya sabes. La lógica es la misma; cambia la
+sintaxis. En el Módulo~\ref{cap:bases-datos} verás que \paquete{dplyr}
+incluso puede \emph{escribir} el SQL por ti.
+
+\begin{table}[H]
+\centering
+\caption{Equivalencias entre \paquete{dplyr}, SQL y Excel.}
+\label{tab:m2-equivalencias}
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{4.1cm}
+  >{\raggedright\arraybackslash}p{4.3cm}X@{}}
+\toprule
+\paquete{dplyr} / \paquete{tidyr} & SQL & Excel \\
+\midrule
+\codigo{filter(total > 1000)} & \texttt{WHERE total > 1000} & Autofiltro \\
+\codigo{select(fecha, total)} & \texttt{SELECT fecha, total} & Ocultar o borrar columnas \\
+\codigo{mutate(iva = total * 0.16)} & \texttt{SELECT total * 0.16 AS iva} & Fórmula en columna nueva \\
+\codigo{if\_else()}, \codigo{case\_when()} & \texttt{CASE WHEN \ldots{} END} & \texttt{SI()}, \texttt{SI.CONJUNTO()} \\
+\codigo{arrange(desc(total))} & \texttt{ORDER BY total DESC} & Ordenar de mayor a menor \\
+\codigo{slice\_max(total, n = 5)} & \texttt{ORDER BY \ldots{} LIMIT 5} & Filtro ``Diez mejores'' \\
+\codigo{group\_by() + summarise()} & \texttt{GROUP BY} + \texttt{SUM()} & Tabla dinámica, \texttt{SUMAR.SI()} \\
+\codigo{count(categoria)} & \texttt{COUNT(*) \ldots{} GROUP BY} & \texttt{CONTAR.SI()} \\
+\codigo{n\_distinct(cliente\_id)} & \texttt{COUNT(DISTINCT \ldots)} & Recuento distinto (tabla dinámica) \\
+\codigo{left\_join(productos, by = \ldots)} & \texttt{LEFT JOIN \ldots{} ON \ldots} & \texttt{BUSCARV()}, \texttt{BUSCARX()} \\
+\codigo{inner\_join()} & \texttt{INNER JOIN} & --- \\
+\codigo{anti\_join()} & \texttt{WHERE NOT EXISTS (\ldots)} & \texttt{ESERROR(BUSCARV())} \\
+\codigo{bind\_rows()} & \texttt{UNION ALL} & Copiar y pegar abajo \\
+\codigo{distinct()} & \texttt{SELECT DISTINCT} & Quitar duplicados \\
+\codigo{lag()}, \codigo{cumsum()} & \texttt{LAG() OVER}, \texttt{SUM() OVER} & Referencia a la celda de arriba \\
+\codigo{min\_rank(desc(x))} & \texttt{RANK() OVER (ORDER BY)} & \texttt{JERARQUIA()} \\
+\codigo{pivot\_wider()} & \texttt{PIVOT} / \texttt{CASE} & Tabla dinámica (columnas) \\
+\codigo{pivot\_longer()} & \texttt{UNPIVOT} & Anular dinamización (Power Query) \\
+\codigo{str\_squish()}, \codigo{str\_to\_upper()} & \texttt{TRIM()}, \texttt{UPPER()} & \texttt{ESPACIOS()}, \texttt{MAYUSC()} \\
+\codigo{fill()} & --- & Rellenar hacia abajo (Power Query) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Como ejemplo, esta consulta SQL y el \emph{pipeline} de \paquete{dplyr}
+debajo de ella producen el mismo resultado:
+
+\begin{sqlcode}
+SELECT p.categoria,
+       SUM(v.total)  AS ingresos,
+       COUNT(*)      AS ventas
+FROM ventas v
+LEFT JOIN productos p ON v.producto_id = p.producto_id
+WHERE v.trimestre = 'Q4'
+GROUP BY p.categoria
+ORDER BY ingresos DESC
+LIMIT 3;
+\end{sqlcode}
+
+\begin{rcode}
+ventas %>%
+  left_join(productos, by = "producto_id") %>%      # LEFT JOIN
+  filter(trimestre == "Q4") %>%                     # WHERE
+  group_by(categoria) %>%                           # GROUP BY
+  summarise(ingresos = sum(total), ventas = n(),    # SUM, COUNT
+            .groups = "drop") %>%
+  arrange(desc(ingresos)) %>%                       # ORDER BY DESC
+  head(3)                                           # LIMIT 3
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 3
+  categoria   ingresos ventas
+  <chr>          <dbl>  <int>
+1 Belleza       27050.     20
+2 Electrónica   19900.     12
+3 Juguetes      18363.      9
+\end{rsalida}
+
+Una diferencia importante: en SQL el orden de escritura (\texttt{SELECT}
+primero) no es el orden en que se ejecuta. En \paquete{dplyr} escribes los
+pasos en el orden en que suceden, y eso lo hace más fácil de leer y de
+depurar: puedes ejecutar el \emph{pipeline} hasta cualquier línea y ver el
+resultado intermedio.
+
+% ----------------------------------------------------------------------------
+\section{Errores comunes}
+\label{sec:m2-errores}
+
+Estos son los errores que más verás mientras aprendes. Los mensajes son los
+que R muestra realmente (algunos en inglés porque vienen de los paquetes,
+otros en español porque vienen de R base).
+
+\subsection{Olvidar un pipe o ponerlo al inicio de la línea}
+
+\begin{rnoejecutar}
+ventas %>%
+  filter(total > 4800)      # <- falta %>% al final de esta línea
+  arrange(desc(total))
+\end{rnoejecutar}
+\begin{rsalida}
+Error: objeto 'total' no encontrado
+\end{rsalida}
+
+R ejecuta las dos primeras líneas como una instrucción completa (y muestra
+el resultado del filtro) y luego intenta ejecutar
+\codigo{arrange(desc(total))} sola, sin tabla: no sabe qué es
+\codigo{total}. Si pones el pipe al inicio de la línea siguiente, el error
+es otro, porque la primera línea ya era una instrucción completa:
+
+\begin{rnoejecutar}
+ventas
+  %>% filter(total > 4800)
+\end{rnoejecutar}
+\begin{rsalida}
+Error: inesperado SPECIAL en "  %>%"
+\end{rsalida}
+
+\textbf{Solución}: el \codigo{\%>\%} siempre va al \emph{final} de la línea,
+y la última línea del \emph{pipeline} no lleva pipe.
+
+\subsection{Usar \texorpdfstring{\codigo{=}}{=} en lugar de \texorpdfstring{\codigo{==}}{==} en \texorpdfstring{\codigo{filter()}}{filter()}}
+
+\begin{rnoejecutar}
+ventas %>% filter(tienda_id = 3)
+\end{rnoejecutar}
+\begin{rsalida}
+Error in `filter()`:
+! We detected a named input.
+i This usually means that you've used `=` instead of `==`.
+i Did you mean `tienda_id == 3`?
+\end{rsalida}
+
+\codigo{=} asigna o nombra argumentos; \codigo{==} compara. El mensaje de
+\paquete{dplyr} incluso te sugiere la corrección.
+
+\subsection{Olvidar cargar \texorpdfstring{\paquete{dplyr}}{dplyr}: el \texorpdfstring{\codigo{filter()}}{filter()} equivocado}
+
+Si abres una sesión nueva y olvidas \codigo{library(tidyverse)},
+\codigo{filter()} existe de todos modos: es \codigo{stats::filter()}, una
+función para series de tiempo que no entiende nombres de columna.
+
+\begin{rnoejecutar}
+# Sesión nueva, sin library(tidyverse)
+ventas <- readr::read_csv("datasets/ventas_retail.csv",
+                          show_col_types = FALSE)
+filter(ventas, total > 4800)
+\end{rnoejecutar}
+\begin{rsalida}
+Error: objeto 'total' no encontrado
+\end{rsalida}
+
+El mismo error puede aparecer si otro paquete cargado \emph{después} del
+\emph{tidyverse} tapa a \codigo{filter()} o \codigo{select()} (pasa, por
+ejemplo, con \paquete{MASS}, que tiene su propio \codigo{select()}).
+\textbf{Solución}: carga los paquetes al inicio del script y, ante la duda,
+escribe \codigo{dplyr::filter()} o \codigo{dplyr::select()}.
+
+\subsection{Escribir mal el nombre de una columna}
+
+\begin{rnoejecutar}
+ventas %>% summarise(total = sum(Total))    # "Total" con mayúscula
+\end{rnoejecutar}
+\begin{rsalida}
+Error in `summarise()`:
+i In argument: `total = sum(Total)`.
+Caused by error:
+! objeto 'Total' no encontrado
+\end{rsalida}
+
+R distingue mayúsculas de minúsculas. Revisa los nombres exactos con
+\codigo{names(ventas)} o \codigo{glimpse(ventas)}.
+
+\subsection{Nombres de columna con espacios}
+
+Los archivos de Excel suelen traer encabezados como ``Ventas Totales''. Ese
+nombre tiene un espacio, así que no puedes escribirlo tal cual:
+
+\begin{rnoejecutar}
+reporte %>% select(Ventas Totales)
+\end{rnoejecutar}
+\begin{rsalida}
+Error: unexpected symbol en "reporte %>% select(Ventas Totales"
+\end{rsalida}
+
+\textbf{Solución}: escríbelo entre comillas invertidas (\emph{backticks}),
+o mejor aún, renómbralo en cuanto lo leas:
+
+\begin{rcode}
+reporte <- tibble(`Ventas Totales` = c(100, 200),
+                  `Sucursal ID` = c("A", "B"))
+reporte %>%
+  rename(ventas_totales = `Ventas Totales`,     # backticks
+         sucursal_id    = `Sucursal ID`)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 2 x 2
+  ventas_totales sucursal_id
+           <dbl> <chr>      
+1            100 A          
+2            200 B          
+\end{rsalida}
+
+(El paquete \paquete{janitor} tiene la función \codigo{clean\_names()}, que
+convierte todos los nombres a \texttt{snake\_case} de una vez.)
+
+\subsection{\texorpdfstring{\codigo{group\_by()}}{group\_by()} sin \texorpdfstring{\codigo{summarise()}}{summarise()} (o sin \texorpdfstring{\codigo{ungroup()}}{ungroup()})}
+
+\codigo{group\_by()} solo, no resume nada: la tabla se ve igual, con una
+línea extra de \texttt{Groups}. Si esperabas un total por grupo, te faltó
+el \codigo{summarise()}. Y si la tabla queda agrupada, los pasos siguientes
+se hacen por grupo:
+
+\begin{rcode}
+agrupada <- ventas %>% group_by(tienda_id)
+agrupada %>% select(fecha, tienda_id, total) %>% head(2)
+
+# Con grupos: slice_max() da la mejor venta DE CADA tienda (10 filas)
+agrupada %>% slice_max(total, n = 1) %>% nrow()
+# Sin grupos: la mejor venta del año (1 fila)
+agrupada %>% ungroup() %>% slice_max(total, n = 1) %>% nrow()
+\end{rcode}
+\begin{rsalida}
+# A tibble: 2 x 3
+# Groups:   tienda_id [2]
+  fecha      tienda_id total
+  <date>         <dbl> <dbl>
+1 2023-01-01         6 3333.
+2 2023-01-02         5 2262 
+[1] 10
+[1] 1
+\end{rsalida}
+
+Observa la línea \texttt{\# Groups: tienda\_id [2]}: la tabla sigue
+agrupada (en las 2 filas mostradas hay 2 tiendas distintas). El mismo
+\codigo{slice\_max(total, n = 1)} devuelve 10 filas o 1 fila según haya
+grupos o no: si no te das cuenta de que la tabla está agrupada, tu ``venta
+récord'' serán diez.
+
+\subsection{Joins que multiplican filas}
+
+\begin{rnoejecutar}
+ventas_ene %>% left_join(precios_compras, by = "producto_id")
+# ¿3 filas en lugar de 2? -> llave duplicada en la tabla derecha
+\end{rnoejecutar}
+
+No hay mensaje de error: ese es el peligro. Revisa siempre las filas antes y
+después, y usa \codigo{count(llave) \%>\% filter(n > 1)} o
+\codigo{relationship = "many-to-one"} (sección~\ref{sec:m2-joins}). Cuando la
+duplicidad está en ambas tablas, verás:
+
+\begin{rsalida}
+Warning message:
+...
+  Detected an unexpected many-to-many relationship between `x` and `y`.
+...
+\end{rsalida}
+
+\subsection{\texttt{NA} en sumas y promedios}
+
+Una sola celda vacía convierte el total en \codigo{NA}
+(sección~\ref{sec:m2-summarise}). Usa \codigo{na.rm = TRUE} a conciencia
+y cuenta los faltantes con \codigo{sum(is.na(x))}.
+
+\subsection{Apilar tablas con tipos distintos}
+
+\begin{rnoejecutar}
+a <- tibble(id = 1, monto = "100")    # monto como texto
+b <- tibble(id = 2, monto = 200)      # monto como número
+bind_rows(a, b)
+\end{rnoejecutar}
+\begin{rsalida}
+Error in `bind_rows()`:
+! Can't combine `..1$monto` <character> and `..2$monto` <double>.
+\end{rsalida}
+
+\textbf{Solución}: homologa los tipos antes de apilar, por ejemplo con
+\codigo{mutate(monto = parse\_number(monto))} en la tabla de texto.
+
+% ----------------------------------------------------------------------------
+\begin{resumen}
+\begin{itemize}
+  \item Los \textbf{datos ordenados} tienen una variable por columna, una
+        observación por fila y un valor por celda. Analiza en largo,
+        presenta en ancho.
+  \item \codigo{read\_csv()} lee CSV y te informa los tipos que adivinó;
+        \codigo{col\_types}, \codigo{na} y \codigo{problems()} te dan el
+        control. \codigo{glimpse()} es tu primera mirada a cualquier tabla.
+  \item El pipe (\codigo{\%>\%} o \codigo{|>}) se lee ``y luego'' y
+        convierte tu análisis en una receta legible.
+  \item Los verbos de \paquete{dplyr} (\codigo{filter}, \codigo{select},
+        \codigo{mutate}, \codigo{arrange}, \codigo{summarise},
+        \codigo{group\_by}) resuelven la mayoría de las preguntas de
+        negocio. \codigo{count()} y \codigo{slice\_max()} son atajos
+        valiosos.
+  \item Las funciones de ventana (\codigo{lag()}, \codigo{cumsum()},
+        \codigo{min\_rank()}) calculan crecimiento, acumulados y rankings.
+  \item \paquete{lubridate} y \paquete{stringr} limpian y enriquecen fechas y
+        texto. Usa una fecha de corte fija para resultados reproducibles.
+  \item Los \emph{joins} conectan hechos con dimensiones; revisa siempre las
+        filas antes y después, y usa \codigo{anti\_join()} para auditar.
+  \item \paquete{tidyr} cambia la forma de las tablas y rellena faltantes y
+        periodos vacíos.
+  \item Un reporte profesional incluye controles automáticos, supuestos
+        explícitos y hallazgos de calidad de datos.
+\end{itemize}
+\end{resumen}
+
+\begin{table}[H]
+\centering
+\caption{Funciones clave del Módulo~\thechapter.}
+\label{tab:m2-funciones}
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+Tarea & Funciones \\
+\midrule
+Importar y explorar & \codigo{read\_csv()}, \codigo{cols()}, \codigo{problems()}, \codigo{glimpse()}, \codigo{tibble()} \\
+Filas & \codigo{filter()}, \codigo{arrange()}, \codigo{desc()}, \codigo{distinct()}, \codigo{slice\_max()}, \codigo{slice\_min()}, \codigo{slice\_head()}, \codigo{slice\_sample()} \\
+Columnas & \codigo{select()}, \codigo{rename()}, \codigo{relocate()}, \codigo{mutate()}, \codigo{across()}, \codigo{if\_else()}, \codigo{case\_when()}, \codigo{recode()} \\
+Resumir & \codigo{group\_by()}, \codigo{summarise()}, \codigo{count()}, \codigo{n()}, \codigo{n\_distinct()}, \codigo{ungroup()} \\
+Ventana & \codigo{lag()}, \codigo{lead()}, \codigo{cumsum()}, \codigo{row\_number()}, \codigo{min\_rank()}, \codigo{dense\_rank()} \\
+Fechas & \codigo{ymd()}, \codigo{dmy()}, \codigo{year()}, \codigo{month()}, \codigo{wday()}, \codigo{floor\_date()}, \codigo{make\_date()}, \codigo{time\_length()}, \codigo{interval()} \\
+Texto & \codigo{str\_detect()}, \codigo{str\_replace\_all()}, \codigo{str\_squish()}, \codigo{str\_to\_upper()}, \codigo{str\_sub()}, \codigo{str\_pad()}, \codigo{str\_c()}, \codigo{parse\_number()} \\
+Unir & \codigo{left\_join()}, \codigo{inner\_join()}, \codigo{full\_join()}, \codigo{semi\_join()}, \codigo{anti\_join()}, \codigo{join\_by()}, \codigo{bind\_rows()} \\
+Forma & \codigo{pivot\_wider()}, \codigo{pivot\_longer()}, \codigo{separate\_wider\_delim()}, \codigo{unite()}, \codigo{fill()}, \codigo{replace\_na()}, \codigo{drop\_na()}, \codigo{complete()} \\
+Exportar & \codigo{write\_csv()}, \codigo{write\_xlsx()} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ----------------------------------------------------------------------------
+\section{Ejercicios}
+\label{sec:m2-ejercicios}
+
+Todos los ejercicios usan los datos del curso. Empieza cada script cargando
+el \emph{tidyverse} y las tablas que necesites con \codigo{read\_csv()}.
+Las soluciones completas están en el Apéndice~\ref{ap:soluciones}.
+
+\begin{ejercicio}{m2-1}{Ventas con descuento de una tienda}
+\nivel{Básico}
+Con \archivo{ventas\_retail.csv}, obtén las ventas de la tienda 3 con un
+descuento de 10\% o más, mostrando solo \codigo{fecha},
+\codigo{producto\_id}, \codigo{descuento\_pct} y \codigo{total}, ordenadas de
+mayor a menor total. ¿Cuántas son y cuánto suman?
+\end{ejercicio}
+
+\begin{ejercicio}{m2-2}{Productos a resurtir}
+\nivel{Básico}
+Con \archivo{productos.csv}, arma la lista de productos \emph{activos} cuyo
+\codigo{stock\_actual} está por debajo del \codigo{stock\_minimo}. Muestra el
+nombre, la categoría, el proveedor, ambas existencias y una columna nueva
+\codigo{faltante} con las unidades que faltan para llegar al mínimo. Ordena
+de mayor a menor faltante. ¿A qué proveedor hay que llamar primero?
+\end{ejercicio}
+
+\begin{ejercicio}{m2-3}{Rangos de edad de los clientes}
+\nivel{Básico}
+Con \archivo{clientes.csv}, crea la columna \codigo{rango\_edad} con
+\codigo{case\_when()}: ``18-29'', ``30-44'', ``45-59'' y ``60+''. Cuenta
+cuántos clientes hay en cada rango y qué porcentaje del total representan.
+\end{ejercicio}
+
+\begin{ejercicio}{m2-4}{Perfil de clientes por ciudad}
+\nivel{Intermedio}
+Con \archivo{clientes.csv}, calcula por ciudad: número de clientes,
+porcentaje de clientes premium y edad promedio. Ordena por número de
+clientes y di qué ciudad tiene la mayor proporción de premium.
+\end{ejercicio}
+
+\begin{ejercicio}{m2-5}{El mejor día de la semana en transacciones}
+\nivel{Intermedio}
+Con \archivo{transacciones.csv}, crea el día de la semana como factor
+ordenado con \codigo{wday(fecha, label = TRUE, abbr = FALSE)} y calcula por
+día: número de transacciones, ingresos y ticket promedio. Agrega la
+participación de cada día en los ingresos. ¿Qué día conviene reforzar con
+personal?
+\end{ejercicio}
+
+\begin{ejercicio}{m2-6}{Antigüedad y salario de los empleados}
+\nivel{Intermedio}
+Con \archivo{empleados.csv} y la fecha de corte 1 de enero de 2024, calcula
+la antigüedad en años con \codigo{time\_length(interval(\ldots))} y
+compárala con la columna \codigo{antiguedad\_anos} (¿cuál es la diferencia
+máxima?). Luego clasifica a los empleados en ``Menos de 3 años'', ``3 a 6
+años'' y ``Más de 6 años'' y calcula el salario mensual promedio de cada
+grupo.
+\end{ejercicio}
+
+\begin{ejercicio}{m2-7}{Margen real por categoría en transacciones}
+\nivel{Intermedio}
+Une \archivo{transacciones.csv} con \archivo{productos.csv}. Para cada
+transacción calcula la utilidad como
+\codigo{(precio\_venta - costo) * cantidad}. Resume por categoría:
+ingresos, utilidad, margen \% y número de transacciones con utilidad
+negativa. ¿Qué categoría deja más utilidad y cuál es la más problemática?
+\end{ejercicio}
+
+\begin{ejercicio}{m2-8}{Auditoría de clientes entre dos sistemas}
+\nivel{Intermedio}
+Usa \codigo{semi\_join()} y \codigo{anti\_join()} para responder: (a)
+¿cuántos clientes compraron en \emph{ambas} tablas, \codigo{ventas} y
+\codigo{transacciones}? (b) ¿Cuántos aparecen en \codigo{transacciones} pero
+no en \codigo{ventas}? (c) ¿Cuántos clientes registrados no aparecen en
+ninguna de las dos? Pista: para (c) puedes apilar los \codigo{cliente\_id}
+de ambas tablas con \codigo{bind\_rows()}.
+\end{ejercicio}
+
+\begin{ejercicio}{m2-9}{Tabla dinámica de métodos de pago por tienda}
+\nivel{Avanzado}
+Con \archivo{transacciones.csv} y \archivo{tiendas.csv}, construye una tabla
+con una fila por \codigo{nombre\_tienda} y una columna por método de pago,
+donde cada celda sea el \emph{porcentaje} de los ingresos de esa tienda
+pagado con ese método (cada fila debe sumar 100). ¿Qué tienda depende más
+del efectivo?
+\end{ejercicio}
+
+\begin{ejercicio}{m2-10}{Crecimiento mensual por tienda}
+\nivel{Avanzado}
+Con \archivo{ventas\_retail.csv}, calcula los ingresos por tienda y mes,
+rellena con 0 los meses sin ventas usando \codigo{complete()} y calcula, por
+tienda, el crecimiento contra el mes anterior en pesos (\codigo{ingresos -
+lag(ingresos)}) y el acumulado del año. ¿Qué tienda tuvo la mayor caída en
+pesos de un mes a otro, y en qué mes?
+\end{ejercicio}
+
+\begin{ejercicio}{m2-11}{Limpiar un catálogo de proveedores}
+\nivel{Avanzado}
+Un proveedor te manda su lista de precios capturada a mano. Cópiala en tu
+script y límpiala: quita duplicados exactos, unifica la categoría (debe
+quedar en tipo título y con acento), convierte el precio a número, convierte
+la fecha (formatos mixtos), elimina los precios imposibles (cero o
+negativos) y crea un SKU con formato \texttt{SKU-0001}. Al final, muestra el
+precio promedio por categoría.
+\begin{rnoejecutar}
+lista_proveedor <- tibble(
+  id        = c(1, 2, 2, 3, 4, 5, 6),
+  categoria = c("electronica", "Electrónica ", "Electrónica ",
+                "HOGAR", "hogar", "Ropa", " ropa"),
+  precio    = c("$1,250.00", "$899.50", "$899.50", "450", "$0",
+                "$320.75", "-15"),
+  fecha     = c("2023-05-01", "02/05/2023", "02/05/2023", "2023-05-03",
+                "04/05/2023", "2023-05-05", "06/05/2023")
+)
+\end{rnoejecutar}
+\end{ejercicio}
+
+\begin{ejercicio}{m2-12}{Reporte trimestral por tienda en Excel}
+\nivel{Reto}
+Con \archivo{transacciones.csv}, \archivo{productos.csv} y
+\archivo{tiendas.csv}, genera un archivo
+\archivo{resultados/reporte\_tiendas.xlsx} con tres hojas: (1)
+``Resumen'': por tienda, ingresos, transacciones, ticket promedio, clientes
+únicos y ranking; (2) ``Trimestres'': tabla dinámica tienda $\times$
+trimestre con los ingresos; (3) ``Top producto'': el producto con más
+ingresos de cada tienda con su categoría. Incluye un control con
+\codigo{stopifnot()} que verifique que los \emph{joins} no cambiaron el
+número de filas.
+\end{ejercicio}

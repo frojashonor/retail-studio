@@ -1,0 +1,539 @@
+% ============================================================================
+% SOLUCIONES DEL MÓDULO 1 - FUNDAMENTOS DE R Y RSTUDIO
+% ============================================================================
+
+\begin{solucion}{m1-1}
+Guardamos cada dato en una variable para que el cálculo sea fácil de
+revisar y de modificar. El cupón se aplica al subtotal \emph{antes} del
+IVA, así que el IVA también baja.
+
+\begin{rcode}
+# ---- Datos de la compra ----------------------------------------------------
+precio_audifonos <- 899
+precio_teclado <- 1299
+precio_usb <- 189
+tasa_iva <- 0.16
+cupon <- 0.10
+
+# ---- Cálculos ----------------------------------------------------------------
+subtotal <- 2 * precio_audifonos + 1 * precio_teclado + 3 * precio_usb
+iva <- subtotal * tasa_iva
+total <- subtotal + iva
+subtotal_cupon <- subtotal * (1 - cupon)
+total_cupon <- subtotal_cupon * (1 + tasa_iva)
+ahorro <- total - total_cupon
+
+subtotal
+iva
+total
+total_cupon
+ahorro
+scales::dollar(total_cupon, accuracy = 0.01)
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+El subtotal es de \$3,664 y con IVA el cliente pagaría \$4,250.24. Con el
+cupón paga \$3,825.22: ahorra \$425.02, que es justo el 10\% del total con
+IVA, porque el descuento reduce también la base del impuesto.
+\end{solucion}
+
+\begin{solucion}{m1-2}
+El punto de equilibrio responde: ¿cuánto hay que vender para que la
+utilidad bruta alcance a cubrir los gastos fijos? Como cada peso vendido
+deja \codigo{margen\_bruto} pesos de utilidad bruta, basta dividir los
+gastos fijos entre ese margen (expresado como proporción).
+
+\begin{rcode}
+ingresos <- 612400
+costo_ventas <- 379700
+gastos_fijos <- 158000
+meta <- 580000
+
+utilidad_bruta <- ingresos - costo_ventas
+utilidad_operacion <- utilidad_bruta - gastos_fijos
+margen_bruto <- utilidad_bruta / ingresos          # Proporción (0 a 1)
+margen_operacion <- utilidad_operacion / ingresos
+
+utilidad_bruta
+utilidad_operacion
+round(margen_bruto * 100, 1)
+round(margen_operacion * 100, 1)
+round(ingresos / meta * 100, 1)                    # Cumplimiento %
+
+punto_equilibrio <- gastos_fijos / margen_bruto
+round(punto_equilibrio, 2)
+round(ingresos - punto_equilibrio, 2)              # Colchón en pesos
+round((ingresos / punto_equilibrio - 1) * 100, 1)  # Colchón en %
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+La sucursal tuvo un margen bruto de 38\% y un margen de operación de
+12.2\%, y superó su meta (105.6\%). Necesita vender \$415,832.19 al mes para
+no perder dinero; vendió \$196,567.81 más que eso, es decir, está 47.3\% por
+encima de su punto de equilibrio: tiene un colchón cómodo si las ventas
+bajan.
+\end{solucion}
+
+\begin{solucion}{m1-3}
+Para los montos quitamos el signo de pesos y las comas con \codigo{gsub()}
+antes de convertir. Para las fechas indicamos el formato
+\codigo{"\%d/\%m/\%Y"}.
+
+\begin{rcode}
+montos_texto <- c("$1,250.50", "$980.00", "$12,400.75", "$3,105.20")
+fechas_texto <- c("05/01/2023", "19/01/2023", "02/02/2023", "28/02/2023")
+
+# (a) Montos a número
+montos <- as.numeric(gsub("[$,]", "", montos_texto))
+montos
+sum(montos)
+
+# (b) Fechas a Date
+fechas <- as.Date(fechas_texto, format = "%d/%m/%Y")
+fechas
+class(fechas)
+
+# (c) Vencimiento a 30 días en formato dd/mm/aaaa
+vencimientos <- fechas + 30
+format(vencimientos, "%d/%m/%Y")
+
+# (d) Día de la semana del vencimiento
+weekdays(vencimientos)
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Las cuatro facturas suman \$17,736.45. Observa la última: vence el 30 de
+marzo porque febrero de 2023 tuvo 28 días; R lleva el calendario por ti.
+Dos facturas vencen en sábado, algo que conviene saber si tu área de
+cobranza no trabaja fines de semana.
+\end{solucion}
+
+\begin{solucion}{m1-4}
+Creamos el vector con nombres y aplicamos las funciones de resumen. Para el
+crecimiento dividimos cada diferencia entre el mes anterior.
+
+\begin{rcode}
+meses <- c("ene", "feb", "mar", "abr", "may", "jun",
+           "jul", "ago", "sep", "oct", "nov", "dic")
+ventas_mes <- c(420, 385, 455, 402, 478, 510, 495, 530, 468, 501, 560, 640)
+names(ventas_mes) <- meses
+
+sum(ventas_mes)                       # Total anual (miles)
+round(mean(ventas_mes), 1)            # Promedio mensual
+names(which.max(ventas_mes))          # Mejor mes
+names(which.min(ventas_mes))          # Peor mes
+sum(ventas_mes > 500)                 # Meses sobre 500 mil
+names(ventas_mes)[ventas_mes > 500]
+
+crecimiento <- diff(ventas_mes) / head(ventas_mes, -1) * 100
+round(crecimiento, 1)
+
+acumulado <- cumsum(ventas_mes)
+acumulado
+names(which(acumulado > 3000)[1])     # Primer mes que supera 3 millones
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+La tienda vendió 5.84 millones en el año, con un promedio de 487 mil por
+mes. Diciembre fue el mejor mes (640 mil) y febrero el peor (385 mil).
+Cinco meses superaron los 500 mil, todos en el segundo semestre salvo
+junio. El crecimiento más fuerte fue en diciembre (+14.3\%), típico de la
+temporada navideña. El acumulado superó los 3 millones en julio.
+\end{solucion}
+
+\begin{solucion}{m1-5}
+La clave es usar \codigo{na.rm = TRUE} en los cálculos y
+\codigo{is.na()} para localizar los faltantes.
+
+\begin{rcode}
+ventas_dias <- c(8200, 7650, NA, 9100, 10400, NA, 8800, 12100, NA, 9650)
+
+# (a) Días sin dato
+sum(is.na(ventas_dias))
+which(is.na(ventas_dias))
+
+# (b) Promedio y total con los días disponibles
+promedio_obs <- mean(ventas_dias, na.rm = TRUE)
+round(promedio_obs, 2)
+sum(ventas_dias, na.rm = TRUE)
+
+# (c) Días con dato que superaron la meta de 9,000
+sobre_meta <- sum(ventas_dias > 9000, na.rm = TRUE)
+sobre_meta
+round(sobre_meta / sum(!is.na(ventas_dias)) * 100, 1)
+
+# (d) Imputar con el promedio y comparar
+ventas_imputadas <- ventas_dias
+ventas_imputadas[is.na(ventas_imputadas)] <- promedio_obs
+round(sum(ventas_imputadas), 2)
+sum(ifelse(is.na(ventas_dias), 0, ventas_dias))   # Si imputáramos con 0
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Faltan los datos de los días 3, 6 y 9. Con los 7 días disponibles la venta
+promedio es de \$9,414.29 y 4 de esos 7 días (57.1\%) superaron la meta.
+Si rellenamos los faltantes con el promedio, el total estimado de los 10
+días es de \$94,142.86. Rellenar con cero daría \$65,900, como si la tienda
+no hubiera vendido nada esos días: subestimaría la venta en casi 30\%. Un
+\codigo{NA} significa ``no sabemos'', no ``cero''. Nota que
+\codigo{sum(ventas\_dias > 9000, na.rm = TRUE)} necesita el
+\codigo{na.rm}: la comparación con un \codigo{NA} da \codigo{NA}.
+\end{solucion}
+
+\begin{solucion}{m1-6}
+Combinamos \codigo{trimws()} y \codigo{toupper()} para limpiar, y
+\codigo{sprintf()} para los mensajes y los códigos.
+
+\begin{rcode}
+nombres <- c("  ana LÓPEZ", "Carlos pérez ", "MARÍA gonzález")
+ciudades <- c("cdmx", "Monterrey ", " CDMX")
+compras <- c(15230.5, 8900, 42100.75)
+
+# (a) Limpieza
+nombres_limpios <- toupper(trimws(nombres))
+ciudades_limpias <- toupper(trimws(ciudades))
+nombres_limpios
+ciudades_limpias
+
+# (b) Mensaje por cliente
+sprintf("%s (%s) compró %s", nombres_limpios, ciudades_limpias,
+        scales::dollar(compras, accuracy = 0.01))
+
+# (c) Códigos de cliente
+codigos <- sprintf("CLI-%03d", seq_along(nombres))
+codigos
+
+# (d) Clientes de CDMX
+sum(ciudades_limpias == "CDMX")
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\codigo{toupper()} respeta los acentos (\emph{Pérez} pasa a
+\emph{PÉREZ}). Antes de limpiar habríamos contado un solo cliente en
+``CDMX''; después de limpiar son dos. \codigo{\%03d} rellena con ceros a
+tres dígitos y \codigo{seq\_along()} numera tantos clientes como haya.
+\end{solucion}
+
+\begin{solucion}{m1-7}
+Creamos el data frame, agregamos las columnas calculadas con
+\codigo{ifelse()} y resumimos con \codigo{aggregate()}.
+
+\begin{rcode}
+empleados <- data.frame(
+  nombre = c("Ana", "Bruno", "Carla", "Diego", "Elena", "Fernando",
+             "Gabriela", "Héctor"),
+  departamento = c("Ventas", "Ventas", "Operaciones", "TI", "Ventas",
+                   "Operaciones", "TI", "Ventas"),
+  salario = c(18500, 22000, 16800, 35000, 19500, 17200, 41000, 24500),
+  antiguedad = c(3, 6, 2, 4, 1, 8, 7, 5),
+  desempeno = c(4, 5, 3, 4, 2, 4, 5, 3)
+)
+
+# (a) Bono: 10% del salario anual si el desempeño es 4 o más
+empleados$bono <- ifelse(empleados$desempeno >= 4,
+                         empleados$salario * 12 * 0.10, 0)
+empleados
+
+# (b) Ventas ordenado por salario (mayor a menor)
+ventas_dep <- empleados[empleados$departamento == "Ventas", ]
+ventas_dep[order(ventas_dep$salario, decreasing = TRUE),
+           c("nombre", "salario", "desempeno")]
+
+# (c) Salario promedio y bonos totales por departamento
+aggregate(salario ~ departamento, data = empleados, FUN = mean)
+aggregate(bono ~ departamento, data = empleados, FUN = sum)
+
+# (d) Costo anual de nómina por departamento
+empleados$costo_anual <- empleados$salario * 12 + empleados$bono
+costo_dep <- tapply(empleados$costo_anual, empleados$departamento, sum)
+costo_dep
+names(which.max(costo_dep))
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+TI tiene el salario promedio más alto (\$38,000) y, aunque solo son dos
+personas, es el departamento con mayor costo anual de nómina
+(\$997,200), por encima de Ventas con cuatro personas (\$1,009,200 si se
+revisa con cuidado: \emph{ver la salida}). Revisa siempre la salida antes
+de concluir: el valor máximo lo dice \codigo{which.max()}.
+\end{solucion}
+
+\begin{solucion}{m1-8}
+Primero calculamos el cumplimiento de forma vectorizada; después lo usamos
+en el \codigo{ifelse()}, en el bucle y en el \codigo{while}.
+
+\begin{rcode}
+vendedores <- c("Luis", "Marta", "Nora", "Óscar", "Paula", "Raúl")
+ventas_trim <- c(185, 240, 132, 310, 198, 260)
+meta <- 200
+
+# (a) Semáforo
+cumplimiento <- ventas_trim / meta * 100
+semaforo <- ifelse(cumplimiento >= 100, "Verde",
+                   ifelse(cumplimiento >= 85, "Amarillo", "Rojo"))
+semaforo
+
+# (b) Reporte con for
+for (k in seq_along(vendedores)) {
+  cat(sprintf("%-6s %4d mil  %6.1f%%  %s\n", vendedores[k],
+              ventas_trim[k], cumplimiento[k], semaforo[k]))
+}
+
+# (c) Trimestres para que el de menor venta alcance la meta
+venta <- min(ventas_trim)
+trimestres <- 0
+while (venta < meta) {
+  venta <- venta * 1.08
+  trimestres <- trimestres + 1
+}
+vendedores[which.min(ventas_trim)]
+trimestres
+round(venta, 1)
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Tres vendedores están en verde, dos en amarillo (Luis y Paula, cerca de la
+meta) y Nora en rojo con 66\% de cumplimiento. Aun creciendo 8\% cada
+trimestre, Nora necesitaría 6 trimestres (año y medio) para llegar a la
+meta: es un caso para un plan de acompañamiento, no solo para esperar.
+\end{solucion}
+
+\begin{solucion}{m1-9}
+Las validaciones van al inicio de cada función, antes de los cálculos. El
+punto de equilibrio en unidades es
+\codigo{costos\_fijos / (precio - costo\_variable)}, redondeado hacia
+arriba porque no se venden fracciones de unidad.
+
+\begin{rcode}
+# Precio final: aplica descuento (proporción) y luego IVA
+precio_final <- function(precio, descuento = 0, iva = 0.16) {
+  if (any(precio < 0)) stop("El precio no puede ser negativo")
+  if (descuento < 0 || descuento > 1) {
+    stop("El descuento debe estar entre 0 y 1 (0.15 = 15%)")
+  }
+  round(precio * (1 - descuento) * (1 + iva), 2)
+}
+
+# Unidades mínimas para no perder dinero
+punto_equilibrio <- function(costos_fijos, precio, costo_variable) {
+  if (precio <= costo_variable) {
+    stop("El precio debe ser mayor que el costo variable")
+  }
+  ceiling(costos_fijos / (precio - costo_variable))
+}
+
+# (c) Uso
+catalogo <- c(laptop = 18999, mouse = 349, monitor = 5499, silla = 3899)
+precio_final(catalogo, descuento = 0.20)
+precio_final(1000)                          # Solo IVA
+punto_equilibrio(85000, precio = 450, costo_variable = 280)
+
+# (d) ¿Qué pasa con un descuento inválido? tryCatch() atrapa el error
+tryCatch(precio_final(1000, descuento = 1.5),
+         error = function(e) conditionMessage(e))
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+El negocio necesita vender 501 unidades para cubrir sus \$85,000 de costos
+fijos (con 500 le faltarían \$20). \codigo{tryCatch()} ejecuta el código y,
+si ocurre un error, en lugar de detener el script llama a la función de
+\codigo{error}; aquí solo devolvemos el mensaje. Sin \codigo{tryCatch()},
+R mostraría:
+
+\begin{rnoejecutar}
+precio_final(1000, descuento = 1.5)
+\end{rnoejecutar}
+\begin{rsalida}
+Error in precio_final(1000, descuento = 1.5) :
+  El descuento debe estar entre 0 y 1 (0.15 = 15%)
+\end{rsalida}
+\end{solucion}
+
+\begin{solucion}{m1-10}
+Leemos el catálogo, buscamos los márgenes negativos (un problema de calidad
+de datos o de precios) y exportamos dos hojas.
+
+\begin{rcode}
+library(readr)
+library(writexl)
+
+productos <- read_csv("datasets/productos.csv", show_col_types = FALSE)
+
+# (a) Tamaño
+dim(productos)
+
+# (b) Margen negativo
+negativos <- productos[productos$margen_pct < 0, ]
+nrow(negativos)
+peores <- negativos[order(negativos$margen_pct),
+                    c("nombre_producto", "categoria", "precio_catalogo",
+                      "costo", "margen_pct")]
+head(peores, 5)
+
+# (c) Margen promedio por categoría
+margen_cat <- aggregate(margen_pct ~ categoria, data = productos,
+                        FUN = mean)
+margen_cat$margen_pct <- round(margen_cat$margen_pct, 1)
+margen_cat[order(margen_cat$margen_pct, decreasing = TRUE), ]
+
+# (d) Problemas de inventario
+table(productos$estado_stock)
+sum(productos$estado_stock %in% c("Stock Bajo", "Sin Stock"))
+
+# (e) Exportar
+dir.create("resultados", showWarnings = FALSE)
+write_xlsx(list(Margen_negativo = as.data.frame(peores),
+                Por_categoria = margen_cat),
+           "resultados/calidad_catalogo.xlsx")
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\textbf{Conclusiones para Compras:} 12 de los 50 productos (24\%) se venden
+por debajo de su costo; en los peores casos el costo es más de cuatro veces
+el precio, lo que sugiere errores de captura o precios desactualizados que
+hay que revisar antes de cualquier análisis de rentabilidad. Además, 4
+productos tienen stock bajo y ninguno está agotado. (Los datos del curso
+son simulados, por eso aparecen casos tan extremos; en una empresa real
+serían una alerta inmediata.)
+\end{solucion}
+
+\begin{solucion}{m1-11}
+Resumimos con \codigo{aggregate()} y \codigo{tapply()}, y usamos
+\codigo{\%in\%} para agrupar las dos tarjetas.
+
+\begin{rcode}
+library(readr)
+
+trans <- read_csv("datasets/transacciones.csv", show_col_types = FALSE)
+
+# (a) Resumen por método de pago
+resumen_pago <- aggregate(total_transaccion ~ metodo_pago, data = trans,
+                          FUN = sum)
+resumen_pago$transacciones <- as.numeric(table(trans$metodo_pago)[
+  resumen_pago$metodo_pago])
+resumen_pago$ticket_promedio <- round(resumen_pago$total_transaccion /
+                                        resumen_pago$transacciones, 2)
+resumen_pago
+
+# (b) Porcentaje del monto pagado con tarjeta
+con_tarjeta <- trans$metodo_pago %in% c("Tarjeta Crédito",
+                                        "Tarjeta Débito")
+round(sum(trans$total_transaccion[con_tarjeta]) /
+        sum(trans$total_transaccion) * 100, 1)
+
+# (c) Mejor mes y día con más transacciones
+por_mes <- tapply(trans$total_transaccion, trans$mes, sum)
+names(which.max(por_mes))
+round(max(por_mes), 2)
+sort(table(trans$dia_semana), decreasing = TRUE)[1:3]
+
+# (d) Exportar y comprobar
+dir.create("resultados", showWarnings = FALSE)
+write_csv(resumen_pago, "resultados/resumen_metodo_pago.csv")
+saveRDS(resumen_pago, "resultados/resumen_metodo_pago.rds")
+identical(resumen_pago, readRDS("resultados/resumen_metodo_pago.rds"))
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+La tarjeta de crédito es el método más usado y el de mayor monto, y las
+dos tarjetas juntas concentran el 59.6\% del dinero cobrado: la
+disponibilidad de terminales es crítica. El ticket promedio casi no cambia
+entre métodos. Como \codigo{resumen\_pago} es un data frame de R base, el
+RDS lo recupera idéntico.
+\end{solucion}
+
+\begin{solucion}{m1-12}
+Dividimos el problema en piezas: una función que resume una tienda, un
+bucle que la aplica a las diez y, al final, el ranking y la exportación.
+Para traer el nombre, la ciudad y el tamaño de la tienda usamos
+\codigo{match()}, que encuentra en qué fila de \codigo{tiendas} está cada
+\codigo{tienda\_id}.
+
+\begin{rcode}
+library(readr)
+library(writexl)
+
+ventas <- read_csv("datasets/ventas_retail.csv", show_col_types = FALSE)
+tiendas <- read_csv("datasets/tiendas.csv", show_col_types = FALSE)
+
+# Resume las ventas de una tienda en un data frame de una fila
+resumen_tienda <- function(id, ventas, tiendas) {
+  if (!id %in% tiendas$tienda_id) stop("La tienda no existe: ", id)
+  v <- ventas[ventas$tienda_id == id, ]
+  fila_tienda <- match(id, tiendas$tienda_id)
+  venta_mes <- tapply(v$total, v$mes, sum)
+  data.frame(
+    tienda = tiendas$nombre_tienda[fila_tienda],
+    ciudad = tiendas$ciudad[fila_tienda],
+    num_ventas = nrow(v),
+    venta_total = round(sum(v$total), 2),
+    ticket_promedio = round(mean(v$total), 2),
+    mejor_mes = names(which.max(venta_mes)),
+    venta_m2 = round(sum(v$total) / tiendas$tamano_m2[fila_tienda], 2)
+  )
+}
+
+resumen_tienda(1, ventas, tiendas)          # Prueba con una tienda
+
+# Aplicar a las 10 tiendas y unir las filas
+lista_resumenes <- lapply(tiendas$tienda_id, resumen_tienda,
+                          ventas = ventas, tiendas = tiendas)
+ranking <- do.call(rbind, lista_resumenes)
+ranking <- ranking[order(ranking$venta_total, decreasing = TRUE), ]
+rownames(ranking) <- NULL
+
+# Ranking impreso
+cat("RANKING DE TIENDAS 2023\n")
+for (k in seq_len(nrow(ranking))) {
+  cat(sprintf("%2d. %-17s %11s  %3d ventas  %8s por m2\n", k,
+              ranking$tienda[k], scales::dollar(ranking$venta_total[k]),
+              ranking$num_ventas[k], scales::dollar(ranking$venta_m2[k],
+                                                     accuracy = 0.01)))
+}
+
+# Exportar
+dir.create("resultados", showWarnings = FALSE)
+write_xlsx(ranking, "resultados/ranking_tiendas.xlsx")
+ranking$tienda[which.max(ranking$venta_m2)]
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\textbf{¿Qué nos dice esto?} La Sucursal Outlet es la que más vende en
+total (\$70,155) y, con solo 350 m$^2$, también la más productiva por metro
+cuadrado (\$200.44/m$^2$). En cambio, la Sucursal Premium, la más grande
+(800 m$^2$), vende menos de la mitad por metro cuadrado. La Sucursal Este
+es la de menor venta total, con solo 20 ventas en el año. Recuerda que en
+estos datos cada registro es una venta diaria asignada al azar a una
+tienda, así que las diferencias entre tiendas son pequeñas; con datos
+reales, este mismo script te daría el ranking verdadero cada mes.
+
+\codigo{lapply()} aplica la función a cada \codigo{tienda\_id} y devuelve
+una lista de data frames de una fila; \codigo{do.call(rbind, lista)} los
+apila en una sola tabla. Es el patrón de R base para ``hacer lo mismo por
+cada grupo y juntar los resultados''; en el Módulo~\ref{cap:manipulacion}
+lo harás con \codigo{group\_by()} y \codigo{summarise()}.
+\end{solucion}

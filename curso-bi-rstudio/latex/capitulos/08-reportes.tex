@@ -1,0 +1,2665 @@
+% ============================================================================
+% MÓDULO 8. REPORTES AUTOMÁTICOS CON R MARKDOWN
+% ============================================================================
+\chapter{Reportes automáticos con R Markdown}
+\label{cap:reportes}
+
+\begin{objetivos}
+\begin{itemize}
+  \item Explicar por qué un \termino{reporte reproducible} ahorra horas y
+        evita errores frente al reporte hecho a mano en Excel o PowerPoint.
+  \item Crear un documento R Markdown (\archivo{.Rmd}) con encabezado YAML,
+        texto en Markdown, bloques de código y código en línea, y convertirlo
+        a HTML, PDF y Word con el botón \menu{Knit}.
+  \item Controlar qué se ve en el reporte con las opciones de los bloques
+        (\codigo{echo}, \codigo{include}, \codigo{fig.cap},
+        \codigo{results = "asis"}, etc.).
+  \item Presentar tablas profesionales con \codigo{knitr::kable()} y
+        escribir \termino{texto dinámico} que cambia solo según los datos.
+  \item Construir \termino{reportes parametrizados} (uno por tienda, por
+        mes, por región) y generarlos todos con un script que registra lo
+        que salió bien y lo que falló.
+  \item Programar la ejecución automática (cron, Programador de tareas de
+        Windows), enviar los reportes por correo y exportar reportes a Excel
+        con varias hojas.
+  \item Dar el salto a Quarto y aplicar buenas prácticas de reproducibilidad.
+\end{itemize}
+\end{objetivos}
+
+Es el primer lunes del mes. Andrea, analista de la cadena TechRetail México,
+llega a la oficina sabiendo lo que le espera: abrir el sistema, exportar las
+ventas del mes a Excel, armar diez tablas dinámicas (una por sucursal), copiar
+los totales a una presentación de PowerPoint, pegar las gráficas, escribir a
+mano frases como ``las ventas crecieron 12\,\% respecto al mes anterior'' y,
+por último, enviar diez correos a diez gerentes. Le toma casi dos días. Y el
+mes pasado, al copiar y pegar, el gerente de la Sucursal Norte recibió las
+cifras de la Sucursal Sur. Nadie lo notó hasta la junta de resultados.
+
+Ahora imagina otra versión de ese lunes: Andrea llega, abre su correo y ya
+tiene la confirmación de que a las 7:00 de la mañana un script de R generó
+los diez reportes (con tablas, gráficas y conclusiones escritas en español a
+partir de los datos) y se los envió a cada gerente. Andrea dedica su mañana a
+lo que de verdad aporta valor: investigar por qué la Sucursal Centro cayó
+tanto en diciembre.
+
+Esa segunda versión es lo que vas a construir en este módulo. Usarás todo lo
+que aprendiste de manipulación de datos (Módulo~\ref{cap:manipulacion}) y de
+visualización (Módulo~\ref{cap:visualizacion}), y le agregarás una pieza
+nueva: \paquete{R Markdown}, la herramienta que convierte tu análisis en un
+documento terminado que se vuelve a generar con un clic, o sin ningún clic.
+
+% ----------------------------------------------------------------------------
+\section{El problema: el reporte mensual hecho a mano}
+\label{sec:m8-problema}
+
+Casi todas las empresas tienen un reporte que se hace ``cada mes, igual que
+el mes pasado'': el reporte de ventas, el de cartera vencida, el de
+inventario, el de rotación de personal. Cuando se hace a mano, el proceso
+suele verse así:
+
+\begin{enumerate}
+  \item Exportar datos de un sistema a Excel.
+  \item Limpiar, filtrar y resumir con fórmulas o tablas dinámicas.
+  \item Copiar los resultados a Word o PowerPoint.
+  \item Rehacer las gráficas o pegarlas como imagen.
+  \item Escribir los comentarios (``crecimos'', ``caímos'', ``destaca'').
+  \item Revisar, exportar a PDF y enviar.
+\end{enumerate}
+
+Cada paso manual es una oportunidad de error: una fila que no se seleccionó,
+una fórmula que apunta a la celda equivocada, una gráfica del mes pasado que
+nadie actualizó, un porcentaje escrito a mano que ya no corresponde a la
+tabla. Y el costo en tiempo se multiplica: si el reporte es por tienda, son
+diez veces el mismo trabajo.
+
+\begin{table}[H]
+\centering
+\caption{Reporte manual frente a reporte reproducible}
+\label{tab:m8-manual-vs-reproducible}
+\small
+\begin{tabularx}{\textwidth}{l X X}
+\toprule
+\textbf{Aspecto} & \textbf{Manual (Excel + PowerPoint)} &
+  \textbf{Reproducible (R Markdown)} \\
+\midrule
+Tiempo por reporte & Horas, cada mes & Minutos la primera vez; segundos
+  después \\
+Errores de copiar y pegar & Frecuentes y difíciles de detectar & No hay
+  copiar y pegar: los números salen del código \\
+Diez versiones (una por tienda) & Diez veces el trabajo & Un bucle de
+  diez vueltas \\
+Texto de conclusiones & Se escribe a mano & Se genera con reglas
+  (\codigo{if}/\codigo{else}) \\
+Auditoría (``¿de dónde salió este número?'') & Difícil & El código lo
+  documenta \\
+Cambiar el formato (PDF, Word, HTML) & Rehacer & Cambiar una línea \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{concepto}{Reporte reproducible}
+Un \termino{reporte reproducible} es un documento que se genera
+\emph{completamente} a partir de los datos y de un código, sin pasos
+manuales. Si los datos cambian (llega un mes nuevo, se corrige una venta),
+basta con volver a generar el documento para que todos los números, tablas,
+gráficas y frases se actualicen. Cualquier persona con los mismos datos y el
+mismo código obtiene exactamente el mismo reporte.
+\end{concepto}
+
+\subsection{Qué es R Markdown y cómo funciona}
+
+\termino{R Markdown} es un formato de archivo (extensión \archivo{.Rmd}) que
+mezcla tres cosas en un solo documento:
+
+\begin{itemize}
+  \item \textbf{Texto} escrito en \termino{Markdown}, un lenguaje muy
+        sencillo para dar formato (títulos, negritas, listas) con símbolos
+        como \codigo{\#} o \codigo{**}.
+  \item \textbf{Código R} en bloques llamados \termino{chunks}, cuyos
+        resultados (tablas, gráficas, números) se insertan en el documento.
+  \item Un \textbf{encabezado} en formato \termino{YAML} con el título, el
+        autor y el formato de salida.
+\end{itemize}
+
+Cuando presionas el botón \menu{Knit} (``tejer'') en RStudio, ocurren dos
+pasos, que resume la figura~\ref{fig:m8-flujo}. Primero, el paquete
+\paquete{knitr} ejecuta cada bloque de código y ``teje'' sus resultados con
+el texto, generando un archivo Markdown puro (\archivo{.md}). Después,
+\termino{pandoc}, un convertidor universal de documentos que viene incluido
+con RStudio, transforma ese \archivo{.md} en el formato final: una página
+HTML, un documento de Word o, pasando por LaTeX, un PDF. El paquete
+\paquete{rmarkdown} coordina todo el proceso con su función
+\codigo{render()}.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  archivo/.style={draw=primario, fill=primario!6, rounded corners=3pt,
+                  minimum width=1.9cm, minimum height=1cm, align=center,
+                  font=\sffamily\footnotesize},
+  motor/.style={draw=acento, fill=acento!10, ellipse, minimum width=1.9cm,
+                minimum height=0.9cm, align=center,
+                font=\sffamily\footnotesize\bfseries},
+  salida/.style={draw=exito, fill=exito!8, rounded corners=3pt,
+                 minimum width=1.7cm, minimum height=0.75cm, align=center,
+                 font=\sffamily\footnotesize},
+  flecha/.style={-{Stealth[length=2.5mm]}, thick, color=gristexto}]
+  \node[archivo] (rmd) {\textbf{.Rmd}\\texto + código};
+  \node[motor, right=0.7cm of rmd] (knitr) {knitr};
+  \node[archivo, right=0.7cm of knitr] (md) {\textbf{.md}\\texto +\\resultados};
+  \node[motor, right=0.7cm of md] (pandoc) {pandoc};
+  \node[salida, right=1.1cm of pandoc, yshift=1.05cm] (html) {HTML};
+  \node[salida, right=1.1cm of pandoc] (docx) {Word (.docx)};
+  \node[salida, right=1.1cm of pandoc, yshift=-1.05cm] (tex) {LaTeX};
+  \node[salida, right=0.5cm of tex] (pdf) {PDF};
+  \draw[flecha] (rmd) -- node[above, font=\sffamily\scriptsize]{ejecuta} (knitr);
+  \draw[flecha] (knitr) -- (md);
+  \draw[flecha] (md) -- node[above, font=\sffamily\scriptsize]{convierte} (pandoc);
+  \draw[flecha] (pandoc.east) -- (html.west);
+  \draw[flecha] (pandoc.east) -- (docx.west);
+  \draw[flecha] (pandoc.east) -- (tex.west);
+  \draw[flecha] (tex) -- (pdf);
+  \node[font=\sffamily\scriptsize, color=gristexto, below=0.35cm of md]
+    {\codigo{rmarkdown::render()} coordina todo el proceso (botón Knit)};
+\end{tikzpicture}
+\caption{Cómo se convierte un archivo R Markdown en un reporte terminado.}
+\label{fig:m8-flujo}
+\end{figure}
+
+Lo importante de este flujo es que \textbf{el reporte nunca se edita a mano}:
+si algo está mal, corriges el \archivo{.Rmd} (o los datos) y vuelves a
+tejer. El documento final es un producto desechable; lo valioso es el
+\archivo{.Rmd}.
+
+Para que veas cómo trabaja \paquete{knitr} sin salir de la consola, puedes
+pedirle que teja un pequeño texto con \codigo{knitr::knit(text = ...)}. Cada
+elemento del vector es una línea del documento:
+
+\begin{rcode}
+library(tidyverse)   # dplyr, readr, ggplot2, tidyr, purrr...
+library(knitr)       # knit() y kable()
+library(scales)      # dollar(), percent(), comma()
+
+# Un mini documento R Markdown guardado en un vector de texto
+rmd_mini <- c(
+  "Este año vendimos `r format(1234567, big.mark = ',')` pesos.",
+  "",
+  "```{r suma}",
+  "sum(1:10)",
+  "```"
+)
+# knitr ejecuta el código y devuelve Markdown puro (lo que ve pandoc)
+cat(knit(text = rmd_mini, quiet = TRUE))
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Observa lo que pasó: la expresión \codigo{`r format(...)`} de la primera
+línea desapareció y en su lugar quedó el número ya formateado
+(\codigo{1,234,567}). El bloque de código se conservó (para que se vea en el
+reporte) y debajo apareció su resultado, precedido de \codigo{\#\#}. Eso es
+exactamente lo que knitr hace con un reporte completo; después pandoc le da
+formato bonito.
+
+\begin{consejo}
+Para seguir este módulo necesitas los paquetes \paquete{rmarkdown} y
+\paquete{knitr}. RStudio los instala automáticamente la primera vez que
+creas un archivo R Markdown, pero también puedes instalarlos tú. Para los
+PDF necesitarás además LaTeX (sección~\ref{sec:m8-formatos}).
+\end{consejo}
+
+\begin{rnoejecutar}
+install.packages(c("rmarkdown", "knitr", "writexl", "readxl"))
+\end{rnoejecutar}
+
+% ----------------------------------------------------------------------------
+\section{Anatomía de un documento R Markdown}
+\label{sec:m8-anatomia}
+
+\subsection{Crear tu primer .Rmd en RStudio}
+
+\begin{enumerate}
+  \item Ve a \menu{File > New File > R Markdown\ldots}
+  \item Escribe un título (por ejemplo, ``Mi primer reporte de ventas'') y tu
+        nombre, deja seleccionado \menu{HTML} y presiona \menu{OK}.
+  \item RStudio abre un documento de ejemplo. Guárdalo con
+        \tecla{Ctrl} + \tecla{S} dentro de la carpeta del curso (la que
+        contiene \archivo{datasets/}), por ejemplo como
+        \archivo{reportes/01-primer-reporte.Rmd}.
+  \item Presiona el botón \menu{Knit} (el ovillo de estambre azul) o el
+        atajo \tecla{Ctrl} + \tecla{Shift} + \tecla{K}. En unos segundos se
+        abre la vista previa del HTML y el archivo
+        \archivo{01-primer-reporte.html} aparece junto al \archivo{.Rmd}.
+\end{enumerate}
+
+En la carpeta \archivo{codigo/reportes/} del libro encontrarás los archivos
+completos de este módulo, listos para copiar a tu carpeta \archivo{reportes/}:
+\archivo{01-primer-reporte.Rmd}, \archivo{02-reporte-ejecutivo.Rmd},
+\archivo{generar\_reportes.R} y \archivo{reporte\_excel.R}. La estructura de
+carpetas que usaremos es:
+
+\begin{textocodigo}
+curso-bi-rstudio/              <- directorio de trabajo (proyecto RStudio)
+|-- datasets/                  <- datos de entrada (CSV)
+|   |-- transacciones.csv
+|   |-- tiendas.csv
+|   `-- ...
+|-- reportes/                  <- plantillas .Rmd y scripts
+|   |-- 01-primer-reporte.Rmd
+|   |-- 02-reporte-ejecutivo.Rmd
+|   |-- generar_reportes.R
+|   `-- reporte_excel.R
+`-- resultados/                <- salidas (se pueden borrar y regenerar)
+    |-- reporte_ventas.xlsx
+    `-- reportes/
+        |-- 2023-12_T01_sucursal-centro_2024-01-05.html
+        `-- ...
+\end{textocodigo}
+
+Un archivo \archivo{.Rmd} tiene tres tipos de contenido, que muestra la
+figura~\ref{fig:m8-anatomia}. Vamos a recorrer el archivo
+\archivo{01-primer-reporte.Rmd} por partes.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  zona/.style={draw, rounded corners=2pt, minimum width=7.2cm, align=left,
+               font=\ttfamily\scriptsize, inner sep=5pt, text width=6.9cm},
+  nota/.style={font=\sffamily\footnotesize, align=left, text width=5.6cm},
+  flecha/.style={-{Stealth[length=2mm]}, thick, color=gristexto}]
+  \node[zona, draw=morado, fill=morado!6] (yaml)
+    {-{}-{}-\\title: "Mi primer reporte de ventas"\\output: html\_document\\-{}-{}-};
+  \node[zona, draw=gristexto, fill=gray!5, below=0.25cm of yaml] (texto)
+    {\#\# Introducción\\Este es mi **primer reporte automático**.};
+  \node[zona, draw=secundario, fill=secundario!6, below=0.25cm of texto] (chunk)
+    {```\{r tabla-trimestres\}\\ventas \%>\% group\_by(trimestre) \%>\% ...\\```};
+  \node[zona, draw=acento, fill=acento!8, below=0.25cm of chunk] (inline)
+    {El archivo tiene `r nrow(ventas)` ventas.};
+  \node[nota, right=0.5cm of yaml] (n1)
+    {\textbf{\color{morado}1. Encabezado YAML}: título, autor, fecha y
+     formato de salida, entre dos líneas \texttt{-{}-{}-}.};
+  \node[nota, right=0.5cm of texto] (n2)
+    {\textbf{2. Texto en Markdown}: lo que se lee en el reporte.};
+  \node[nota, right=0.5cm of chunk] (n3)
+    {\textbf{\color{secundario}3. Bloque de código (chunk)}: R se ejecuta y
+     su resultado se inserta.};
+  \node[nota, right=0.5cm of inline] (n4)
+    {\textbf{\color{acento}4. Código en línea}: un valor calculado dentro
+     de una frase.};
+  \draw[flecha] (n1.west) -- (yaml.east);
+  \draw[flecha] (n2.west) -- (texto.east);
+  \draw[flecha] (n3.west) -- (chunk.east);
+  \draw[flecha] (n4.west) -- (inline.east);
+\end{tikzpicture}
+\caption{Las cuatro piezas de un documento R Markdown.}
+\label{fig:m8-anatomia}
+\end{figure}
+
+\subsection{El encabezado YAML}
+
+El documento empieza con un bloque entre dos líneas de tres guiones. Es el
+\termino{encabezado YAML} (\emph{YAML Ain't Markup Language}), un formato de
+configuración del tipo \codigo{clave: valor}:
+
+\begin{textocodigo}
+---
+title: "Mi primer reporte de ventas"
+author: "Tu nombre"
+date: "`r format(Sys.Date(), '%d/%m/%Y')`"
+output: html_document
+---
+\end{textocodigo}
+
+\begin{itemize}
+  \item \codigo{title}, \codigo{author} y \codigo{date} aparecen en la
+        portada del reporte. Observa que la fecha es código R: cada vez que
+        tejes, se escribe la fecha de ese día.
+  \item \codigo{output} indica el formato: \codigo{html\_document},
+        \codigo{pdf\_document} o \codigo{word\_document}.
+  \item Los textos con caracteres especiales (dos puntos, comillas, acentos
+        al inicio) van entre comillas.
+\end{itemize}
+
+\begin{advertencia}
+En YAML \textbf{la sangría importa}: las opciones de un formato se escriben
+debajo de él con dos espacios de sangría, y nunca con tabuladores. Un
+espacio de más o de menos rompe el documento
+(sección~\ref{sec:m8-errores}).
+\end{advertencia}
+
+\subsection{Texto en Markdown}
+
+Después del encabezado escribes el texto del reporte. Markdown usa símbolos
+sencillos para dar formato; la tabla~\ref{tab:m8-markdown} resume los que
+usarás el 95\,\% del tiempo.
+
+\begin{table}[H]
+\centering
+\caption{Sintaxis básica de Markdown}
+\label{tab:m8-markdown}
+\small
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{Quieres\ldots} & \textbf{Escribes} & \textbf{Notas} \\
+\midrule
+Título de nivel 1, 2, 3 & \codigo{\# Título}, \codigo{\#\# Sección},
+  \codigo{\#\#\# Subsección} & Deja un espacio después de \codigo{\#} y una
+  línea en blanco antes \\
+Negritas & \codigo{**texto**} & También \codigo{\_\_texto\_\_} \\
+Cursivas & \codigo{*texto*} & También \codigo{\_texto\_} \\
+Código en línea & \codigo{`read\_csv()`} & Letra de máquina de escribir \\
+Lista con viñetas & \codigo{- elemento} & Una línea en blanco antes de la
+  lista \\
+Lista numerada & \codigo{1. elemento} & La numeración se ajusta sola \\
+Enlace & \codigo{[texto](https://...)} & \\
+Imagen & \codigo{![pie](logo.png)} & Ruta relativa al \archivo{.Rmd} \\
+Línea horizontal & \codigo{-{}-{}-} & En una línea sola \\
+Tabla & \codigo{| A | B |} y \codigo{|---|---|} & Mejor generarlas con
+  \codigo{kable()} \\
+Salto de párrafo & Una línea en blanco & Un solo salto de línea no separa
+  párrafos \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Un ejemplo de texto con varios de estos elementos:
+
+\begin{textocodigo}
+## Introducción
+
+Este es mi **primer reporte automático**. Analiza las ventas de 2023 de la
+cadena *TechRetail México*. Puntos clave:
+
+- Los datos vienen de `ventas_retail.csv`.
+- Se actualiza cada vez que presiono **Knit**.
+
+| Trimestre | Meta       |
+|-----------|-----------:|
+| Q1        | $1,000,000 |
+\end{textocodigo}
+
+\subsection{Bloques de código (chunks)}
+
+Un \termino{chunk} empieza con tres acentos graves y \codigo{\{r\}}, y
+termina con tres acentos graves. Opcionalmente lleva un nombre
+(\codigo{cargar-datos}) y opciones separadas por comas. En RStudio lo
+insertas con \tecla{Ctrl} + \tecla{Alt} + \tecla{I} y lo ejecutas, sin
+tejer, con la flechita verde de su esquina.
+
+\begin{textocodigo}
+```{r cargar-datos}
+library(dplyr)
+library(readr)
+library(ggplot2)
+
+# El .Rmd se ejecuta en SU carpeta. Buscamos datasets/ ahí mismo
+# o en la carpeta superior (si el .Rmd está en curso/reportes/).
+carpeta <- if (dir.exists("datasets")) "datasets" else "../datasets"
+ventas <- read_csv(file.path(carpeta, "ventas_retail.csv"),
+                   show_col_types = FALSE)
+```
+\end{textocodigo}
+
+Fíjate en la búsqueda de la carpeta de datos. Cuando tejes, R usa como
+directorio de trabajo \textbf{la carpeta donde está guardado el
+\archivo{.Rmd}}, no la de tu proyecto. Si el \archivo{.Rmd} vive en
+\archivo{reportes/}, la ruta \archivo{datasets/ventas\_retail.csv} no existe
+desde ahí: hay que subir un nivel (\archivo{../datasets}). Volveremos a esto
+en la sección~\ref{sec:m8-directorio}, porque es el error número uno de quien
+empieza con R Markdown.
+
+\subsection{Código en línea}
+
+Para meter un número calculado \emph{dentro de una frase} se usa el
+\termino{código en línea}: un acento grave, la letra \codigo{r}, un espacio,
+la expresión y otro acento grave.
+
+\begin{textocodigo}
+El archivo tiene `r nrow(ventas)` ventas y el total vendido en el año
+fue de **$`r format(round(sum(ventas$total)), big.mark = ",")`**.
+\end{textocodigo}
+
+Antes de ponerlo en el reporte, conviene probar la expresión en la consola.
+Carguemos los datos igual que lo hace el reporte (con el directorio de
+trabajo en la carpeta del curso):
+
+\begin{rcode}
+ventas <- read_csv("datasets/ventas_retail.csv", show_col_types = FALSE)
+
+nrow(ventas)                                   # número de ventas
+format(round(sum(ventas$total)), big.mark = ",")  # total con comas
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+En el reporte, la frase se leerá: ``El archivo tiene 365 ventas y el total
+vendido en el año fue de \textbf{\$TOTALANUAL}''. Si mañana llegan más
+datos, la frase se corrige sola.
+
+\subsection{El documento completo y el botón Knit}
+
+Juntando las piezas, este es el resto de \archivo{01-primer-reporte.Rmd}
+(después del encabezado, el texto y el bloque de carga):
+
+\begin{textocodigo}
+```{r setup, include=FALSE}
+# Opciones para todos los bloques: mostrar código, ocultar mensajes
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      fig.width = 7, fig.height = 3.5)
+```
+
+## Ventas por trimestre
+
+```{r tabla-trimestres}
+ventas %>%
+  group_by(trimestre) %>%
+  summarise(ventas = round(sum(total)), n_ventas = n()) %>%
+  knitr::kable(col.names = c("Trimestre", "Ventas ($)", "Núm. de ventas"),
+               format.args = list(big.mark = ","))
+```
+
+## Tendencia mensual
+
+```{r grafica-mensual, fig.cap = "Ventas totales por mes, 2023"}
+ventas %>%
+  group_by(mes) %>%
+  summarise(ventas = sum(total)) %>%
+  ggplot(aes(x = mes, y = ventas, group = 1)) +
+  geom_line(color = "#2a78d6", linewidth = 0.8) +
+  geom_point(color = "#2a78d6") +
+  scale_y_continuous(labels = scales::dollar) +
+  labs(x = NULL, y = "Ventas") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+\end{textocodigo}
+
+Al presionar \menu{Knit}, en el panel \menu{Render} de RStudio verás cómo
+knitr procesa cada bloque (\codigo{1/9}, \codigo{2/9}\ldots) y al final la
+línea \codigo{Output created: 01-primer-reporte.html}. El HTML resultante es
+un solo archivo autocontenido (las gráficas van incrustadas): lo puedes
+enviar por correo y se abre en cualquier navegador, sin necesidad de R.
+
+\begin{hazlotu}
+Crea \archivo{reportes/01-primer-reporte.Rmd} con el contenido anterior y
+tejelo. Después agrega una sección \codigo{\#\# Ventas por día de la semana}
+con una tabla que use \codigo{dia\_semana}, y vuelve a tejer. ¿Cuánto tardó
+en actualizarse todo el documento?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Opciones de los bloques de código}
+\label{sec:m8-opciones}
+
+Un reporte para el director no debe mostrar código, mensajes de carga de
+paquetes ni advertencias; un tutorial para el equipo de análisis sí debe
+mostrar el código. Eso se controla con las \termino{opciones de chunk}, que
+se escriben dentro de las llaves después del nombre:
+
+\begin{textocodigo}
+```{r grafica-ventas, echo = FALSE, fig.cap = "Ventas por mes",
+    fig.width = 7, fig.height = 3.5, out.width = "90%"}
+\end{textocodigo}
+
+La tabla~\ref{tab:m8-opciones} reúne las opciones que más usarás.
+
+\begin{table}[H]
+\centering
+\caption{Opciones de chunk más usadas en reportes de negocio}
+\label{tab:m8-opciones}
+\small
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{Opción} & \textbf{Valor típico} & \textbf{Qué hace} \\
+\midrule
+\codigo{echo} & \codigo{FALSE} & Oculta el código; muestra el resultado \\
+\codigo{eval} & \codigo{FALSE} & Muestra el código pero no lo ejecuta \\
+\codigo{include} & \codigo{FALSE} & Ejecuta el código pero no muestra
+  nada (ni código ni resultado). Ideal para cargar datos \\
+\codigo{message} & \codigo{FALSE} & Oculta mensajes (p.~ej., al cargar
+  paquetes) \\
+\codigo{warning} & \codigo{FALSE} & Oculta advertencias \\
+\codigo{error} & \codigo{TRUE} & Muestra el error y sigue tejiendo (por
+  defecto, un error detiene todo) \\
+\codigo{fig.cap} & \codigo{"Título"} & Pie de la figura (acepta una
+  variable de R) \\
+\codigo{fig.width}, \codigo{fig.height} & \codigo{7}, \codigo{3.5} &
+  Tamaño de la gráfica en pulgadas \\
+\codigo{out.width} & \codigo{"90\%"} & Ancho con el que se muestra en el
+  documento \\
+\codigo{fig.align} & \codigo{"center"} & Alineación de la figura \\
+\codigo{results} & \codigo{"asis"} & El texto que imprime el código se
+  trata como Markdown, no como salida de consola \\
+\codigo{results} & \codigo{"hide"} & Oculta la salida impresa \\
+\codigo{cache} & \codigo{TRUE} & Guarda el resultado y no vuelve a
+  ejecutar el bloque si su código no cambió \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Veamos la diferencia entre \codigo{echo = FALSE} e \codigo{include = FALSE}
+tejiendo un pequeño documento en la consola:
+
+\begin{rcode}
+doc_opciones <- c(
+  "```{r a, echo = FALSE}",
+  "sum(1:10)",
+  "```",
+  "",
+  "```{r b, include = FALSE}",
+  "total <- sum(1:10)",
+  "```",
+  "",
+  "El total es `r total`."
+)
+cat(knit(text = doc_opciones, quiet = TRUE))
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Con \codigo{echo = FALSE} el código desapareció pero quedó su resultado
+(\codigo{\#\# [1] 55}). Con \codigo{include = FALSE} no quedó nada visible,
+pero el objeto \codigo{total} sí se creó, y por eso la frase final puede
+usarlo. Ese es el patrón de un reporte ejecutivo: bloques invisibles que
+calculan, y texto que muestra.
+
+\subsection{El chunk de configuración global}
+
+Repetir \codigo{echo = FALSE, message = FALSE} en cada bloque es tedioso.
+Lo habitual es un primer bloque, llamado \codigo{setup} o
+\codigo{configuracion}, con \codigo{include = FALSE}, que fija las opciones
+\emph{por defecto} para todo el documento con
+\codigo{knitr::opts\_chunk\$set()}:
+
+\begin{textocodigo}
+```{r configuracion, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,      # un reporte ejecutivo NO muestra código
+  message = FALSE,   # sin mensajes de carga de paquetes
+  warning = FALSE,   # sin advertencias
+  fig.width = 7, fig.height = 3.4, out.width = "90%",
+  fig.align = "center"
+)
+library(dplyr)
+library(ggplot2)
+```
+\end{textocodigo}
+
+Cualquier bloque puede cambiar una opción para sí mismo: si en un reporte
+con \codigo{echo = FALSE} quieres mostrar un bloque, le pones
+\codigo{echo = TRUE} solo a ese.
+
+\subsection{\texorpdfstring{\codigo{results = "asis"}}{results = "asis"}:
+cuando el código escribe el reporte}
+
+Por defecto, lo que tu código imprime con \codigo{cat()} o \codigo{print()}
+aparece en un recuadro gris, como salida de consola. Con
+\codigo{results = "asis"} (``tal cual''), ese texto se inserta como parte del
+documento, así que puedes \emph{generar Markdown desde R}: listas, títulos o
+párrafos que dependen de los datos.
+
+\begin{rcode}
+doc_asis <- c(
+  "```{r lista, echo = FALSE, results = 'asis'}",
+  "tiendas_top <- c('Sucursal Outlet', 'Sucursal Sur')",
+  "cat(paste0('- **', tiendas_top, '**'), sep = '\\n')",
+  "```"
+)
+cat(knit(text = doc_asis, quiet = TRUE))
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+El resultado ya no lleva \codigo{\#\#} ni recuadro: es una lista de Markdown
+que pandoc mostrará con viñetas y negritas. En el caso práctico usaremos esta
+técnica para escribir las conclusiones automáticas del reporte.
+
+\subsection{\texorpdfstring{\codigo{cache}}{cache}: no recalcular lo que no
+cambió}
+
+Si un bloque tarda mucho (leer millones de filas, entrenar un modelo del
+Módulo~\ref{cap:ml}), \codigo{cache = TRUE} guarda su resultado en una
+carpeta \archivo{*\_cache/} y en el siguiente Knit lo reutiliza si el código
+del bloque no cambió. Úsalo con cuidado: si cambian los \emph{datos} pero no
+el código, knitr no se entera y te mostrará resultados viejos. En reportes
+mensuales automáticos, donde lo que cambia son precisamente los datos, lo
+más seguro es no usar caché en los bloques que leen datos.
+
+\begin{hazlotu}
+En tu \archivo{01-primer-reporte.Rmd} cambia el bloque \codigo{setup} para
+que \codigo{echo = FALSE} y vuelve a tejer. Luego agrega
+\codigo{fig.cap} con un título que incluya el año y cambia
+\codigo{out.width} a \codigo{"70\%"}. Compara ambas versiones.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{\texorpdfstring{Tablas profesionales con \codigo{knitr::kable()}}{Tablas profesionales con knitr::kable()}}
+\label{sec:m8-kable}
+
+Si imprimes un tibble en un reporte, se ve como salida de consola: letra de
+máquina, \codigo{<dbl>} y \codigo{<chr>} en los encabezados, números sin
+separador de miles. La función \codigo{kable()} del paquete \paquete{knitr}
+convierte un data frame en una tabla con formato de documento (HTML, LaTeX o
+Word, según la salida).
+
+\begin{ejemplo}{Ventas de diciembre por tienda}
+El director quiere una tabla con las ventas de diciembre de 2023 de cada
+tienda: nombre, ciudad, número de transacciones, ventas y ticket promedio,
+ordenada de mayor a menor. Preparamos los datos con \paquete{dplyr} y
+después le damos formato con \codigo{kable()}.
+\end{ejemplo}
+
+\begin{rcode}
+# Datos que usaremos en el resto del módulo
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+tiendas   <- read_csv("datasets/tiendas.csv", show_col_types = FALSE)
+productos <- read_csv("datasets/productos.csv", show_col_types = FALSE)
+
+# Resumen de diciembre por tienda
+ventas_dic <- transacciones %>%
+  filter(mes == "2023-12") %>%
+  group_by(tienda_id) %>%
+  summarise(transacciones = n(),
+            ventas = sum(total_transaccion),
+            ticket = mean(total_transaccion), .groups = "drop") %>%
+  left_join(tiendas %>% select(tienda_id, nombre_tienda, ciudad),
+            by = "tienda_id") %>%
+  select(nombre_tienda, ciudad, transacciones, ventas, ticket) %>%
+  arrange(desc(ventas))
+
+ventas_dic
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Así se ve en la consola: útil para ti, pero no para un director. Ahora con
+\codigo{kable()}. Usamos \codigo{format = "pipe"} para que veas en el libro
+la tabla Markdown que genera; dentro de un \archivo{.Rmd} no hace falta
+ponerlo, porque knitr elige el formato adecuado para HTML, PDF o Word.
+
+\begin{rcode}
+kable(ventas_dic,
+      format = "pipe",                        # Markdown (para verla aquí)
+      col.names = c("Tienda", "Ciudad", "Transacciones",
+                    "Ventas ($)", "Ticket ($)"),  # encabezados legibles
+      digits = 0,                             # sin decimales
+      format.args = list(big.mark = ","),     # separador de miles
+      align = c("l", "l", "r", "r", "r"),     # texto izq., números der.
+      caption = "Ventas de diciembre de 2023 por tienda")
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Cada argumento resuelve un problema de presentación:
+
+\begin{itemize}
+  \item \codigo{col.names} cambia los nombres técnicos
+        (\codigo{nombre\_tienda}) por nombres para humanos.
+  \item \codigo{digits} redondea todas las columnas numéricas y
+        \codigo{format.args = list(big.mark = ",")} agrega separador de
+        miles.
+  \item \codigo{align} alinea: \codigo{"l"} izquierda para texto,
+        \codigo{"r"} derecha para números (así se comparan las cifras por
+        su magnitud), \codigo{"c"} centro.
+  \item \codigo{caption} pone el título numerado (``Tabla 1: \ldots'').
+\end{itemize}
+
+Los dos puntos en la segunda línea de la tabla Markdown
+(\codigo{|-----:|}) son los que indican a pandoc la alineación a la derecha.
+
+\subsection{Formato de negocio antes de la tabla}
+
+\codigo{kable()} no sabe poner el signo de pesos ni porcentajes. Cuando
+quieras ese formato, conviértelo tú antes con las funciones de
+\paquete{scales} (las mismas que usaste en los ejes de ggplot2 en el
+Módulo~\ref{cap:visualizacion}). Ojo: al formatear, la columna se vuelve
+texto, así que ordena \emph{antes} de formatear.
+
+\begin{rcode}
+tabla_dic <- ventas_dic %>%
+  mutate(participacion = ventas / sum(ventas),       # % del total
+         ventas        = dollar(ventas, accuracy = 1),
+         ticket        = dollar(ticket, accuracy = 0.01),
+         participacion = percent(participacion, accuracy = 0.1)) %>%
+  select(-ciudad) %>%
+  slice_head(n = 5)                                  # top 5
+
+kable(tabla_dic, format = "pipe", align = c("l", "r", "r", "r", "r"),
+      col.names = c("Tienda", "Transacciones", "Ventas", "Ticket",
+                    "% del total"))
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+La tabla dice que en diciembre la Sucursal Outlet fue la que más vendió
+(\$16,554, el 17.2\,\% de la empresa) y que las cinco primeras tiendas tienen
+tickets promedio muy distintos: la Sucursal Sur logró \$13,317 con solo
+8 transacciones (ticket de \$1,664.64), mientras la Sucursal Norte necesitó
+15 transacciones para vender \$10,049. Esa es la clase de observación que
+luego puedes convertir en texto dinámico.
+
+\subsection{Más allá de kable: kableExtra y gt}
+
+Para tablas con colores, filas resaltadas, encabezados agrupados o notas al
+pie, existen dos paquetes muy usados (no los necesitas para este módulo):
+
+\begin{rnoejecutar}
+# kableExtra: añade estilo a kable() (HTML y PDF)
+install.packages("kableExtra")
+library(kableExtra)
+kable(tabla_dic) %>%
+  kable_styling(bootstrap_options = c("striped", "hover")) %>%
+  row_spec(1, bold = TRUE, background = "#fde6dc")   # resalta la 1a fila
+
+# gt: "gramática de tablas" de Posit, muy flexible
+install.packages("gt")
+library(gt)
+ventas_dic %>%
+  gt() %>%
+  fmt_currency(columns = c(ventas, ticket)) %>%
+  tab_header(title = "Ventas de diciembre de 2023")
+\end{rnoejecutar}
+
+\begin{hazlotu}
+Haz una tabla con \codigo{kable()} de las ventas totales de 2023 por
+\codigo{metodo\_pago} (de \archivo{transacciones.csv}), con las ventas en
+formato de pesos, el porcentaje del total y el título ``Ventas por método de
+pago''.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Texto dinámico: frases que se escriben solas}
+\label{sec:m8-texto}
+
+Un reporte ejecutivo no es solo tablas: es \emph{narrativa}. ``Las ventas
+crecieron 19.7\,\% respecto a noviembre''. Si esa frase se escribe a mano,
+el mes siguiente puede quedarse con el número viejo, o peor, decir
+``crecieron'' cuando en realidad cayeron. El \termino{texto dinámico} es
+texto que R construye a partir de los datos: el número \emph{y} la palabra
+(``crecieron''/``cayeron'') salen del cálculo.
+
+\subsection{Formatear números para leerlos en una frase}
+
+\begin{rcode}
+x <- 96393.537
+dollar(x)                       # pesos, con separador de miles
+dollar(x, accuracy = 1)         # sin centavos
+dollar(x, scale = 1e-3, suffix = " mil", accuracy = 0.1)
+comma(1234567)                  # separador de miles
+percent(0.19731, accuracy = 0.1)
+format(x, big.mark = ",", nsmall = 2)          # con base R
+format(as.Date("2023-12-15"), "%d de %B de %Y")  # fecha en texto
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+La última línea usa el idioma de tu computadora para el nombre del mes. Si
+tu Windows está en inglés, diría \codigo{December}. Para que el reporte
+salga siempre en español, en el caso práctico usaremos un vector propio con
+los nombres de los meses.
+
+\subsection{Frases que cambian según los datos}
+
+\begin{ejemplo}{La frase de crecimiento mensual}
+Queremos una función que reciba las ventas del mes actual y del anterior y
+devuelva una frase correcta en cualquier caso: si crecieron, si cayeron, si
+se quedaron igual o si no hay dato del mes anterior.
+\end{ejemplo}
+
+\begin{rcode}
+frase_variacion <- function(actual, anterior, periodo = "el mes anterior") {
+  # Caso 1: no hay con qué comparar
+  if (is.na(anterior) || anterior == 0) {
+    return(paste0("Las ventas fueron de ", dollar(actual, accuracy = 1),
+                  "; no hay datos de ", periodo, " para comparar."))
+  }
+  var <- actual / anterior - 1                   # variación relativa
+  # Caso 2, 3 y 4: la palabra depende del signo
+  verbo <- if (abs(var) < 0.005) {
+    "se mantuvieron sin cambio"
+  } else if (var > 0) {
+    paste("crecieron", percent(var, accuracy = 0.1))
+  } else {
+    paste("cayeron", percent(abs(var), accuracy = 0.1))
+  }
+  paste0("Las ventas ", verbo, " respecto a ", periodo, " (de ",
+         dollar(anterior, accuracy = 1), " a ",
+         dollar(actual, accuracy = 1), ").")
+}
+
+# Probamos los cuatro casos
+frase_variacion(12000, 10000)
+frase_variacion(8000, 10000)
+frase_variacion(10020, 10000)
+frase_variacion(5000, NA)
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Fíjate en el tercer caso: una variación de 0.2\,\% se reporta como ``sin
+cambio'', porque decir ``crecieron 0.2\,\%'' exagera algo que es ruido. Estas
+reglas de redacción son decisiones de negocio que conviene acordar con quien
+lee el reporte.
+
+Ahora apliquemos la función a los datos reales: ventas totales de la
+empresa en diciembre contra noviembre.
+
+\begin{rcode}
+ventas_mes <- transacciones %>%
+  group_by(mes) %>%
+  summarise(ventas = sum(total_transaccion), .groups = "drop")
+
+actual   <- ventas_mes$ventas[ventas_mes$mes == "2023-12"]
+anterior <- ventas_mes$ventas[ventas_mes$mes == "2023-11"]
+frase_variacion(actual, anterior, periodo = "noviembre")
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+En el \archivo{.Rmd}, esta frase se inserta con código en línea:
+
+\begin{textocodigo}
+## Resumen
+
+`r frase_variacion(actual, anterior, periodo = "noviembre")`
+\end{textocodigo}
+
+\subsection{Una frase para cada tienda}
+
+Como la función trabaja con dos números, podemos aplicarla a las diez
+tiendas con \codigo{map2\_chr()} de \paquete{purrr} (que recorre dos vectores
+a la vez y devuelve texto):
+
+\begin{rcode}
+comparacion <- transacciones %>%
+  filter(mes %in% c("2023-11", "2023-12")) %>%
+  group_by(tienda_id, mes) %>%
+  summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
+  pivot_wider(names_from = mes, values_from = ventas) %>%
+  rename(nov = `2023-11`, dic = `2023-12`) %>%
+  left_join(tiendas %>% select(tienda_id, nombre_tienda),
+            by = "tienda_id") %>%
+  mutate(frase = map2_chr(dic, nov, frase_variacion,
+                          periodo = "noviembre"))
+
+# Imprimimos las frases de las 3 primeras tiendas
+cat(paste0(comparacion$nombre_tienda[1:3], ": ",
+           comparacion$frase[1:3]), sep = "\n")
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Tres tiendas, tres historias distintas, cero frases escritas a mano. La
+Sucursal Centro cayó a menos de la mitad y la Sucursal Sur casi duplicó sus
+ventas. Pero cuidado con la interpretación: cada tienda tiene solo entre 5 y
+15 transacciones al mes en estos datos, así que variaciones tan grandes
+pueden deberse al azar. Un buen reporte automático también advierte eso
+(lo haremos en las conclusiones del caso práctico).
+
+\subsection{Conclusiones automáticas con reglas}
+
+Un paso más allá de la frase es la \termino{conclusión automática}: una
+regla de negocio que decide qué mensaje dar. Por ejemplo: si la variación es
+mayor a 10\,\%, ``crecimiento sólido''; si cae más de 10\,\%, ``alerta''. Con
+\codigo{case\_when()} lo aplicamos a todas las tiendas:
+
+\begin{rcode}
+alertas <- comparacion %>%
+  mutate(variacion = dic / nov - 1,
+         estado = case_when(
+           variacion >  0.10 ~ "Crecimiento sólido",
+           variacion >= 0    ~ "Estable",
+           variacion > -0.10 ~ "Ligera caída",
+           TRUE              ~ "Alerta"
+         )) %>%
+  arrange(variacion) %>%
+  select(nombre_tienda, variacion, estado)
+
+alertas %>%
+  mutate(variacion = percent(variacion, accuracy = 0.1)) %>%
+  kable(format = "pipe", col.names = c("Tienda", "Variación", "Estado"))
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Y con \codigo{results = "asis"}, una lista de Markdown para el director que
+solo menciona las tiendas en alerta:
+
+\begin{rcode}
+en_alerta <- alertas %>% filter(estado == "Alerta")
+
+if (nrow(en_alerta) == 0) {
+  cat("- Ninguna tienda cayó más de 10 % este mes.\n")
+} else {
+  cat(paste0("- **", en_alerta$nombre_tienda, "**: cayó ",
+             percent(abs(en_alerta$variacion), accuracy = 0.1),
+             " contra noviembre."), sep = "\n")
+}
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\begin{negocio}{El reporte que avisa solo}
+En muchas empresas el reporte mensual es un documento de 30 páginas que
+nadie lee completo. Un reporte con conclusiones automáticas pone arriba, en
+tres líneas, lo que requiere atención (``3 tiendas en alerta'') y deja el
+detalle para quien lo necesite. El analista deja de ``escribir el reporte''
+y pasa a \emph{diseñar las reglas} con las que se escribe, que es un trabajo
+mucho más valioso.
+\end{negocio}
+
+\begin{hazlotu}
+Modifica \codigo{frase\_variacion()} para que, cuando el crecimiento sea
+mayor a 50\,\%, agregue al final ``Verifica que no haya ventas
+extraordinarias.''. Pruébala con \codigo{frase\_variacion(16000, 10000)}.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Formatos de salida: HTML, PDF y Word}
+\label{sec:m8-formatos}
+
+El mismo \archivo{.Rmd} puede producir tres formatos distintos. Solo cambia
+el campo \codigo{output} del encabezado.
+
+\subsection{HTML}
+
+\begin{textocodigo}
+output:
+  html_document:
+    toc: true            # índice (table of contents)
+    toc_float: true      # el índice flota a la izquierda
+    theme: flatly        # tema visual (cerulean, cosmo, journal...)
+    code_folding: hide   # el código se oculta con un botón "Code"
+    number_sections: true
+\end{textocodigo}
+
+El HTML es el formato más flexible: admite gráficas interactivas (como las
+de \paquete{plotly} del Módulo~\ref{cap:shiny}), índice flotante y el botón
+\codigo{code\_folding}, que es ideal cuando el lector \emph{a veces} quiere
+ver el código: está oculto, pero a un clic.
+
+\subsection{PDF}
+
+\begin{textocodigo}
+output:
+  pdf_document:
+    toc: true
+    fig_caption: true
+    extra_dependencies: ["float"]   # paquete LaTeX adicional
+geometry: margin=2cm                # márgenes de la página
+lang: es-MX                         # idioma (guiones, "Figura")
+\end{textocodigo}
+
+Para producir PDF, R Markdown necesita una instalación de
+\termino{LaTeX}, el sistema de composición tipográfica con el que se hacen
+libros y artículos (este libro, por ejemplo). Si no tienes LaTeX, la forma
+más sencilla es \paquete{TinyTeX}, una distribución pequeña que se instala
+desde R:
+
+\begin{rnoejecutar}
+install.packages("tinytex")
+tinytex::install_tinytex()   # descarga e instala LaTeX (una sola vez)
+tinytex::is_tinytex()        # TRUE si quedó instalado
+\end{rnoejecutar}
+
+La primera vez que tejas un PDF, TinyTeX descargará automáticamente los
+paquetes de LaTeX que falten; por eso esa primera vez tarda más y necesita
+Internet.
+
+\subsection{Word}
+
+\begin{textocodigo}
+output:
+  word_document:
+    toc: true
+    fig_caption: true
+    reference_docx: plantilla_corporativa.docx
+\end{textocodigo}
+
+Word es el formato preferido cuando alguien más va a \emph{editar} el
+reporte (agregar comentarios, ajustar un párrafo). La opción
+\codigo{reference\_docx} es muy poderosa: le das un documento de Word cuyo
+estilo copiará tu reporte (fuentes, colores de títulos, márgenes, encabezado
+con el logo de la empresa). Para crear esa plantilla:
+
+\begin{enumerate}
+  \item Teje una vez cualquier \archivo{.Rmd} a Word.
+  \item Abre el \archivo{.docx} generado y modifica los \emph{estilos}
+        (no el texto): clic derecho en ``Título 1'' $\rightarrow$
+        \menu{Modificar}, y así con ``Normal'', ``Título 2'', etc.
+  \item Guárdalo como \archivo{plantilla\_corporativa.docx} junto al
+        \archivo{.Rmd} y agrega la opción \codigo{reference\_docx}.
+\end{enumerate}
+
+\subsection{Varios formatos en un mismo archivo}
+
+Puedes declarar los tres formatos en el encabezado (es lo que hace nuestro
+reporte ejecutivo). El botón \menu{Knit} muestra entonces un menú para
+elegir, y desde R puedes generar uno o todos:
+
+\begin{rnoejecutar}
+library(rmarkdown)
+render("reportes/02-reporte-ejecutivo.Rmd",
+       output_format = "pdf_document")   # solo PDF
+render("reportes/02-reporte-ejecutivo.Rmd",
+       output_format = "all")            # HTML, PDF y Word
+\end{rnoejecutar}
+
+\begin{table}[H]
+\centering
+\caption{¿Qué formato de salida elegir?}
+\label{tab:m8-formatos}
+\small
+\begin{tabularx}{\textwidth}{l X X X}
+\toprule
+ & \textbf{HTML} & \textbf{PDF} & \textbf{Word} \\
+\midrule
+Requiere & Nada extra & LaTeX (TinyTeX) & Nada extra (Word para
+  abrirlo) \\
+Ideal para & Reportes en pantalla, intranet, correo & Documentos formales,
+  impresión, archivo & Documentos que otros van a editar \\
+Interactividad & Sí (plotly, tablas DT, pestañas) & No & No \\
+Aspecto & Controlado con \codigo{theme} y CSS & Muy profesional, controlado
+  con LaTeX & Controlado con \codigo{reference\_docx} \\
+Riesgo & Algunos correos bloquean HTML adjunto & Errores de LaTeX al
+  instalar & Se puede modificar el contenido \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{consejo}
+Una opción que dependa del formato se puede decidir desde el propio código.
+\codigo{knitr::pandoc\_to()} devuelve el formato que se está generando
+(\codigo{"html"}, \codigo{"latex"}, \codigo{"docx"}). Nuestro reporte
+ejecutivo la usa para no pedir \codigo{fig.align} en Word, que no la admite:
+\codigo{es\_word <- knitr::pandoc\_to("docx")}.
+\end{consejo}
+
+% ----------------------------------------------------------------------------
+\section{Reportes parametrizados}
+\label{sec:m8-parametros}
+
+Hasta ahora nuestro reporte habla de ``la empresa''. Pero el gerente de la
+Sucursal Norte quiere \emph{su} reporte, y la directora quiere el de
+diciembre, no el de noviembre. Copiar el \archivo{.Rmd} diez veces y cambiar
+el número de tienda en cada copia sería volver al trabajo manual. La
+solución son los \termino{parámetros}.
+
+\begin{concepto}{Reporte parametrizado}
+Un \termino{reporte parametrizado} es una plantilla \archivo{.Rmd} que
+declara en su encabezado unos \emph{parámetros} (por ejemplo,
+\codigo{tienda} y \codigo{mes}) con un valor por defecto. Dentro del código
+se usan como \codigo{params\$tienda} y \codigo{params\$mes}. Al generar el
+reporte puedes darles otro valor, y obtienes un documento distinto desde la
+misma plantilla.
+\end{concepto}
+
+\subsection{Declarar los parámetros en el YAML}
+
+\begin{textocodigo}
+params:
+  tienda:
+    label: "Tienda (1 a 10)"
+    value: 1
+    input: select
+    choices: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  mes:
+    label: "Mes del reporte (AAAA-MM)"
+    value: "2023-12"
+    input: text
+  ruta_datos:
+    label: "Carpeta de datos"
+    value: "datasets"
+    input: text
+\end{textocodigo}
+
+La forma mínima es \codigo{tienda: 1}. La forma extendida (con
+\codigo{label}, \codigo{value}, \codigo{input}) sirve para el botón
+\menu{Knit > Knit with Parameters\ldots}: RStudio abre un pequeño formulario
+con una lista desplegable para la tienda y una caja de texto para el mes.
+Así, alguien que no programa puede generar el reporte de su tienda eligiendo
+en un menú.
+
+\subsection{Usar los parámetros en el código}
+
+Dentro del \archivo{.Rmd} existe automáticamente una lista llamada
+\codigo{params}. Se usa como cualquier lista de R:
+
+\begin{textocodigo}
+```{r datos}
+id_tienda  <- as.integer(params$tienda)
+mes_actual <- params$mes
+ventas_mes <- ventas %>%
+  filter(tienda_id == id_tienda, mes == mes_actual)
+```
+
+# Reporte de la tienda `r id_tienda` (`r mes_actual`)
+\end{textocodigo}
+
+Un truco muy útil para \emph{desarrollar} la plantilla: en la consola crea
+tú una lista \codigo{params} con los valores que quieras probar, y ejecuta
+los bloques uno por uno. El código se comporta igual que al tejer. Hagamos
+eso con la validación que usa nuestro reporte ejecutivo:
+
+\begin{rcode}
+# En la consola simulamos los parámetros que recibiría el .Rmd
+params <- list(tienda = 3, mes = "2023-12")
+
+id_tienda  <- as.integer(params$tienda)
+mes_actual <- params$mes
+
+# Validaciones: mejor un error claro que un reporte vacío
+info_tienda <- tiendas %>% filter(tienda_id == id_tienda)
+if (nrow(info_tienda) == 0) stop("La tienda ", id_tienda, " no existe.")
+if (!mes_actual %in% transacciones$mes) {
+  stop("No hay datos del mes ", mes_actual)
+}
+
+# Mes anterior: el día 1 del mes menos un día cae en el mes previo
+mes_previo <- format(as.Date(paste0(mes_actual, "-01")) - 1, "%Y-%m")
+
+info_tienda$nombre_tienda
+mes_previo
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+El cálculo del mes anterior merece una explicación: \codigo{"2023-12-01"}
+menos un día es \codigo{"2023-11-30"}, y su formato \codigo{"\%Y-\%m"} es
+\codigo{"2023-11"}. El truco funciona también en enero (el 1 de enero menos
+un día es diciembre del año anterior), algo en lo que suelen fallar las
+fórmulas hechas a mano.
+
+\begin{advertencia}
+Dentro de un documento que se está tejiendo, \codigo{params} es de solo
+lectura: \codigo{params\$tienda <- 5} produce el error \emph{``no se puede
+cambiar el valor de un vínculo bloqueado para `params'\,''}. Si necesitas
+transformar un parámetro, guárdalo en otra variable, como hicimos con
+\codigo{id\_tienda}.
+\end{advertencia}
+
+\subsection{Generar el reporte con otros parámetros desde R}
+
+La función \codigo{rmarkdown::render()} recibe los parámetros en una lista.
+Todo lo que no indiques toma el valor por defecto del YAML:
+
+\begin{rnoejecutar}
+library(rmarkdown)
+# Reporte de la Sucursal Sur (tienda 3), diciembre de 2023, en PDF
+render("reportes/02-reporte-ejecutivo.Rmd",
+       output_format = "pdf_document",
+       output_file   = "reporte_T03_2023-12.pdf",
+       output_dir    = "resultados/reportes",
+       params        = list(tienda = 3, mes = "2023-12"),
+       knit_root_dir = getwd())
+\end{rnoejecutar}
+
+Los argumentos de \codigo{render()} que usarás siempre son:
+
+\begin{itemize}
+  \item \codigo{input}: la plantilla \archivo{.Rmd}.
+  \item \codigo{output\_format}: \codigo{"html\_document"},
+        \codigo{"pdf\_document"}, \codigo{"word\_document"} o \codigo{"all"}.
+  \item \codigo{output\_file} y \codigo{output\_dir}: nombre y carpeta del
+        archivo generado (si no los das, se guarda junto al \archivo{.Rmd}
+        con el mismo nombre, y cada reporte \emph{sobrescribe} al anterior).
+  \item \codigo{params}: la lista de parámetros.
+  \item \codigo{knit\_root\_dir}: el directorio de trabajo en el que se
+        ejecutará el código del \archivo{.Rmd} (lo explicamos enseguida).
+  \item \codigo{envir}: el entorno donde se crean los objetos;
+        \codigo{new.env()} garantiza que cada reporte empiece limpio.
+  \item \codigo{quiet = TRUE}: no imprime el avance de knitr.
+\end{itemize}
+
+\subsection{¿Desde qué carpeta se ejecuta el .Rmd?}
+\label{sec:m8-directorio}
+
+Este detalle causa más dolores de cabeza que cualquier otro, así que vale la
+pena entenderlo bien. Cuando tejes, \textbf{el directorio de trabajo es la
+carpeta donde está el \archivo{.Rmd}}, sin importar cuál sea el directorio
+de trabajo de tu consola o de tu proyecto. Con nuestra estructura:
+
+\begin{itemize}
+  \item Tu consola está en \archivo{curso-bi-rstudio/}: ahí
+        \archivo{datasets/transacciones.csv} existe.
+  \item El \archivo{.Rmd} está en \archivo{curso-bi-rstudio/reportes/}: desde
+        ahí, \archivo{datasets/transacciones.csv} \emph{no} existe (habría
+        que escribir \archivo{../datasets/transacciones.csv}).
+\end{itemize}
+
+Hay tres soluciones, y nuestro reporte ejecutivo combina las dos primeras
+para funcionar en cualquier caso:
+
+\begin{enumerate}
+  \item \textbf{\codigo{knit\_root\_dir} en \codigo{render()}}: le dice a
+        knitr que ejecute el código desde otra carpeta. Con
+        \codigo{knit\_root\_dir = getwd()} (o la ruta del proyecto) el código
+        corre en la carpeta del curso y \archivo{datasets/} se encuentra.
+        En RStudio puedes lograr lo mismo desde el botón Knit:
+        \menu{Knit > Knit Directory > Project Directory}.
+  \item \textbf{Un parámetro con la ruta y una búsqueda robusta}: el
+        parámetro \codigo{ruta\_datos} indica la carpeta de datos y el código
+        la busca en el directorio actual y, si no, en el superior:
+\end{enumerate}
+
+\begin{textocodigo}
+```{r datos}
+candidatas <- c(params$ruta_datos, file.path("..", params$ruta_datos))
+carpeta_datos <- candidatas[dir.exists(candidatas)][1]
+if (is.na(carpeta_datos)) {
+  stop("No encontré la carpeta de datos '", params$ruta_datos,
+       "'. Directorio actual: ", getwd(),
+       ". Usa knit_root_dir en render() o el parámetro ruta_datos.")
+}
+transacciones <- read_csv(file.path(carpeta_datos, "transacciones.csv"),
+                          show_col_types = FALSE)
+```
+\end{textocodigo}
+
+\begin{enumerate}[resume]
+  \item \textbf{Paquete \paquete{here}}: \codigo{here::here("datasets",
+        "transacciones.csv")} construye la ruta desde la raíz del proyecto
+        de RStudio, esté donde esté el \archivo{.Rmd}. Es una excelente
+        opción si trabajas con proyectos (\archivo{.Rproj}).
+\end{enumerate}
+
+Así, el reporte funciona si presionas Knit en RStudio (se ejecuta en
+\archivo{reportes/} y encuentra \archivo{../datasets}), si lo generas con
+\codigo{render(..., knit\_root\_dir = getwd())} (encuentra
+\archivo{datasets}), y si alguien tiene los datos en otra carpeta (le pasa
+\codigo{params = list(ruta\_datos = "D:/datos")}). Y si no los encuentra,
+el mensaje de error dice exactamente qué pasó y cómo arreglarlo.
+
+\begin{hazlotu}
+Genera desde la consola el reporte ejecutivo de la Sucursal Premium
+(tienda 9) para octubre de 2023 en Word. Luego ábrelo con
+\menu{Knit > Knit with Parameters\ldots} y genera el de la tienda 4 de junio
+en HTML.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Automatización: un reporte por tienda, sin tocar nada}
+\label{sec:m8-automatizacion}
+
+Con una plantilla parametrizada, generar los diez reportes es cuestión de un
+bucle. El script \archivo{generar\_reportes.R} hace cuatro cosas:
+construye los nombres de archivo, llama a \codigo{render()} una vez por
+tienda, atrapa los errores para que una tienda con problemas no detenga a
+las demás, y deja un registro de lo generado. Veamos cada pieza por separado
+y luego el script completo.
+
+\subsection{Nombres de archivo con fecha}
+
+Un buen nombre de archivo dice qué es, de qué periodo y cuándo se generó, y
+se ordena bien alfabéticamente. Usaremos el formato
+\archivo{AAAA-MM\_Tnn\_nombre-de-tienda\_AAAA-MM-DD.html}. Como los nombres
+de las tiendas tienen espacios (y podrían tener acentos), los
+``limpiamos'':
+
+\begin{rcode}
+# "Sucursal Plaza A" -> "sucursal-plaza-a" (sin acentos ni espacios)
+limpiar_nombre <- function(x) {
+  x <- chartr("áéíóúüñÁÉÍÓÚÜÑ", "aeiouunAEIOUUN", x)  # quita acentos
+  x <- gsub("[^A-Za-z0-9]+", "-", x)     # lo que no sea letra -> guion
+  tolower(gsub("^-|-$", "", x))          # sin guiones al inicio/final
+}
+limpiar_nombre(c("Sucursal Plaza A", "Tienda Querétaro Ñuñoa"))
+
+# En el script real la fecha es Sys.Date(); aquí la fijamos para que
+# el ejemplo dé siempre el mismo resultado
+fecha_ejecucion <- as.Date("2024-01-05")
+mes_reporte <- "2023-12"
+
+archivos <- sprintf("%s_T%02d_%s_%s.html", mes_reporte,
+                    tiendas$tienda_id, limpiar_nombre(tiendas$nombre_tienda),
+                    format(fecha_ejecucion, "%Y-%m-%d"))
+head(archivos, 4)
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\codigo{sprintf()} arma el texto con un molde: \codigo{\%s} inserta un texto
+y \codigo{\%02d} un número entero con dos dígitos (\codigo{1} $\rightarrow$
+\codigo{01}), para que la tienda 10 quede después de la 9 al ordenar.
+
+\subsection{La tabla de trabajos: qué reportes generar}
+
+Cuando los reportes dependen de dos parámetros (tienda y mes, o tienda y
+formato), conviene armar primero una \termino{tabla de trabajos} con todas
+las combinaciones y después recorrerla. \codigo{expand\_grid()} de
+\paquete{tidyr} crea todas las combinaciones:
+
+\begin{rcode}
+trabajos <- expand_grid(tienda_id = tiendas$tienda_id,
+                        mes = c("2023-11", "2023-12")) %>%
+  left_join(tiendas %>% select(tienda_id, nombre_tienda),
+            by = "tienda_id") %>%
+  mutate(archivo = sprintf("%s_T%02d_%s.html", mes, tienda_id,
+                           limpiar_nombre(nombre_tienda)))
+
+nrow(trabajos)
+head(trabajos, 3)
+
+# La lista de parámetros de la primera fila, lista para render()
+parametros <- list(tienda = trabajos$tienda_id[1],
+                   mes = trabajos$mes[1])
+str(parametros)
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\subsection{Errores controlados con tryCatch}
+
+Si al generar el reporte de la tienda 7 ocurre un error (por ejemplo, no
+tiene ventas ese mes), sin protección el bucle se detiene y las tiendas 8, 9
+y 10 se quedan sin reporte. \codigo{tryCatch()} ejecuta un código y, si
+falla, en vez de detenerse ejecuta la función que le indiques en
+\codigo{error}. Para practicar sin generar archivos, simulemos
+\codigo{render()} con una función que valida los parámetros igual que el
+\archivo{.Rmd}:
+
+\begin{rcode}
+# Simula render(): falla igual que el .Rmd cuando algo no cuadra
+generar_uno <- function(tienda, mes) {
+  if (!tienda %in% tiendas$tienda_id) {
+    stop("La tienda ", tienda, " no existe.")
+  }
+  if (!mes %in% transacciones$mes) stop("No hay datos del mes ", mes)
+  sprintf("reporte_T%02d_%s.html", tienda, mes)
+}
+
+pendientes <- tibble(tienda = c(1, 2, 15, 3),
+                     mes = c("2023-12", "2023-12", "2023-12", "2024-01"))
+registro <- vector("list", nrow(pendientes))
+
+for (i in seq_len(nrow(pendientes))) {
+  resultado <- tryCatch({
+    archivo <- generar_uno(pendientes$tienda[i], pendientes$mes[i])
+    paste("OK:", archivo)
+  }, error = function(e) {
+    paste("ERROR:", conditionMessage(e))   # el mensaje del error
+  })
+  registro[[i]] <- tibble(tienda = pendientes$tienda[i],
+                          mes = pendientes$mes[i],
+                          estado = if (startsWith(resultado, "OK"))
+                            "OK" else "ERROR",
+                          detalle = resultado)
+}
+registro <- bind_rows(registro)
+registro
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+El bucle terminó las cuatro vueltas. Dos reportes salieron bien y dos
+fallaron, pero en lugar de detenerse, cada error quedó anotado con su causa:
+la tienda 15 no existe y enero de 2024 no tiene datos. Esa tabla es el
+\termino{registro} (\emph{log}): al día siguiente, en vez de preguntarte
+``¿se habrán generado los reportes?'', lo abres y lo sabes.
+
+\subsection{El script completo}
+
+Este es \archivo{generar\_reportes.R}. Como llama a \codigo{render()} y
+escribe archivos, lo mostramos como referencia; en la sección de caso
+práctico verás su ejecución real.
+
+\begin{rnoejecutar}[title=reportes/generar\_reportes.R (parte 1: configuración)]
+suppressPackageStartupMessages({
+  library(rmarkdown)
+  library(readr)
+  library(dplyr)
+})
+
+# ---- 1. Configuración -----------------------------------------------
+# Argumentos opcionales de la terminal: mes (AAAA-MM) y formato
+argumentos  <- commandArgs(trailingOnly = TRUE)
+mes_reporte <- if (length(argumentos) >= 1) argumentos[1] else "2023-12"
+formato     <- if (length(argumentos) >= 2) argumentos[2] else "html"
+# En producción usarías el mes anterior a hoy, por ejemplo:
+# mes_reporte <- format(lubridate::floor_date(Sys.Date(), "month") - 1,
+#                       "%Y-%m")
+
+# Formatos disponibles: nombre corto -> formato de R Markdown y extensión
+formatos <- list(
+  html = c("html_document", "html"),
+  pdf  = c("pdf_document", "pdf"),
+  word = c("word_document", "docx")
+)
+if (!formato %in% names(formatos)) {
+  stop("Formato no válido: ", formato, ". Usa html, pdf o word.")
+}
+
+# Carpeta del curso: la actual o la superior (si ejecutas desde reportes/)
+raiz <- if (dir.exists("datasets")) "." else
+        if (dir.exists("../datasets")) ".."
+if (is.null(raiz)) {
+  stop("No encuentro datasets/. Ejecuta desde la carpeta del curso.")
+}
+raiz <- normalizePath(raiz)
+
+plantilla      <- file.path(raiz, "reportes", "02-reporte-ejecutivo.Rmd")
+carpeta_salida <- file.path(raiz, "resultados", "reportes")
+dir.create(carpeta_salida, recursive = TRUE, showWarnings = FALSE)
+archivo_log    <- file.path(carpeta_salida, "registro_reportes.csv")
+fecha_hoy      <- format(Sys.Date(), "%Y-%m-%d")
+\end{rnoejecutar}
+
+La primera parte lee dos argumentos opcionales con
+\codigo{commandArgs(trailingOnly = TRUE)}: así el mismo script sirve para
+cualquier mes y formato cuando se ejecuta desde la terminal
+(\codigo{Rscript reportes/generar\_reportes.R 2023-12 pdf}). También
+localiza la carpeta del curso y crea la carpeta de salida.
+
+\begin{rnoejecutar}[title=reportes/generar\_reportes.R (parte 2: el bucle)]
+# ---- 2. Lista de tiendas --------------------------------------------
+tiendas <- read_csv(file.path(raiz, "datasets", "tiendas.csv"),
+                    show_col_types = FALSE)
+# (aquí va la función limpiar_nombre() que ya viste)
+
+# ---- 3. Bucle: un reporte por tienda --------------------------------
+cat("Generando", nrow(tiendas), "reportes del mes", mes_reporte,
+    "en formato", formato, "\n")
+registro <- vector("list", nrow(tiendas))
+
+for (i in seq_len(nrow(tiendas))) {
+  id     <- tiendas$tienda_id[i]
+  nombre <- tiendas$nombre_tienda[i]
+  archivo <- sprintf("%s_T%02d_%s_%s.%s", mes_reporte, id,
+                     limpiar_nombre(nombre), fecha_hoy,
+                     formatos[[formato]][2])
+  inicio <- Sys.time()
+
+  # tryCatch: si UNA tienda falla, se registra el error y seguimos
+  resultado <- tryCatch({
+    render(
+      input         = plantilla,
+      output_format = formatos[[formato]][1],
+      output_file   = archivo,
+      output_dir    = carpeta_salida,
+      params        = list(tienda = id, mes = mes_reporte),
+      knit_root_dir = raiz,       # el código del .Rmd corre en la raíz
+      envir         = new.env(),  # entorno limpio para cada reporte
+      quiet         = TRUE
+    )
+    "OK"
+  }, error = function(e) {
+    paste("ERROR:", conditionMessage(e))
+  })
+
+  segundos <- round(as.numeric(difftime(Sys.time(), inicio,
+                                        units = "secs")), 1)
+  registro[[i]] <- tibble(
+    fecha_hora = format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+    tienda_id  = id,
+    tienda     = nombre,
+    mes        = mes_reporte,
+    archivo    = archivo,
+    estado     = if (resultado == "OK") "OK" else "ERROR",
+    detalle    = resultado,
+    segundos   = segundos
+  )
+  cat(sprintf("  [%2d/%d] %-18s %-5s %s\n", i, nrow(tiendas), nombre,
+              registro[[i]]$estado, archivo))
+}
+
+# ---- 4. Registro (log) ----------------------------------------------
+registro <- bind_rows(registro)
+# append = TRUE agrega al historial; los encabezados solo la primera vez
+write_csv(registro, archivo_log, append = file.exists(archivo_log))
+
+n_ok <- sum(registro$estado == "OK")
+cat("\nListo:", n_ok, "reportes generados,", nrow(registro) - n_ok,
+    "con error. Carpeta:", carpeta_salida, "\n")
+cat("Registro guardado en:", archivo_log, "\n")
+\end{rnoejecutar}
+
+Tres detalles importantes del bucle:
+
+\begin{itemize}
+  \item \codigo{knit\_root\_dir = raiz} hace que el \archivo{.Rmd} encuentre
+        \archivo{datasets/} (sección~\ref{sec:m8-directorio}).
+  \item \codigo{envir = new.env()} da a cada reporte un entorno vacío. Sin
+        esto, los objetos del reporte de la tienda 1 seguirían existiendo al
+        generar el de la tienda 2, y un error de programación (usar una
+        variable que no se recalculó) podría pasar desapercibido y
+        \emph{mezclar datos de dos tiendas}: justo el error de copiar y
+        pegar que queríamos eliminar.
+  \item El registro se guarda en CSV con \codigo{append = TRUE}: cada
+        ejecución agrega sus filas, así que con el tiempo tienes el historial
+        completo de qué se generó y cuándo.
+\end{itemize}
+
+\subsection{Programar la ejecución}
+
+Un script que genera todo con un comando ya es un gran avance. El último
+paso es que se ejecute \emph{solo}, por ejemplo el día 1 de cada mes a las
+7:00. Para eso se usa el programador de tareas del sistema operativo, que
+llama a \termino{Rscript}, el programa que ejecuta un script de R desde la
+terminal sin abrir RStudio.
+
+\subsubsection{Linux y Mac: cron}
+
+\termino{cron} es el programador de tareas de Linux y macOS. Se edita con
+el comando \codigo{crontab -e} en la terminal, y cada línea es una tarea con
+cinco campos de tiempo (minuto, hora, día del mes, mes, día de la semana)
+seguidos del comando:
+
+\begin{textocodigo}
+# min hora dia mes dia_semana  comando
+# Día 1 de cada mes a las 7:00: reportes del mes anterior en PDF
+0 7 1 * * cd /home/andrea/curso-bi-rstudio && /usr/bin/Rscript reportes/generar_reportes.R $(date -d "last month" +\%Y-\%m) pdf >> resultados/cron.log 2>&1
+\end{textocodigo}
+
+\begin{itemize}
+  \item \codigo{0 7 1 * *}: minuto 0, hora 7, día 1, cualquier mes,
+        cualquier día de la semana. (\codigo{0 8 * * 1} sería ``cada lunes a
+        las 8:00''.)
+  \item \codigo{cd \ldots \&\&}: primero se cambia a la carpeta del curso,
+        para que las rutas relativas funcionen.
+  \item \codigo{\$(date -d "last month" +\%Y-\%m)} calcula el mes anterior
+        (en cron el símbolo \codigo{\%} se escribe \codigo{\textbackslash\%}).
+        En Mac, usa \codigo{date -v-1m +\%Y-\%m}. Otra opción es calcular el
+        mes dentro del script (la línea comentada en la parte 1).
+  \item \codigo{>> resultados/cron.log 2>\&1} guarda todo lo que imprime el
+        script, incluidos los errores, en un archivo.
+\end{itemize}
+
+\subsubsection{Windows: Programador de tareas}
+
+En Windows se usa el \termino{Programador de tareas} (\emph{Task
+Scheduler}):
+
+\begin{enumerate}
+  \item Abre el menú Inicio y busca ``Programador de tareas''.
+  \item Clic en \menu{Crear tarea básica\ldots}, ponle nombre (``Reportes
+        mensuales'') y elige \menu{Mensualmente}, día 1, 7:00.
+  \item En \menu{Acción} elige \menu{Iniciar un programa}.
+  \item En \menu{Programa o script} escribe la ruta de Rscript, por ejemplo
+        \archivo{C:\textbackslash Program Files\textbackslash
+        R\textbackslash R-4.3.3\textbackslash bin\textbackslash Rscript.exe}.
+  \item En \menu{Agregar argumentos} escribe
+        \archivo{reportes\textbackslash generar\_reportes.R} y en
+        \menu{Iniciar en} la carpeta del curso (por ejemplo
+        \archivo{C:\textbackslash Users\textbackslash
+        andrea\textbackslash curso-bi-rstudio}).
+  \item Finaliza. Para probarla, clic derecho sobre la tarea $\rightarrow$
+        \menu{Ejecutar}.
+\end{enumerate}
+
+Si prefieres hacerlo desde R, el paquete \paquete{taskscheduleR} crea la
+tarea por ti (y RStudio le agrega un complemento con formulario en
+\menu{Addins}). En Linux/Mac, el equivalente es \paquete{cronR}:
+
+\begin{rnoejecutar}
+install.packages("taskscheduleR")
+library(taskscheduleR)
+taskscheduler_create(
+  taskname  = "reportes_mensuales",
+  rscript   = "C:/Users/andrea/curso-bi-rstudio/reportes/generar_reportes.R",
+  schedule  = "MONTHLY",
+  days      = 1,
+  starttime = "07:00"
+)
+taskscheduler_ls()                        # lista las tareas programadas
+taskscheduler_delete("reportes_mensuales")  # para borrarla
+\end{rnoejecutar}
+
+\begin{advertencia}
+Una tarea programada se ejecuta \emph{sin ti}: nadie verá los errores en
+pantalla. Por eso es indispensable el registro (\archivo{registro\_reportes.csv}
+y \archivo{cron.log}) y que el script use rutas que funcionen desde la
+carpeta indicada. Además, la computadora debe estar encendida a esa hora; en
+empresas, estas tareas suelen vivir en un servidor.
+\end{advertencia}
+
+\subsection{Enviar los reportes por correo}
+
+El paquete \paquete{blastula} permite redactar y enviar correos desde R, con
+el reporte como adjunto. Las credenciales (usuario y contraseña del correo)
+\textbf{nunca} se escriben en el script: se guardan una sola vez en un
+archivo cifrado o en el llavero del sistema.
+
+\begin{rnoejecutar}
+install.packages("blastula")
+library(blastula)
+
+# UNA sola vez, de forma interactiva: guarda las credenciales cifradas
+# en el llavero del sistema (te pide la contraseña, no queda en el código)
+create_smtp_creds_key(id = "correo_bi", user = "reportes@techretail.mx",
+                      host = "smtp.office365.com", port = 587,
+                      use_ssl = TRUE)
+
+# En generar_reportes.R, después de generar cada archivo:
+correo <- compose_email(
+  body = md(paste0(
+    "Hola, adjunto el reporte ejecutivo de **", nombre, "** del mes ",
+    mes_reporte, ".\n\nÁrea de Business Intelligence"))
+) %>%
+  add_attachment(file = file.path(carpeta_salida, archivo))
+
+smtp_send(correo,
+          to = "gerente.centro@techretail.mx",
+          from = "reportes@techretail.mx",
+          subject = paste("Reporte de ventas", mes_reporte, "-", nombre),
+          credentials = creds_key(id = "correo_bi"))
+\end{rnoejecutar}
+
+Para enviar a cada gerente su reporte, agrega a \archivo{tiendas.csv} (o a
+una tabla aparte) una columna con el correo del gerente y úsala dentro del
+bucle. Otra alternativa segura para las credenciales son las variables de
+entorno: una línea \codigo{CORREO\_PASS=...} en el archivo
+\archivo{.Renviron} de tu usuario (que no se comparte ni se sube a Git) y
+\codigo{Sys.getenv("CORREO\_PASS")} en el script.
+
+\begin{consejo}
+Antes de automatizar el envío, deja que el sistema genere los reportes
+durante uno o dos meses mientras \emph{tú} los revisas y los envías a mano.
+Cuando confíes en ellos, activa el envío automático. Y agrega una regla de
+seguridad: si el registro tiene algún \codigo{ERROR}, que el script te envíe
+un correo a ti en vez de a los gerentes.
+\end{consejo}
+
+% ----------------------------------------------------------------------------
+\section{Reportes en Excel con writexl}
+\label{sec:m8-excel}
+
+Muchos usuarios de negocio no quieren un PDF: quieren ``el Excel'' para
+filtrar, hacer sus propias tablas dinámicas o pegarlo en su presupuesto. En
+vez de pelear contra eso, dales un Excel bien hecho, generado
+automáticamente. El paquete \paquete{writexl} escribe archivos
+\archivo{.xlsx} sin necesitar Excel ni Java, y si le das una \emph{lista}
+de data frames, crea una hoja por cada elemento.
+
+\begin{ejemplo}{Libro de Excel de ventas 2023}
+Crear \archivo{resultados/reporte\_ventas.xlsx} con cuatro hojas: un
+resumen de KPIs, las ventas mensuales con su variación, las ventas por
+tienda y el detalle de todas las transacciones con el nombre de la tienda y
+del producto. Después, releerlo para comprobar que quedó bien.
+\end{ejemplo}
+
+\begin{rcode}
+library(writexl)   # escribir .xlsx
+library(readxl)    # leer .xlsx (para verificar)
+
+# Hoja "Detalle": transacciones con nombres legibles
+detalle <- transacciones %>%
+  left_join(tiendas %>% select(tienda_id, nombre_tienda),
+            by = "tienda_id") %>%
+  left_join(productos %>% select(producto_id, nombre_producto, categoria),
+            by = "producto_id") %>%
+  select(transaccion_id, fecha, mes, nombre_tienda, nombre_producto,
+         categoria, cantidad, precio_venta, total_transaccion,
+         metodo_pago) %>%
+  arrange(fecha, transaccion_id)
+
+# Hoja "Resumen": un KPI por fila
+resumen <- tibble(
+  indicador = c("Ventas totales", "Transacciones", "Unidades vendidas",
+                "Ticket promedio"),
+  valor = c(round(sum(detalle$total_transaccion), 2), nrow(detalle),
+            sum(detalle$cantidad),
+            round(mean(detalle$total_transaccion), 2))
+)
+
+# Hoja "Mensual": ventas por mes y variación contra el mes anterior
+mensual <- detalle %>%
+  group_by(mes) %>%
+  summarise(ventas = round(sum(total_transaccion), 2),
+            transacciones = n(), .groups = "drop") %>%
+  mutate(variacion_pct = round((ventas / lag(ventas) - 1) * 100, 1))
+
+# Hoja "Por tienda"
+por_tienda <- detalle %>%
+  group_by(nombre_tienda) %>%
+  summarise(ventas = round(sum(total_transaccion), 2),
+            transacciones = n(),
+            ticket_promedio = round(mean(total_transaccion), 2),
+            .groups = "drop") %>%
+  arrange(desc(ventas))
+
+resumen
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Ahora escribimos las cuatro hojas de una vez. Los nombres de la lista son
+los nombres de las pestañas (pueden llevar espacios si los pones entre
+acentos graves):
+
+\begin{rcode}
+dir.create("resultados", showWarnings = FALSE)
+
+write_xlsx(
+  list(Resumen      = resumen,
+       Mensual      = mensual,
+       `Por tienda` = por_tienda,
+       Detalle      = detalle),
+  path = "resultados/reporte_ventas.xlsx"
+)
+
+# Verificación: ¿qué hojas tiene y cuántas filas hay en cada una?
+hojas <- excel_sheets("resultados/reporte_ventas.xlsx")
+hojas
+sapply(hojas, function(h) {
+  nrow(read_excel("resultados/reporte_ventas.xlsx", sheet = h))
+})
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Las cuatro hojas están ahí y el número de filas cuadra: 4 KPIs, 12 meses, 10
+tiendas y 1,000 transacciones. Releer lo que escribiste es una verificación
+barata que te ahorra enviar un archivo vacío. Comprobemos también que las
+fechas y números no se convirtieron en texto:
+
+\begin{rcode}
+read_excel("resultados/reporte_ventas.xlsx", sheet = "Mensual") %>%
+  head(4)
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Los números llegan como \codigo{<dbl>}, así que en Excel se podrán sumar y
+graficar. La variación de enero es \codigo{NA} (no hay mes anterior dentro
+de los datos) y en Excel aparecerá como celda vacía.
+
+El archivo \archivo{codigo/reportes/reporte\_excel.R} contiene la versión
+completa de este ejemplo, con una hoja adicional de los 15 productos más
+vendidos, lista para ejecutarse con
+\codigo{source("reportes/reporte\_excel.R")}.
+
+\subsection{Formato avanzado con openxlsx}
+
+\paquete{writexl} es rápido y sencillo, pero no da formato (colores, ancho
+de columnas, formato de moneda). Si lo necesitas, usa \paquete{openxlsx}:
+
+\begin{rnoejecutar}
+install.packages("openxlsx")
+library(openxlsx)
+libro <- createWorkbook()
+addWorksheet(libro, "Por tienda")
+writeData(libro, "Por tienda", por_tienda,
+          headerStyle = createStyle(textDecoration = "bold",
+                                    fgFill = "#173F69",
+                                    fontColour = "white"))
+addStyle(libro, "Por tienda", createStyle(numFmt = "$#,##0.00"),
+         rows = 2:11, cols = c(2, 4), gridExpand = TRUE)
+setColWidths(libro, "Por tienda", cols = 1:4, widths = "auto")
+freezePane(libro, "Por tienda", firstRow = TRUE)   # fija el encabezado
+saveWorkbook(libro, "resultados/reporte_formato.xlsx", overwrite = TRUE)
+\end{rnoejecutar}
+
+\begin{hazlotu}
+Agrega al libro de Excel una hoja \codigo{"Por categoría"} con las ventas y
+unidades por \codigo{categoria} de producto, ordenada de mayor a menor, y
+comprueba con \codigo{excel\_sheets()} que ahora hay cinco hojas.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Quarto: el sucesor de R Markdown}
+\label{sec:m8-quarto}
+
+\termino{Quarto} es la nueva generación de R Markdown, creada por la misma
+empresa (Posit, antes RStudio). Funciona con R, pero también con Python y
+Julia, y viene incluido en las versiones recientes de RStudio. La buena
+noticia: \textbf{casi todo lo que aprendiste en este módulo sirve igual}. El
+Markdown es el mismo, knitr sigue ejecutando el código R y pandoc sigue
+convirtiendo el documento. Cambian tres cosas:
+
+\begin{enumerate}
+  \item La extensión: \archivo{.qmd} en lugar de \archivo{.Rmd}.
+  \item En el YAML, \codigo{output: html\_document} pasa a ser
+        \codigo{format: html} (y \codigo{pdf}, \codigo{docx}).
+  \item Las opciones de los bloques se escriben preferentemente
+        \emph{dentro} del bloque, en líneas que empiezan con \codigo{\#|}, y
+        con guiones en lugar de puntos (\codigo{fig-cap} en vez de
+        \codigo{fig.cap}).
+\end{enumerate}
+
+\begin{textocodigo}[title=reportes/reporte-quarto.qmd]
+---
+title: "Reporte de ventas"
+format:
+  html:
+    toc: true
+  docx: default
+params:
+  tienda: 1
+execute:
+  echo: false
+  warning: false
+---
+
+```{r}
+#| label: cargar-datos
+library(dplyr)
+library(readr)
+ventas <- read_csv("../datasets/transacciones.csv", show_col_types = FALSE)
+ventas_tienda <- filter(ventas, tienda_id == params$tienda)
+```
+
+La tienda `r params$tienda` vendió $`r round(sum(ventas_tienda$total_transaccion))`
+en 2023.
+
+```{r}
+#| label: fig-mensual
+#| fig-cap: "Ventas mensuales"
+#| fig-width: 7
+ventas_tienda %>%
+  count(mes, wt = total_transaccion) %>%
+  with(barplot(n, names.arg = substr(mes, 6, 7)))
+```
+\end{textocodigo}
+
+Las opciones globales ya no van en un bloque \codigo{setup}: se ponen en el
+YAML, bajo \codigo{execute}. Para generarlo usas el botón \menu{Render} (el
+equivalente de Knit) o la terminal:
+
+\begin{textocodigo}
+quarto render reportes/reporte-quarto.qmd                   # todos los formatos
+quarto render reportes/reporte-quarto.qmd --to docx        # solo Word
+quarto render reportes/reporte-quarto.qmd -P tienda:3      # con parámetro
+\end{textocodigo}
+
+Desde R, el paquete \paquete{quarto} ofrece \codigo{quarto\_render()},
+equivalente a \codigo{rmarkdown::render()}:
+
+\begin{rnoejecutar}
+install.packages("quarto")
+quarto::quarto_render("reportes/reporte-quarto.qmd",
+                      output_format = "html",
+                      execute_params = list(tienda = 3))
+\end{rnoejecutar}
+
+\begin{consejo}
+¿R Markdown o Quarto? Si empiezas un proyecto nuevo, Quarto es la apuesta a
+futuro, sobre todo si tu equipo también usa Python o quieres hacer
+presentaciones y sitios web. Pero R Markdown no va a desaparecer: sigue
+mantenido, hay miles de reportes en producción escritos con él y Quarto
+puede generar la mayoría de los \archivo{.Rmd} sin cambios. Lo que aprendas
+con uno lo aplicas al otro.
+\end{consejo}
+
+% ----------------------------------------------------------------------------
+\section{Buenas prácticas para reportes automáticos}
+\label{sec:m8-buenas-practicas}
+
+Un reporte automático que falla en silencio es peor que un reporte manual:
+genera confianza en números equivocados. Estas prácticas lo evitan.
+
+\subsection{Reproducibilidad}
+
+\begin{itemize}
+  \item \textbf{Rutas relativas}, nunca \codigo{setwd("C:/Users/andrea/...")}
+        dentro del reporte: en otra computadora esa ruta no existe. Usa
+        rutas relativas a la carpeta del proyecto, \codigo{knit\_root\_dir}
+        o \paquete{here}.
+  \item \textbf{El \archivo{.Rmd} debe ser autocontenido}: cada objeto que
+        usa lo crea él mismo. Knit se ejecuta en una sesión limpia y
+        \emph{no ve} los objetos de tu consola (sección~\ref{sec:m8-errores}).
+  \item \textbf{\codigo{set.seed()}} antes de cualquier cálculo aleatorio
+        (muestras, simulaciones, k-means del Módulo~\ref{cap:ml}), para que
+        dos ejecuciones den el mismo reporte.
+  \item \textbf{Versiones de paquetes}: una actualización de un paquete
+        puede cambiar un resultado o romper el código. El paquete
+        \paquete{renv} guarda las versiones exactas que usa tu proyecto en un
+        archivo \archivo{renv.lock}, y en otra computadora
+        \codigo{renv::restore()} instala esas mismas versiones.
+\end{itemize}
+
+\begin{rnoejecutar}
+install.packages("renv")
+renv::init()       # crea una biblioteca de paquetes propia del proyecto
+renv::snapshot()   # guarda las versiones actuales en renv.lock
+renv::restore()    # (en otra PC) instala exactamente esas versiones
+\end{rnoejecutar}
+
+\subsection{Organización}
+
+\begin{itemize}
+  \item \textbf{Separa datos, código y salidas}: \archivo{datasets/} (entrada,
+        no se modifica a mano), \archivo{reportes/} (plantillas y scripts) y
+        \archivo{resultados/} (todo lo que se puede borrar y regenerar).
+  \item \textbf{Nombres de archivo} sin espacios ni acentos, con fechas en
+        formato \archivo{AAAA-MM-DD} (se ordenan solos) y con lo que
+        identifica al reporte: \archivo{2023-12\_T03\_sucursal-sur\_2024-01-05.pdf}.
+  \item \textbf{Nombra tus chunks} (\codigo{cargar-datos},
+        \codigo{grafica-tendencia}): cuando algo falla, el mensaje de error
+        dice el nombre del bloque y encuentras el problema en segundos.
+  \item \textbf{Pon la lógica pesada en funciones o scripts} y deja en el
+        \archivo{.Rmd} la presentación. Si una función se usa en varios
+        reportes, guárdala en un \archivo{funciones.R} y cárgala con
+        \codigo{source()}.
+\end{itemize}
+
+\subsection{Calidad: revisa antes de enviar}
+
+\begin{itemize}
+  \item \textbf{Valida los datos de entrada} dentro del reporte y detente con
+        un error claro (\codigo{stop()}) si algo no cuadra: mes sin datos,
+        tienda inexistente, columnas faltantes.
+  \item \textbf{Cuadra los totales}: la suma de las tiendas debe dar el total
+        de la empresa; compara un par de cifras con el sistema fuente.
+  \item \textbf{Lee el reporte generado}, al menos al principio y cada vez
+        que cambies la plantilla: ¿las frases tienen sentido para una tienda
+        que cayó y para una que creció? ¿se ve bien en PDF y en Word?
+  \item \textbf{Advierte las limitaciones}: si hay pocos datos, dilo en el
+        propio reporte; si detectas un problema de calidad (como los
+        productos con costo mayor al precio de catálogo que viste en módulos
+        anteriores), menciónalo.
+\end{itemize}
+
+% ----------------------------------------------------------------------------
+\section{Caso práctico integral: reporte ejecutivo mensual automático}
+\label{sec:m8-caso}
+
+\begin{negocio}{El encargo}
+La directora comercial de TechRetail México pide: ``Quiero que cada gerente
+reciba el primer día hábil del mes un reporte de su tienda con los números
+del mes anterior, cómo va contra el mes previo, cómo se compara con las
+demás tiendas, qué productos vendió más y una conclusión clara de qué hacer.
+En PDF, para imprimirlo en la junta; y quiero poder generar el de cualquier
+tienda y mes cuando lo necesite''.
+\end{negocio}
+
+La solución tiene tres piezas que ya conoces: la plantilla parametrizada
+\archivo{02-reporte-ejecutivo.Rmd}, el script \archivo{generar\_reportes.R}
+y la tarea programada. Recorramos la plantilla por partes.
+
+\subsection{Parte 1: encabezado y configuración}
+
+\begin{textocodigo}[title=reportes/02-reporte-ejecutivo.Rmd (encabezado)]
+---
+title: "Reporte ejecutivo de ventas"
+subtitle: "Tienda `r params$tienda` | Periodo `r params$mes`"
+author: "Área de Business Intelligence - TechRetail México"
+date: "Generado el `r format(Sys.Date(), '%d/%m/%Y')`"
+lang: es-MX
+geometry: margin=2cm
+header-includes:
+  - \AtBeginDocument{\renewcommand{\tablename}{Tabla}}
+params:
+  tienda:
+    label: "Tienda (1 a 10)"
+    value: 1
+    input: select
+    choices: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  mes:
+    label: "Mes del reporte (AAAA-MM)"
+    value: "2023-12"
+    input: text
+  ruta_datos:
+    label: "Carpeta de datos"
+    value: "datasets"
+    input: text
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+  pdf_document:
+    fig_caption: true
+    extra_dependencies: ["float"]
+  word_document:
+    fig_caption: true
+---
+\end{textocodigo}
+
+El subtítulo usa los parámetros, así que cada reporte dice de qué tienda y
+periodo es. \codigo{lang: es-MX} pone en español las palabras automáticas
+(``Figura'') y \codigo{header-includes} agrega una instrucción de LaTeX para
+que las tablas del PDF digan ``Tabla'' y no ``Cuadro''. El paquete
+\codigo{float} de \codigo{extra\_dependencies} permite fijar cada figura
+donde aparece en el texto (opción \codigo{fig.pos = "H"}).
+
+\begin{textocodigo}[title=Bloque configuracion]
+```{r configuracion, include=FALSE}
+# ---- Opciones globales: un reporte ejecutivo NO muestra código ----
+es_word <- knitr::pandoc_to("docx")   # TRUE si la salida es Word
+knitr::opts_chunk$set(
+  echo = FALSE, message = FALSE, warning = FALSE,
+  fig.width = 7, fig.height = 3.4, out.width = "90%",
+  fig.pos = "H",                      # PDF: la figura va donde está
+  fig.align = if (es_word) "default" else "center"
+)
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(scales)
+library(knitr)
+
+# Colores corporativos
+color_principal <- "#2a78d6"
+color_resalte   <- "#eb6834"
+color_gris      <- "#b5b3ad"
+tema_reporte <- theme_minimal(base_size = 11) +
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(face = "bold"))
+
+# Nombres de los meses en español (no dependen del idioma de la PC)
+meses_es <- c("enero", "febrero", "marzo", "abril", "mayo", "junio",
+              "julio", "agosto", "septiembre", "octubre", "noviembre",
+              "diciembre")
+nombre_mes <- function(m) {
+  paste(meses_es[as.integer(substr(m, 6, 7))], "de", substr(m, 1, 4))
+}
+# Formatos de negocio ("s/d" = sin dato cuando el valor es NA)
+dinero  <- function(x) ifelse(is.na(x), "s/d", dollar(x, accuracy = 1))
+dinero2 <- function(x) ifelse(is.na(x), "s/d", dollar(x, accuracy = 0.01))
+pct     <- function(x) ifelse(is.na(x), "s/d", percent(x, accuracy = 0.1))
+```
+\end{textocodigo}
+
+\subsection{Parte 2: datos, validación y KPIs}
+
+El bloque \codigo{datos} busca la carpeta de datos (como viste en la
+sección~\ref{sec:m8-directorio}), lee y une las tablas, valida los
+parámetros y filtra la tienda y los meses:
+
+\begin{textocodigo}[title=Bloque datos (después de localizar la carpeta)]
+```{r datos}
+# ... (búsqueda de carpeta_datos y lectura de transacciones, tiendas
+#      y productos, como en la sección de parámetros) ...
+ventas <- transacciones %>%
+  left_join(productos %>%
+              select(producto_id, nombre_producto, categoria,
+                     precio_catalogo, costo),
+            by = "producto_id")
+
+# ---- 3. Validar los parámetros ----
+id_tienda  <- as.integer(params$tienda)
+mes_actual <- params$mes
+info_tienda <- tiendas %>% filter(tienda_id == id_tienda)
+if (nrow(info_tienda) == 0) stop("La tienda ", id_tienda, " no existe.")
+if (!mes_actual %in% ventas$mes) stop("No hay datos del mes ", mes_actual)
+
+# Mes anterior: el día 1 del mes menos un día cae en el mes previo
+mes_previo <- format(as.Date(paste0(mes_actual, "-01")) - 1, "%Y-%m")
+
+# ---- 4. Filtrar ----
+ventas_tienda <- ventas %>% filter(tienda_id == id_tienda)
+ventas_mes    <- ventas_tienda %>% filter(mes == mes_actual)
+ventas_previo <- ventas_tienda %>% filter(mes == mes_previo)
+if (nrow(ventas_mes) == 0) {
+  stop("La tienda ", id_tienda, " no tiene ventas en ", mes_actual)
+}
+```
+\end{textocodigo}
+
+El bloque \codigo{kpis} calcula los indicadores con una función que se
+aplica igual al mes actual y al anterior (así no hay dos cálculos que puedan
+desincronizarse), la posición de la tienda en el ranking del mes y la frase
+de variación. Antes de ponerlo en la plantilla, probemos la función en la
+consola con la tienda 1 en diciembre, el mismo caso que verás en la figura
+del reporte:
+
+\begin{rcode}
+calcular_kpis <- function(datos) {
+  tibble(
+    ventas        = sum(datos$total_transaccion),
+    transacciones = nrow(datos),
+    unidades      = sum(datos$cantidad),
+    ticket        = if (nrow(datos) > 0) ventas / transacciones
+                    else NA_real_
+  )
+}
+
+tienda_1 <- transacciones %>% filter(tienda_id == 1)
+kpi     <- calcular_kpis(tienda_1 %>% filter(mes == "2023-12"))
+kpi_ant <- calcular_kpis(tienda_1 %>% filter(mes == "2023-11"))
+bind_rows(diciembre = kpi, noviembre = kpi_ant, .id = "periodo")
+
+# Ranking de las tiendas en diciembre
+ranking <- ventas_dic %>% mutate(posicion = row_number())
+ranking %>% filter(nombre_tienda == "Sucursal Centro") %>%
+  select(nombre_tienda, ventas, posicion)
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Fíjate en el detalle de \codigo{calcular\_kpis()}: dentro de
+\codigo{tibble()} la columna \codigo{ticket} usa las columnas
+\codigo{ventas} y \codigo{transacciones} que se acaban de crear, y si no hay
+ventas devuelve \codigo{NA} en lugar de dividir entre cero. La Sucursal
+Centro vendió \$5,020 en 5 transacciones y quedó en el lugar 8 de 10. Estos
+son los números que deben aparecer en el reporte: \emph{así se revisa un
+reporte automático}, comparando un caso contra un cálculo independiente.
+
+\begin{textocodigo}[title=Bloque kpis (extracto: la frase de variación)]
+texto_variacion <- if (!hay_previo) {
+  "no se puede comparar porque no hay ventas registradas el mes anterior"
+} else if (var_ventas >= 0) {
+  paste0("crecieron **", pct(var_ventas), "** respecto a ",
+         nombre_mes(mes_previo), " (", dinero(kpi_ant$ventas), ")")
+} else {
+  paste0("cayeron **", pct(abs(var_ventas)), "** respecto a ",
+         nombre_mes(mes_previo), " (", dinero(kpi_ant$ventas), ")")
+}
+\end{textocodigo}
+
+\subsection{Parte 3: el texto del resumen y la tabla de KPIs}
+
+Con todo calculado, el resumen es un párrafo normal de Markdown salpicado de
+código en línea:
+
+\begin{textocodigo}
+# `r info_tienda$nombre_tienda` (`r info_tienda$ciudad`)
+
+## Resumen del mes
+
+En **`r nombre_mes(mes_actual)`**, la **`r info_tienda$nombre_tienda`**
+vendió **`r dinero(kpi$ventas)`** en `r kpi$transacciones` transacciones,
+con un ticket promedio de **`r dinero2(kpi$ticket)`**. Las ventas
+`r texto_variacion`. La tienda ocupó el lugar **`r posicion` de
+`r n_tiendas`** en ventas del mes y aportó el **`r pct(participa)`** de las
+ventas de la empresa.
+\end{textocodigo}
+
+\begin{textocodigo}[title=Bloque tabla-kpis]
+```{r tabla-kpis}
+fmt_var <- function(a, b) {
+  v <- variacion(a, b)
+  if (is.na(v)) "s/d" else percent(v, accuracy = 0.1)
+}
+tabla_kpis <- tibble(
+  Indicador = c("Ventas", "Transacciones", "Unidades vendidas",
+                "Ticket promedio"),
+  `Mes actual` = c(dinero(kpi$ventas), kpi$transacciones,
+                   kpi$unidades, dinero2(kpi$ticket)),
+  `Mes anterior` = c(dinero(kpi_ant$ventas), kpi_ant$transacciones,
+                     kpi_ant$unidades, dinero2(kpi_ant$ticket)),
+  `Variación` = c(fmt_var(kpi$ventas, kpi_ant$ventas),
+                  fmt_var(kpi$transacciones, kpi_ant$transacciones),
+                  fmt_var(kpi$unidades, kpi_ant$unidades),
+                  fmt_var(kpi$ticket, kpi_ant$ticket))
+)
+kable(tabla_kpis, format = "pipe", align = c("l", "r", "r", "r"),
+      caption = paste("Indicadores clave de", nombre_mes(mes_actual)))
+```
+\end{textocodigo}
+
+\subsection{Parte 4: las gráficas}
+
+El reporte tiene tres gráficas que siguen las reglas del
+Módulo~\ref{cap:visualizacion}: la tendencia del año con el mes del reporte
+resaltado en naranja y el resto en gris, el ranking de tiendas con la tienda
+del reporte resaltada, y las ventas por categoría en un solo color. Los
+títulos de las figuras (\codigo{fig.cap}) son variables de R, de modo que
+también dicen el mes correcto:
+
+\begin{textocodigo}[title=Bloque grafica-tendencia]
+```{r grafica-tendencia, fig.cap = titulo_tendencia}
+mensual <- ventas_tienda %>%
+  filter(mes <= mes_actual) %>%
+  group_by(mes) %>%
+  summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
+  mutate(es_actual = mes == mes_actual,
+         # "2023-12" -> "dic" (y respeta el orden cronológico)
+         etiqueta = substr(meses_es[as.integer(substr(mes, 6, 7))], 1, 3),
+         etiqueta = factor(etiqueta, levels = etiqueta))
+
+ggplot(mensual, aes(x = etiqueta, y = ventas, fill = es_actual)) +
+  geom_col(width = 0.7) +
+  scale_fill_manual(values = c(`FALSE` = color_gris,
+                               `TRUE` = color_resalte),
+                    guide = "none") +
+  scale_y_continuous(labels = label_dollar(scale = 1e-3, suffix = " mil")) +
+  labs(x = NULL, y = "Ventas") +
+  tema_reporte
+```
+\end{textocodigo}
+
+El filtro \codigo{mes <= mes\_actual} hace que el reporte de junio muestre
+solo enero a junio: un reporte de un mes pasado no debe ``ver el futuro''.
+Las otras dos gráficas siguen el mismo patrón (consúltalas en el archivo
+completo).
+
+\subsection{Parte 5: conclusiones automáticas}
+
+El último bloque aplica las reglas de negocio de la
+sección~\ref{sec:m8-texto} y escribe una lista de Markdown con
+\codigo{results = "asis"}:
+
+\begin{textocodigo}[title=Bloque conclusiones (extracto)]
+```{r conclusiones, results = "asis"}
+conclusiones <- character(0)
+
+# 1. Crecimiento contra el mes anterior
+if (!hay_previo) {
+  conclusiones <- c(conclusiones,
+    "No hay ventas del mes anterior para comparar el crecimiento.")
+} else if (var_ventas > 0.10) {
+  conclusiones <- c(conclusiones, paste0(
+    "**Crecimiento sólido:** las ventas subieron ", pct(var_ventas),
+    ". Identifica qué funcionó para replicarlo en otras tiendas."))
+} else if (var_ventas >= 0) {
+  # ... "Estabilidad" ...
+} else if (var_ventas > -0.10) {
+  # ... "Ligera caída" ...
+} else {
+  conclusiones <- c(conclusiones, paste0(
+    "**Alerta:** las ventas cayeron ", pct(abs(var_ventas)),
+    ". Revisa inventario, personal y promociones con el gerente."))
+}
+# 2. Posición (top 3 / 3 últimas)   3. Ticket contra la empresa
+# 4. Pocos datos: advertir que las variaciones pueden ser azar
+if (kpi$transacciones < 10) {
+  conclusiones <- c(conclusiones, paste0(
+    "Precaución: el mes solo tiene ", kpi$transacciones,
+    " transacciones; interpreta las variaciones con cuidado."))
+}
+# 5. Calidad de datos: productos con costo mayor al precio de catálogo
+
+# Imprimir como lista de Markdown (por eso results = "asis")
+cat(paste0("- ", conclusiones), sep = "\n")
+```
+\end{textocodigo}
+
+La regla 4 es un ejemplo de honestidad analítica: con menos de 10
+transacciones en el mes, una caída del 50\,\% puede ser simple azar, y el
+reporte lo dice. La regla 5 revisa un problema de calidad de datos que ya
+conoces: hay productos cuyo costo es mayor que su precio de catálogo.
+
+\subsection{El resultado}
+
+Generamos el reporte de la Sucursal Centro de diciembre de 2023 en PDF con:
+
+\begin{rnoejecutar}
+rmarkdown::render("reportes/02-reporte-ejecutivo.Rmd",
+                  output_format = "pdf_document",
+                  output_file   = "reporte.pdf",
+                  output_dir    = "resultados",
+                  params        = list(tienda = 1, mes = "2023-12"),
+                  knit_root_dir = getwd())
+\end{rnoejecutar}
+
+La figura~\ref{fig:m08-reporte-ejecutivo} muestra las dos primeras páginas
+del PDF tal como salieron, sin ningún retoque. Todo lo que ves (el nombre
+de la tienda, los montos, la frase ``cayeron 52.6\,\%'', la tabla, la barra
+naranja de diciembre) salió del código.
+
+\begin{figure}[H]
+\centering
+\fbox{\includegraphics[width=0.47\textwidth]{m08-reporte-ejecutivo}}\hfill
+\fbox{\includegraphics[width=0.47\textwidth]{m08-reporte-ejecutivo-p2}}
+\caption{Páginas 1 y 2 del reporte ejecutivo en PDF generado para la
+Sucursal Centro, diciembre de 2023.}
+\label{fig:m08-reporte-ejecutivo}
+\end{figure}
+
+La tercera página contiene el final de las conclusiones automáticas. Para
+esta tienda, el reporte escribió:
+
+\begin{textocodigo}
+- Alerta: las ventas cayeron 52.6%. Revisa inventario, personal y
+  promociones con el gerente.
+- La tienda está entre las 3 con menores ventas (lugar 8 de 10).
+- El ticket promedio ($1,003.90) es menor que el de la empresa
+  ($1,059.27): hay espacio para venta cruzada.
+- Precaución: el mes solo tiene 5 transacciones; interpreta las
+  variaciones con cuidado.
+\end{textocodigo}
+
+El mismo archivo produce la versión HTML (con índice flotante) y la de Word
+(editable), sin cambiar una línea: basta con
+\codigo{output\_format = "all"}.
+
+\subsection{Generar los diez reportes}
+
+Con la carpeta del curso como directorio de trabajo, en la terminal
+(o en la pestaña \menu{Terminal} de RStudio):
+
+\begin{textocodigo}
+Rscript reportes/generar_reportes.R 2023-12 pdf
+\end{textocodigo}
+
+\begin{textocodigo}[title=Salida real del script]
+Generando 10 reportes del mes 2023-12 en formato pdf
+  [ 1/10] Sucursal Centro    OK    2023-12_T01_sucursal-centro_FECHA.pdf
+  [ 2/10] Sucursal Norte     OK    2023-12_T02_sucursal-norte_FECHA.pdf
+  ...
+\end{textocodigo}
+
+En unos 20 segundos, los diez PDF están en \archivo{resultados/reportes/}.
+Si ejecutas el script para un mes sin datos, por ejemplo
+\codigo{Rscript reportes/generar\_reportes.R 2024-01}, ningún reporte se
+genera, pero el script no se detiene en la primera tienda: recorre las diez,
+y el registro explica la causa:
+
+\begin{textocodigo}[title=resultados/reportes/registro\_reportes.csv (extracto)]
+fecha_hora,tienda_id,tienda,mes,archivo,estado,detalle,segundos
+REGISTRO
+\end{textocodigo}
+
+\begin{hazlotu}
+Genera los reportes de junio de 2023 en Word para todas las tiendas. Abre el
+de la tienda que tuvo el mayor crecimiento y comprueba que su conclusión
+dice ``Crecimiento sólido''. Luego revisa \archivo{registro\_reportes.csv}:
+¿cuántas filas tiene ahora y por qué?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Errores comunes}
+\label{sec:m8-errores}
+
+Estos son los errores que casi todo el mundo encuentra en sus primeros
+reportes. Los mensajes son los que muestra R (con las rutas acortadas).
+
+\begin{advertencia}
+\textbf{Archivo de datos no encontrado al hacer Knit.} El código funciona
+en la consola, pero al tejer aparece:
+\end{advertencia}
+
+\begin{textocodigo}
+Quitting from lines 7-9 [cargar] (reporte.Rmd)
+Error:
+! 'datasets/ventas_retail.csv' does not exist in current working
+  directory ('.../curso-bi-rstudio/reportes').
+\end{textocodigo}
+
+\textbf{Causa:} el \archivo{.Rmd} se ejecuta en su propia carpeta
+(\archivo{reportes/}), no en la del proyecto. \textbf{Solución:} usa
+\codigo{knit\_root\_dir} en \codigo{render()} o
+\menu{Knit > Knit Directory > Project Directory}, una ruta
+\archivo{../datasets/}, el paquete \paquete{here} o la búsqueda robusta con
+el parámetro \codigo{ruta\_datos} (sección~\ref{sec:m8-directorio}). El
+mensaje te dice cuál es el directorio de trabajo real: léelo.
+
+\begin{advertencia}
+\textbf{Objeto no encontrado (pero en la consola sí existe).}
+\end{advertencia}
+
+\begin{textocodigo}
+Quitting from lines 7-8 [resumen] (reporte.Rmd)
+Error:
+! objeto 'ventas' no encontrado
+\end{textocodigo}
+
+\textbf{Causa:} Knit ejecuta el documento en una \emph{sesión nueva y
+limpia}. El objeto \codigo{ventas} existe en tu consola porque lo creaste
+ahí, pero el \archivo{.Rmd} nunca lo crea. \textbf{Solución:} el
+\archivo{.Rmd} debe leer sus datos y cargar sus paquetes (\codigo{library()})
+él mismo. Prueba: reinicia R (\menu{Session > Restart R}) y ejecuta todos
+los bloques en orden con \menu{Run > Run All}; si falla ahí, fallará al
+tejer. Lo mismo ocurre con \codigo{could not find function "\%>\%"}: falta
+un \codigo{library(dplyr)} dentro del documento.
+
+\begin{advertencia}
+\textbf{Falta LaTeX para generar PDF.}
+\end{advertencia}
+
+\begin{textocodigo}
+! sh: 1: pdflatex: not found
+
+Error: LaTeX failed to compile reporte.tex. See
+https://yihui.org/tinytex/r/#debugging for debugging tips.
+\end{textocodigo}
+
+En Windows el mensaje suele ser \emph{``No LaTeX installation detected
+(LaTeX is required to create PDF output)''}. \textbf{Solución:}
+\codigo{tinytex::install\_tinytex()} y reinicia RStudio. Si ya tienes
+TinyTeX y el error menciona un archivo \archivo{.sty} faltante, ejecuta de
+nuevo el render con Internet para que se descargue.
+
+\begin{advertencia}
+\textbf{Nombre de chunk duplicado.}
+\end{advertencia}
+
+\begin{textocodigo}
+Error in parse_block(g[-1], g[1], params.src, markdown_mode) :
+  Duplicate chunk label 'grafica', which has been used for the chunk:
+plot(1:10)
+\end{textocodigo}
+
+\textbf{Causa:} dos bloques tienen el mismo nombre (pasa mucho al copiar y
+pegar un bloque). \textbf{Solución:} cada nombre debe ser único; renombra el
+segundo (\codigo{grafica-tiendas}).
+
+\begin{advertencia}
+\textbf{Error de YAML por sangría.}
+\end{advertencia}
+
+\begin{textocodigo}
+Error in yaml::yaml.load(..., eval.expr = TRUE) :
+  Scanner error: mapping values are not allowed in this context at
+  line 5, column 11
+\end{textocodigo}
+
+El encabezado que lo produjo tenía un espacio de más antes de
+\codigo{theme}:
+
+\begin{textocodigo}
+output:
+  html_document:
+    toc: true
+     theme: flatly
+\end{textocodigo}
+
+\textbf{Solución:} alinea las opciones del mismo nivel exactamente con la
+misma sangría (múltiplos de dos espacios, sin tabuladores). El mensaje
+indica la línea y columna \emph{dentro del YAML}. Otros errores de YAML
+frecuentes: olvidar los dos puntos, o escribir un título con dos puntos sin
+comillas (\codigo{title: Ventas: diciembre}).
+
+\begin{advertencia}
+\textbf{Modificar un parámetro.} \codigo{params\$tienda <- 5} dentro del
+documento produce \emph{``no se puede cambiar el valor de un vínculo
+bloqueado para `params'\,''}. Copia el parámetro a otra variable.
+\end{advertencia}
+
+\begin{table}[H]
+\centering
+\caption{Otros problemas frecuentes y su solución}
+\label{tab:m8-otros-errores}
+\small
+\begin{tabularx}{\textwidth}{X X}
+\toprule
+\textbf{Síntoma} & \textbf{Solución} \\
+\midrule
+El reporte sale con mensajes de carga de paquetes y advertencias &
+  \codigo{message = FALSE, warning = FALSE} en \codigo{opts\_chunk\$set()} \\
+Cada reporte del bucle sobrescribe al anterior & Da un
+  \codigo{output\_file} distinto en cada vuelta \\
+La tabla sale como texto de consola (con \codigo{\#\#}) & Usa
+  \codigo{kable()} en lugar de imprimir el data frame \\
+El texto de \codigo{cat()} aparece en un recuadro gris & Agrega
+  \codigo{results = "asis"} al bloque \\
+Los meses salen en inglés & Usa un vector propio con los nombres en
+  español \\
+Los números de un reporte ``se parecen'' a los de otra tienda & Usa
+  \codigo{envir = new.env()} en \codigo{render()} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ----------------------------------------------------------------------------
+\begin{resumen}
+\begin{itemize}
+  \item Un \textbf{reporte reproducible} se genera por completo desde los
+        datos y el código: sin copiar y pegar, sin errores de transcripción,
+        y se actualiza con un clic.
+  \item Un \archivo{.Rmd} tiene \textbf{encabezado YAML}, \textbf{texto en
+        Markdown}, \textbf{chunks} de código y \textbf{código en línea}.
+        \paquete{knitr} ejecuta el código y \textbf{pandoc} lo convierte a
+        HTML, PDF (vía LaTeX) o Word.
+  \item Las \textbf{opciones de chunk} controlan qué se ve:
+        \codigo{echo}, \codigo{include}, \codigo{message},
+        \codigo{fig.cap}, \codigo{results = "asis"}; se fijan para todo el
+        documento con \codigo{knitr::opts\_chunk\$set()}.
+  \item \codigo{kable()} convierte data frames en tablas de documento;
+        \paquete{scales} da formato de negocio a números y porcentajes.
+  \item El \textbf{texto dinámico} y las \textbf{conclusiones automáticas}
+        (\codigo{if}/\codigo{else}, \codigo{case\_when()}) hacen que la
+        narrativa cambie con los datos.
+  \item Los \textbf{parámetros} (\codigo{params}) convierten un
+        \archivo{.Rmd} en una plantilla; \codigo{render()} con
+        \codigo{params}, \codigo{output\_file} y \codigo{knit\_root\_dir}
+        genera cada versión.
+  \item Un script con un bucle, \codigo{tryCatch()} y un registro genera
+        todos los reportes; \textbf{cron} o el \textbf{Programador de tareas}
+        lo ejecutan solos, y \paquete{blastula} los envía por correo.
+  \item \paquete{writexl} crea libros de Excel con varias hojas a partir de
+        una lista de data frames. \textbf{Quarto} (\archivo{.qmd}) es el
+        sucesor de R Markdown y usa casi la misma sintaxis.
+\end{itemize}
+\end{resumen}
+
+\begin{table}[H]
+\centering
+\caption{Funciones y opciones clave del Módulo 8}
+\label{tab:m8-funciones}
+\small
+\begin{tabularx}{\textwidth}{l X}
+\toprule
+\textbf{Función u opción} & \textbf{Para qué sirve} \\
+\midrule
+\codigo{rmarkdown::render()} & Genera el reporte desde código (lo que hace
+  el botón Knit) \\
+\codigo{params = list(...)} & Valores de los parámetros del reporte \\
+\codigo{knit\_root\_dir}, \codigo{output\_dir}, \codigo{output\_file} &
+  Carpeta de ejecución, carpeta y nombre de salida \\
+\codigo{knitr::opts\_chunk\$set()} & Opciones por defecto de todos los
+  chunks \\
+\codigo{echo}, \codigo{include}, \codigo{eval}, \codigo{message},
+  \codigo{warning} & Qué se muestra y qué se ejecuta \\
+\codigo{fig.cap}, \codigo{fig.width}, \codigo{fig.height},
+  \codigo{out.width} & Título y tamaño de las figuras \\
+\codigo{results = "asis"} & El texto impreso se trata como Markdown \\
+\codigo{knitr::kable()} & Tabla con formato de documento \\
+\codigo{knitr::knit()} & Teje un documento (o un texto) a Markdown \\
+\codigo{knitr::pandoc\_to()} & Formato de salida que se está generando \\
+\codigo{dollar()}, \codigo{percent()}, \codigo{comma()} & Formato de
+  números en texto y tablas \\
+\codigo{tryCatch()} & Atrapa errores para que el bucle continúe \\
+\codigo{sprintf()} & Arma nombres de archivo con un molde \\
+\codigo{expand\_grid()} & Todas las combinaciones de parámetros \\
+\codigo{commandArgs()} & Lee los argumentos de \codigo{Rscript} \\
+\codigo{writexl::write\_xlsx()} & Excel con una hoja por data frame \\
+\codigo{readxl::excel\_sheets()} & Nombres de las hojas de un Excel \\
+\codigo{tinytex::install\_tinytex()} & Instala LaTeX para generar PDF \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ----------------------------------------------------------------------------
+\section{Ejercicios}
+\label{sec:m8-ejercicios}
+
+Para los ejercicios que piden un archivo \archivo{.Rmd}, guárdalo en la
+carpeta \archivo{reportes/} del curso y genéralo con \menu{Knit} o con
+\codigo{rmarkdown::render()}. Los demás se resuelven con código R en la
+consola, con la carpeta del curso como directorio de trabajo.
+
+\begin{ejercicio}{m8-1}{Tu primer reporte de clientes}
+\nivel{Básico}
+Crea \archivo{reportes/ej1-clientes.Rmd} con salida HTML que:
+(a) tenga título, tu nombre y la fecha automática;
+(b) lea \archivo{clientes.csv} en un bloque que no se muestre en el
+reporte;
+(c) diga en una frase, con código en línea, cuántos clientes hay y cuántos
+son premium;
+(d) muestre una tabla con \codigo{kable()} del número de clientes por
+\codigo{ciudad}, ordenada de mayor a menor.
+\end{ejercicio}
+
+\begin{ejercicio}{m8-2}{Tabla ejecutiva de categorías}
+\nivel{Básico}
+Con \archivo{transacciones.csv} y \archivo{productos.csv}, construye una
+tabla con \codigo{kable(format = "pipe")} de las ventas de 2023 por
+\codigo{categoria}: ventas en pesos sin centavos, unidades con separador de
+miles y porcentaje del total con un decimal, ordenada de mayor a menor y con
+el título ``Ventas 2023 por categoría''. ¿Qué categoría vende más y qué
+porcentaje representa?
+\end{ejercicio}
+
+\begin{ejercicio}{m8-3}{Frase de cumplimiento de meta}
+\nivel{Intermedio}
+Escribe una función \codigo{frase\_meta(ventas, meta)} que devuelva:
+``Se superó la meta en X\,\% (ventas de \$A contra meta de \$B).'' si
+\codigo{ventas >= meta}; ``Se alcanzó el X\,\% de la meta\ldots'' si se
+alcanzó al menos el 90\,\%; y ``Alerta: solo se alcanzó el X\,\% de la
+meta\ldots'' en otro caso. Pruébala con los tres casos y aplícala a las
+ventas trimestrales de 2023 (de \archivo{transacciones.csv}) con una meta de
+\$220,000 por trimestre.
+\end{ejercicio}
+
+\begin{ejercicio}{m8-4}{Opciones de chunk para un reporte ejecutivo}
+\nivel{Intermedio}
+Crea \archivo{reportes/ej4-opciones.Rmd} con un bloque de configuración
+global que oculte código, mensajes y advertencias. Incluye: un bloque
+invisible que calcule las ventas por mes de \archivo{ventas\_retail.csv};
+una gráfica de líneas con \codigo{fig.cap}, 7 $\times$ 3 pulgadas y
+\codigo{out.width = "80\%"}; y un bloque con \codigo{results = "asis"} que
+escriba como lista de Markdown los tres meses con más ventas. Genéralo en
+HTML y en Word.
+\end{ejercicio}
+
+\begin{ejercicio}{m8-5}{Reporte parametrizado por categoría}
+\nivel{Intermedio}
+Crea \archivo{reportes/ej5-categoria.Rmd} con un parámetro
+\codigo{categoria} (valor por defecto \codigo{"Electrónica"}) que muestre,
+para esa categoría: ventas totales de 2023 (en una frase), una tabla de sus
+5 productos más vendidos y una gráfica de ventas por mes. Después genera,
+con \codigo{render()}, los reportes de \codigo{"Ropa"} y \codigo{"Hogar"}
+con nombres de archivo distintos en \archivo{resultados/}.
+\end{ejercicio}
+
+\begin{ejercicio}{m8-6}{Plan de generación por trimestre}
+\nivel{Avanzado}
+Construye con \codigo{expand\_grid()} la tabla de trabajos para generar un
+reporte por tienda y por trimestre (\codigo{Q1} a \codigo{Q4}). Agrega una
+columna \codigo{archivo} con el formato
+\archivo{2023-Q1\_T01\_sucursal-centro.pdf} y una columna
+\codigo{n\_transacciones} con cuántas transacciones tiene cada combinación
+(según \archivo{transacciones.csv}). ¿Cuántos reportes hay que generar?
+¿Qué combinación tiene menos transacciones? Marca con
+\codigo{generar = FALSE} las que tengan menos de 20.
+\end{ejercicio}
+
+\begin{ejercicio}{m8-7}{Un Excel con una hoja por tienda}
+\nivel{Avanzado}
+Genera \archivo{resultados/ventas\_por\_tienda.xlsx} con una hoja
+\codigo{"Resumen"} (ventas y transacciones por tienda) seguida de una hoja
+por tienda con el detalle de sus transacciones, cuyo nombre sea el de la
+tienda sin la palabra ``Sucursal'' (por ejemplo, \codigo{"Centro"}). Pista:
+\codigo{split()} divide un data frame en una lista. Verifica con
+\codigo{excel\_sheets()} que hay 11 hojas y que la suma de filas de las
+hojas de tiendas es 1,000.
+\end{ejercicio}
+
+\begin{ejercicio}{m8-8}{Sistema de alertas con registro}
+\nivel{Reto}
+Escribe una función \codigo{revisar\_tienda(id, mes)} que calcule la
+variación de ventas de una tienda contra el mes anterior y devuelva un
+tibble de una fila con la tienda, el mes, la variación y un estado
+(``Crecimiento sólido'', ``Estable'', ``Ligera caída'', ``Alerta''), y que
+lance un error con \codigo{stop()} si la tienda o el mes no existen, o si el
+mes anterior no tiene datos. Recorre todas las tiendas para
+\codigo{"2023-06"}, más las combinaciones inválidas \codigo{(11, "2023-06")}
+y \codigo{(1, "2023-01")}, atrapando los errores con \codigo{tryCatch()}.
+Muestra el registro y escribe con \codigo{cat()} el texto Markdown de
+alertas que iría en el reporte.
+\end{ejercicio}

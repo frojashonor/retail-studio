@@ -425,3 +425,1653 @@ Para cada pregunta, decide la familia de la tabla~\ref{tab:m3-elegir}:
 reparten los ingresos entre los métodos de pago?''.
 \end{hazlotu}
 
+% ----------------------------------------------------------------------------
+\section{Barras y columnas: comparar categorías}
+\label{sec:m3-barras}
+
+Las barras son la gráfica más útil del BI: el ojo humano compara longitudes
+con mucha precisión. Antes de empezar, define los \emph{colores
+corporativos} que usaremos en todo el módulo. En la
+sección~\ref{sec:m3-temas} explicaremos por qué son estos y por qué en este
+orden; por ahora, cópialos tal cual.
+
+\begin{rcode}
+color_principal <- "#2a78d6"   # azul: para una sola serie
+color_resalte   <- "#eb6834"   # naranja: para destacar UN elemento
+color_gris      <- "#b5b3ad"   # gris: para "el resto"
+# Paleta para varias series (usar en este orden, máximo 8)
+paleta_libro <- c("#2a78d6", "#eb6834", "#1baf7a", "#eda100",
+                  "#e87ba4", "#008300", "#4a3aa7", "#e34948")
+\end{rcode}
+
+\subsection{\texorpdfstring{\codigo{geom\_col()} contra \codigo{geom\_bar()}}{geom\_col() contra geom\_bar()}}
+
+\paquete{ggplot2} tiene dos geometrías de barras y confundirlas es un error
+muy común:
+
+\begin{itemize}
+  \item \codigo{geom\_col()}: la altura de la barra es un \emph{valor que ya
+        calculaste} (por ejemplo, la suma de ingresos). Necesita \codigo{x}
+        y \codigo{y}. Es la que más usarás en BI, porque normalmente
+        resumes primero con \codigo{summarise()} y luego graficas.
+  \item \codigo{geom\_bar()}: \emph{cuenta filas} por ti. Solo necesita
+        \codigo{x}; la altura es el número de filas de cada categoría.
+\end{itemize}
+
+\begin{rcode}
+# geom_bar() cuenta cuántas filas (tickets) hay de cada método de pago
+g_conteo <- ggplot(ventas_detalle, aes(x = metodo_pago)) +
+  geom_bar(fill = color_principal)
+
+# Es lo mismo que contar primero y luego usar geom_col():
+ventas_detalle %>% count(metodo_pago)
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Las dos formas producen la misma gráfica de conteos. Nuestra recomendación:
+\textbf{resume con \paquete{dplyr} y grafica con \codigo{geom\_col()}}. Así
+ves la tabla con las cifras exactas antes de dibujarla y puedes citarlas en
+tu reporte.
+
+\subsection{Ingresos por categoría: una serie, un color}
+
+\textbf{Pregunta de negocio:} ¿qué categorías generan más ingresos?
+Primero resumimos.
+
+\begin{rcode}
+ingresos_categoria <- ventas_detalle %>%
+  group_by(categoria) %>%
+  summarise(ingresos = sum(total_transaccion),
+            tickets  = n(),
+            .groups  = "drop") %>%
+  mutate(participacion = ingresos / sum(ingresos)) %>%   # % del total
+  arrange(desc(ingresos))
+ingresos_categoria
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Ahora la gráfica. Usamos barras \emph{horizontales} (la categoría en el eje
+$y$) porque los nombres de categoría se leen mucho mejor de lado que
+apretados bajo cada columna.
+
+\begin{rcode}
+g_categorias <- ggplot(ingresos_categoria,
+                       aes(x = ingresos,
+                           # ordena las categorías según sus ingresos
+                           y = fct_reorder(categoria, ingresos))) +
+  # UN solo color: todas las barras miden lo mismo (ingresos)
+  geom_col(fill = color_principal, width = 0.7) +
+  scale_x_continuous(labels = dollar,
+                     # las barras arrancan pegadas al eje (sin hueco)
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(title = "Ingresos por categoría, 2023",
+       x = "Ingresos (MXN)", y = NULL,
+       caption = "Fuente: transacciones.csv y productos.csv") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        # sin líneas horizontales: las barras ya marcan las filas
+        panel.grid.major.y = element_blank())
+g_categorias
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m03-barras-categoria}
+\caption{Ingresos por categoría: barras horizontales, ordenadas y de un
+solo color.}
+\label{fig:m03-barras-categoria}
+\end{figure}
+
+\textbf{Cómo leerla.} Belleza encabeza con claridad (\$182,143), seguida de
+un grupo muy parejo de cuatro categorías (Electrónica, Juguetes, Alimentos y
+Automotriz, entre \$104,000 y \$133,000). Ropa queda muy abajo, con apenas
+\$30,048. Como todas las barras tienen el mismo color, el ojo se concentra
+en lo único que importa: la longitud.
+
+\begin{concepto}{Ordenar con \texttt{fct\_reorder()} o \texttt{reorder()}}
+Por defecto \paquete{ggplot2} ordena el texto alfabéticamente (Alimentos,
+Automotriz, Belleza\ldots), un orden que no significa nada para el negocio.
+\codigo{fct\_reorder(categoria, ingresos)} (del paquete \paquete{forcats},
+incluido en \paquete{tidyverse}) convierte la columna en un \termino{factor}
+cuyos niveles siguen el orden de \codigo{ingresos}. La función base
+\codigo{reorder(categoria, ingresos)} hace lo mismo. Para ordenar de mayor a
+menor en un eje horizontal usa \codigo{.desc = TRUE}, o
+\codigo{reorder(categoria, -ingresos)}.
+\end{concepto}
+
+\begin{advertencia}
+En el material de muchos cursos verás \codigo{geom\_col(aes(fill =
+categoria))}: cada barra de un color distinto. Si el color no significa nada
+nuevo (la categoría ya está escrita en el eje), solo agrega ruido, obliga a
+leer una leyenda inútil y hace creer que los colores codifican algo. Regla:
+\textbf{una sola serie = un solo color}.
+\end{advertencia}
+
+\subsection{Resaltar lo importante}
+
+\textbf{Pregunta de negocio:} en la presentación quieres hablar de Belleza.
+¿Cómo haces que el ojo vaya directo a esa barra? Con la técnica más
+poderosa del diseño de gráficas: \textbf{un color de resalte para lo
+importante y gris para el resto}.
+
+\begin{rcode}
+ingresos_categoria <- ingresos_categoria %>%
+  mutate(grupo = if_else(categoria == "Belleza", "Destacada", "Resto"))
+
+g_resalte <- ggplot(ingresos_categoria,
+                    aes(x = ingresos,
+                        y = fct_reorder(categoria, ingresos),
+                        fill = grupo)) +          # el color SÍ significa algo
+  geom_col(width = 0.7) +
+  # etiqueta solo en la barra destacada (no un número en cada barra)
+  geom_text(data = filter(ingresos_categoria, grupo == "Destacada"),
+            aes(label = dollar(ingresos)),
+            hjust = 1.1, color = "white", fontface = "bold",
+            size = 3.5) +
+  scale_fill_manual(values = c(Destacada = color_resalte,
+                               Resto     = color_gris),
+                    guide = "none") +              # sin leyenda
+  scale_x_continuous(labels = dollar,
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(title = "Belleza aporta 19% de los ingresos del año",
+       subtitle = "Ingresos por categoría, 2023",
+       x = "Ingresos (MXN)", y = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank())
+g_resalte
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m03-barras-resalte}
+\caption{Un solo color de resalte y gris para el resto: el ojo va directo a
+Belleza.}
+\label{fig:m03-barras-resalte}
+\end{figure}
+
+Tres detalles del código:
+\begin{itemize}
+  \item \codigo{scale\_fill\_manual()} asigna colores \emph{por nombre}
+        (\codigo{Destacada = color\_resalte}), así nunca dependes del orden.
+  \item \codigo{guide = "none"} quita la leyenda: el título ya explica qué
+        barra se resalta y por qué.
+  \item \codigo{geom\_text()} recibe su propio \codigo{data} filtrado, de modo
+        que solo aparece \emph{una} etiqueta. \codigo{hjust = 1.1} la pone
+        justo dentro del extremo de la barra.
+\end{itemize}
+
+\textbf{Cómo leerla.} El título ya es la conclusión: 19\% del ingreso anual
+viene de Belleza (fila 1 de la tabla: \codigo{participacion} de 0.190).
+
+\begin{hazlotu}
+Resalta Ropa en lugar de Belleza y cambia el título por ``Ropa aporta solo
+el 3\% de los ingresos''. Pista: solo cambian el \codigo{if\_else()}, el
+título y la posición de la etiqueta (\codigo{hjust = -0.1} y
+\codigo{color = color\_resalte}, porque la barra es muy corta para escribir
+dentro).
+\end{hazlotu}
+
+\subsection{Barras agrupadas: comparar 2 o 3 series}
+
+\textbf{Pregunta de negocio:} ¿las cinco categorías principales vendieron lo
+mismo en el primer y en el segundo semestre? Aquí hay \emph{dos series}
+(semestre 1 y semestre 2), así que ahora el color sí significa algo y
+necesitamos leyenda.
+
+\begin{rcode}
+top5 <- ingresos_categoria %>%
+  slice_max(ingresos, n = 5) %>%     # las 5 con más ingresos
+  pull(categoria)                    # como vector de texto
+
+ingresos_semestre <- ventas_detalle %>%
+  filter(categoria %in% top5) %>%
+  mutate(semestre = if_else(month(fecha) <= 6, "Ene-Jun", "Jul-Dic")) %>%
+  group_by(categoria, semestre) %>%
+  summarise(ingresos = sum(total_transaccion), .groups = "drop")
+
+ingresos_semestre %>%
+  pivot_wider(names_from = semestre, values_from = ingresos) %>%
+  mutate(cambio = `Jul-Dic` / `Ene-Jun` - 1)
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\begin{rcode}
+g_agrupadas <- ggplot(ingresos_semestre,
+                      aes(x = fct_reorder(categoria, ingresos,
+                                          .fun = sum, .desc = TRUE),
+                          y = ingresos, fill = semestre)) +
+  # dodge = una barra al lado de la otra (no encimadas)
+  geom_col(position = position_dodge(width = 0.8), width = 0.75) +
+  scale_fill_manual(values = paleta_libro[1:2]) +   # 2 series, 2 colores
+  scale_y_continuous(labels = dollar,
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(title = "Belleza cayó 41% en el segundo semestre",
+       subtitle = "Ingresos de las 5 categorías principales, 2023",
+       x = NULL, y = "Ingresos (MXN)", fill = "Semestre") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank(),
+        legend.position = "top")                    # leyenda arriba
+g_agrupadas
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m03-barras-agrupadas}
+\caption{Barras agrupadas (\emph{dodge}) para comparar dos series por
+categoría.}
+\label{fig:m03-barras-agrupadas}
+\end{figure}
+
+\textbf{Cómo leerla.} Cada categoría tiene su par de barras: azul para el
+primer semestre y naranja para el segundo. Belleza pasó de \$114,399 a
+\$67,744 (\textminus 41\%), mientras que Electrónica (+28\%) y Automotriz
+(+20\%) crecieron. Juguetes y Alimentos se mantuvieron casi iguales. Es una
+historia que la gráfica de totales anuales escondía por completo: Belleza
+lidera el año, pero viene en caída.
+
+\begin{consejo}
+Las barras agrupadas funcionan bien con 2 o 3 series. Con más, el ojo ya no
+logra comparar; usa facetas (sección~\ref{sec:m3-facetas}) o una gráfica de
+líneas.
+\end{consejo}
+
+\subsection{Barras apiladas y barras al 100\%}
+
+\textbf{Pregunta de negocio:} ¿cambió la mezcla de métodos de pago a lo
+largo del año? Cuando lo que importa es la \emph{composición} (qué parte del
+total aporta cada método) usamos barras al 100\%:
+\codigo{position = "fill"} apila y reescala cada barra para que sume 1.
+
+\begin{rcode}
+pagos_trimestre <- ventas_detalle %>%
+  group_by(trimestre, metodo_pago) %>%
+  summarise(ingresos = sum(total_transaccion), .groups = "drop")
+
+g_100 <- ggplot(pagos_trimestre,
+                aes(x = trimestre, y = ingresos,
+                    # el método más grande primero (abajo y en la leyenda)
+                    fill = fct_reorder(metodo_pago, ingresos,
+                                       .fun = sum, .desc = TRUE))) +
+  geom_col(position = position_fill(reverse = TRUE), width = 0.7) +
+  scale_fill_manual(values = paleta_libro[1:4]) +
+  scale_y_continuous(labels = percent) +            # 0.25 -> 25%
+  labs(title = "La mezcla de pagos casi no cambia en el año",
+       subtitle = "Participación de cada método de pago en los ingresos",
+       x = NULL, y = "% de los ingresos", fill = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank(),
+        legend.position = "top")
+g_100
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m03-barras-100}
+\caption{Barras al 100\%: composición de los ingresos por método de pago en
+cada trimestre.}
+\label{fig:m03-barras-100}
+\end{figure}
+
+\textbf{Cómo leerla.} En los cuatro trimestres Tarjeta de crédito ocupa
+algo más de un tercio (su mayor peso fue en Q2), Efectivo cerca de un
+tercio, Tarjeta de débito entre 21\% y 26\% y Transferencia menos del 11\%.
+No hay un cambio de hábito relevante. \codigo{position\_fill(reverse =
+TRUE)} hace que el orden de las franjas (de abajo hacia arriba) coincida con
+el de la leyenda (de izquierda a derecha).
+
+\begin{advertencia}
+En una barra apilada solo el segmento de abajo tiene una base común; los
+demás ``flotan'' y son difíciles de comparar entre barras. Úsalas con
+\textbf{pocas categorías} (2 a 4) y cuando te interese la composición. Si te
+interesa comparar el \emph{monto} de cada método, usa barras agrupadas o
+facetas. Si quitas \codigo{position\_fill()}, obtienes la versión apilada
+normal, donde la altura total es el ingreso del trimestre.
+\end{advertencia}
+
+\begin{hazlotu}
+Cambia \codigo{position\_fill(reverse = TRUE)} por
+\codigo{position\_stack(reverse = TRUE)} y \codigo{labels = percent} por
+\codigo{labels = dollar}. ¿Qué trimestre tuvo más ingresos en total? ¿Es
+fácil comparar las franjas de Efectivo entre trimestres?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Líneas: la evolución en el tiempo}
+\label{sec:m3-lineas}
+
+Cuando el eje $x$ es el tiempo, la línea es la reina: la pendiente muestra
+si subimos o bajamos, y la continuidad sugiere que cada punto depende del
+anterior.
+
+\subsection{Ventas mensuales contra la meta}
+
+\textbf{Pregunta de negocio:} la meta comercial era vender \$80,000 al mes.
+¿Cuántos meses la alcanzamos y cuál fue el mejor mes?
+
+\begin{rcode}
+meta_mensual <- 80000
+mes_record <- ventas_mes %>% slice_max(ingresos, n = 1)   # mejor mes
+sum(ventas_mes$ingresos >= meta_mensual)    # meses que alcanzaron meta
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\begin{rcode}
+g_linea <- ggplot(ventas_mes, aes(x = mes, y = ingresos)) +
+  # 1) la meta: línea horizontal punteada y gris (es referencia, no dato)
+  geom_hline(yintercept = meta_mensual, linetype = "dashed",
+             color = color_gris, linewidth = 0.6) +
+  # 2) los datos reales
+  geom_line(color = color_principal, linewidth = 0.8) +
+  geom_point(color = color_principal, size = 2) +
+  # 3) anotaciones: texto de la meta y punto + texto del récord
+  annotate("text", x = as.Date("2023-09-15"), y = meta_mensual,
+           label = "Meta mensual: $80,000", vjust = -0.6,
+           size = 3.2, color = "#52514e") +
+  annotate("point", x = mes_record$mes, y = mes_record$ingresos,
+           color = color_resalte, size = 3.5) +
+  annotate("text", x = mes_record$mes, y = mes_record$ingresos,
+           label = paste("Récord del año:",
+                         dollar(mes_record$ingresos, accuracy = 1)),
+           hjust = 1, vjust = -1.2, size = 3.2, color = color_resalte) +
+  # 4) eje x: una marca por mes, con el nombre corto del mes
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+  scale_y_continuous(labels = dollar,
+                     expand = expansion(mult = c(0.05, 0.15))) +
+  labs(title = "7 de 12 meses superaron la meta",
+       subtitle = "Ingresos mensuales 2023 contra la meta de $80,000",
+       x = NULL, y = "Ingresos (MXN)",
+       caption = "Fuente: transacciones.csv") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+g_linea
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m03-linea-meta}
+\caption{Línea de ingresos mensuales con la meta como referencia y una
+anotación en el mejor mes.}
+\label{fig:m03-linea-meta}
+\end{figure}
+
+Lo nuevo en este código:
+\begin{itemize}
+  \item \codigo{geom\_hline(yintercept = ...)} dibuja una línea horizontal de
+        referencia. Va \emph{primero} para que quede detrás de los datos.
+  \item \codigo{annotate()} agrega elementos sueltos que no vienen de una
+        tabla: un texto, un punto, un rectángulo. Recibe las coordenadas en
+        las unidades de los ejes (por eso $x$ es una fecha).
+  \item \codigo{scale\_x\_date(date\_labels = "\%b", date\_breaks = "1
+        month")} pone una marca cada mes con la abreviatura del mes
+        (\codigo{\%b}: ``ene'', ``feb''\ldots, en el idioma de tu sistema).
+        Otros formatos útiles: \codigo{\%B} (mes completo), \codigo{\%Y}
+        (año), \codigo{\%d} (día), \codigo{"\%b \%Y"} (``ene 2023'').
+  \item \codigo{expand = expansion(mult = c(0.05, 0.15))} deja 15\% de aire
+        arriba del eje $y$ para que quepa la anotación.
+\end{itemize}
+
+\textbf{Cómo leerla.} Siete meses (enero, marzo, mayo, junio, julio,
+noviembre y diciembre) quedaron sobre la línea punteada. Abril fue el peor
+mes (unos \$57,000, casi 30\% abajo de la meta) y diciembre el mejor
+(\$96,394). El tercer trimestre muestra una tendencia a la baja de julio a
+septiembre que se revierte a partir de octubre.
+
+\begin{advertencia}
+Si quieres comparar los ingresos contra una meta, la meta debe ir
+\textbf{en el mismo eje} que los ingresos (como aquí, con
+\codigo{geom\_hline()} o como segunda serie). Nunca uses un segundo eje $Y$
+para ``hacer caber'' otra medida: lo veremos en la
+sección~\ref{sec:m3-antes-despues}.
+\end{advertencia}
+
+\subsection{Real contra meta: dos series con leyenda}
+
+En la vida real la meta cambia cada mes (diciembre suele tener una meta más
+alta). Construyamos una tabla de metas y grafiquemos ambas series. Para que
+\paquete{ggplot2} dibuje dos líneas con leyenda, los datos deben estar en
+\textbf{formato largo}: una columna con el nombre de la serie y otra con el
+valor.
+
+\begin{rcode}
+metas <- tibble(
+  mes  = seq(as.Date("2023-01-01"), as.Date("2023-12-01"),
+             by = "month"),
+  meta = c(75, 70, 80, 75, 80, 85, 85, 80, 75, 80, 85, 95) * 1000
+)
+
+real_vs_meta <- ventas_mes %>%
+  select(mes, Real = ingresos) %>%
+  left_join(rename(metas, Meta = meta), by = "mes") %>%
+  # de ancho (Real, Meta) a largo (serie, monto)
+  pivot_longer(cols = c(Real, Meta),
+               names_to = "serie", values_to = "monto") %>%
+  mutate(serie = fct_relevel(serie, "Real"))   # "Real" primero
+head(real_vs_meta, 4)
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\begin{rcode}
+g_real_meta <- ggplot(real_vs_meta,
+                      aes(x = mes, y = monto,
+                          color = serie, linetype = serie)) +
+  geom_line(linewidth = 0.8) +
+  geom_point(data = filter(real_vs_meta, serie == "Real"),
+             size = 2) +                        # puntos solo en lo real
+  scale_color_manual(values = c(Real = color_principal,
+                                Meta = color_gris)) +
+  scale_linetype_manual(values = c(Real = "solid", Meta = "dashed")) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+  scale_y_continuous(labels = dollar) +
+  labs(title = "Abril y octubre, los meses más lejos de su meta",
+       subtitle = "Ingresos reales contra meta mensual, 2023",
+       x = NULL, y = "Ingresos (MXN)", color = NULL,
+       linetype = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        legend.position = "top")
+g_real_meta
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m03-real-meta}
+\caption{Dos series en el mismo eje: ingreso real (azul) y meta (gris
+punteado).}
+\label{fig:m03-real-meta}
+\end{figure}
+
+\textbf{Cómo leerla.} La meta es gris y punteada porque es una
+\emph{referencia}; el dato protagonista es el azul. Como \codigo{color} y
+\codigo{linetype} usan la misma variable y el mismo título (\codigo{NULL}),
+\paquete{ggplot2} fusiona ambas en una sola leyenda. La brecha más grande
+está en abril (\$57,038 contra \$75,000) y en octubre (\$70,004 contra
+\$80,000).
+
+\subsection{Varias series: resaltar una y dejar el resto en gris}
+
+\textbf{Pregunta de negocio:} ¿cómo avanzó cada tienda a lo largo del año?
+Diez líneas de diez colores serían un ``espagueti'' ilegible (y la paleta no
+tiene diez colores). La solución profesional: \textbf{todas en gris y solo
+la que importa en color}. Usamos el ingreso \emph{acumulado}
+(\codigo{cumsum()}) porque suaviza el ruido mensual y muestra quién va
+ganando la carrera.
+
+\begin{rcode}
+acumulado_tienda <- ventas_detalle %>%
+  mutate(mes = floor_date(fecha, unit = "month")) %>%
+  group_by(tienda, mes) %>%
+  summarise(ingresos = sum(total_transaccion), .groups = "drop") %>%
+  arrange(tienda, mes) %>%
+  group_by(tienda) %>%
+  mutate(acumulado = cumsum(ingresos)) %>%     # suma corrida por tienda
+  ungroup() %>%
+  mutate(grupo = if_else(tienda == "Outlet", "Outlet",
+                         "Otras 9 tiendas"))
+
+g_carrera <- ggplot(acumulado_tienda,
+                    aes(x = mes, y = acumulado,
+                        group = tienda, color = grupo)) +
+  # primero las grises (quedan al fondo), luego la destacada encima
+  geom_line(data = filter(acumulado_tienda, grupo != "Outlet"),
+            linewidth = 0.6) +
+  geom_line(data = filter(acumulado_tienda, grupo == "Outlet"),
+            linewidth = 1.1) +
+  scale_color_manual(values = c("Outlet" = color_resalte,
+                                "Otras 9 tiendas" = color_gris)) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+  scale_y_continuous(labels = dollar) +
+  labs(title = "Outlet rebasó a todas las tiendas en el último trimestre",
+       subtitle = "Ingresos acumulados por tienda, 2023",
+       x = NULL, y = "Ingresos acumulados (MXN)", color = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        legend.position = "top")
+g_carrera
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m03-lineas-resalte}
+\caption{Diez series, una resaltada: la técnica de ``gris y un color''.}
+\label{fig:m03-lineas-resalte}
+\end{figure}
+
+\textbf{Cómo leerla.} Durante la primera mitad del año Outlet va en el
+montón (incluso por debajo de varias tiendas en mayo), pero a partir de
+octubre se despega y cierra el año arriba de todas. Observa el papel de
+\codigo{group = tienda}: le dice a \paquete{ggplot2} que dibuje una línea
+\emph{por tienda}, aunque el color solo distinga dos grupos. Sin
+\codigo{group}, intentaría unir los puntos de las nueve tiendas grises en
+una sola línea en zigzag.
+
+\begin{hazlotu}
+Resalta la tienda Plaza B (la de menores ingresos) en lugar de Outlet.
+Cambia también el título por uno que diga la conclusión que ves.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Dispersión: la relación entre dos medidas}
+\label{sec:m3-dispersion}
+
+Un \termino{diagrama de dispersión} (\emph{scatter plot}) pone un punto por
+observación, con una medida en cada eje. Sirve para responder ``¿cuando sube
+esto, sube (o baja) aquello?''.
+
+\subsection{Precio contra cantidad}
+
+\textbf{Pregunta de negocio:} ¿los clientes compran menos piezas cuando el
+precio es más alto? Si fuera así, subir precios reduciría el volumen.
+
+\begin{rcode}
+g_precio_cantidad <- ggplot(ventas_detalle,
+                            aes(x = precio_venta, y = cantidad)) +
+  # jitter: mueve cada punto un poquito en vertical para que no se
+  # encimen (cantidad solo vale 1, 2, 3, 4 o 5); alpha = transparencia
+  geom_point(position = position_jitter(width = 0, height = 0.15,
+                                        seed = 123),
+             color = color_principal, alpha = 0.35) +
+  # recta de tendencia por mínimos cuadrados con su banda de confianza
+  geom_smooth(method = "lm", formula = y ~ x,
+              color = color_resalte, linewidth = 0.8) +
+  scale_x_continuous(labels = dollar) +
+  scale_y_continuous(breaks = 1:5) +
+  labs(title = "El precio no cambia cuántas piezas lleva el cliente",
+       subtitle = "Cada punto es un ticket de 2023 (1,000 en total)",
+       x = "Precio unitario (MXN)", y = "Piezas por ticket") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+g_precio_cantidad
+
+cor(ventas_detalle$precio_venta, ventas_detalle$cantidad)
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m03-dispersion-precio}
+\caption{Precio contra cantidad por ticket, con transparencia, un ligero
+desplazamiento vertical (\emph{jitter}) y recta de tendencia.}
+\label{fig:m03-dispersion-precio}
+\end{figure}
+
+\textbf{Cómo leerla.} Los puntos llenan todo el rectángulo de manera pareja
+y la recta naranja es prácticamente horizontal: la correlación es de apenas
+0.06. En estos datos, el precio \emph{no} explica cuántas piezas lleva el
+cliente. Dos técnicas hicieron legible la gráfica:
+
+\begin{itemize}
+  \item \termino{Transparencia} (\codigo{alpha = 0.35}): donde se enciman
+        muchos puntos, el color se ve más intenso. Sin transparencia, 1,000
+        puntos se vuelven una mancha.
+  \item \termino{Jitter}: como la cantidad es un número entero, todos los
+        tickets de 3 piezas caerían en la misma línea exacta.
+        \codigo{position\_jitter(height = 0.15)} los separa un poco en
+        vertical \emph{solo para dibujarlos}; los datos no cambian.
+        \codigo{seed = 123} hace que el desplazamiento sea siempre el mismo.
+\end{itemize}
+
+\begin{concepto}{\texttt{geom\_smooth()}}
+\codigo{geom\_smooth(method = "lm")} ajusta un modelo lineal (una recta)
+y la dibuja con una banda gris: el intervalo de confianza del 95\%. Escribir
+\codigo{formula = y \textasciitilde{} x} evita el mensaje informativo que
+\paquete{ggplot2} imprime cuando no la indicas. Con \codigo{se = FALSE}
+quitas la banda. Si omites \codigo{method}, dibuja una curva suavizada
+(\emph{loess}), útil para explorar si la relación no es recta.
+\end{concepto}
+
+\subsection{Color por grupo y escalas logarítmicas}
+
+\textbf{Pregunta de negocio:} Marketing invirtió en 120 campañas por tres
+canales (correo, redes sociales y radio), con presupuestos desde \$1,000
+hasta \$1,000,000. ¿Qué canal devuelve más ventas por peso invertido? Como
+nuestros archivos no tienen campañas, las \emph{simulamos} con una relación
+conocida (cada canal tiene un retorno distinto) para ver cómo se ve.
+
+\begin{rcode}
+set.seed(123)
+campanas <- tibble(
+  canal     = rep(c("Correo", "Redes", "Radio"), each = 40),
+  # inversiones entre 10^3 y 10^6: $1,000 a $1,000,000
+  inversion = round(10^runif(120, min = 3, max = 6))
+) %>%
+  mutate(retorno = case_when(canal == "Correo" ~ 6,
+                             canal == "Redes"  ~ 3,
+                             canal == "Radio"  ~ 1.5),
+         ventas = round(inversion * retorno *
+                          exp(rnorm(n(), mean = 0, sd = 0.35))))
+
+# formato corto: 1500000 -> $1.5M
+dinero_corto <- label_dollar(scale_cut = cut_short_scale())
+
+g_campanas <- ggplot(campanas, aes(x = inversion, y = ventas,
+                                   color = canal)) +   # 3 grupos
+  geom_point(alpha = 0.7) +
+  scale_color_manual(values = paleta_libro[1:3]) +
+  labs(x = "Inversión", y = "Ventas", color = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        legend.position = "top",
+        plot.margin = margin(5, 15, 5, 5))
+
+g_lineal <- g_campanas +
+  scale_x_continuous(labels = dinero_corto,
+                     breaks = c(0, 500000, 1000000)) +
+  scale_y_continuous(labels = dinero_corto) +
+  labs(title = "Escala lineal")
+
+g_log <- g_campanas +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE,
+              linewidth = 0.8) +
+  scale_x_log10(labels = dinero_corto) +    # ejes logarítmicos
+  scale_y_log10(labels = dinero_corto) +
+  labs(title = "Escala logarítmica")
+g_lineal
+g_log
+\end{rcode}
+
+Observa una técnica muy práctica: \codigo{g\_campanas} es una gráfica
+``base'' guardada en un objeto, y \codigo{g\_lineal} y \codigo{g\_log} le
+\emph{suman} capas distintas. Así no repites código.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.48\textwidth]{m03-escala-lineal}\hfill
+\includegraphics[width=0.48\textwidth]{m03-escala-log}
+\caption{Los mismos datos en escala lineal (izquierda) y logarítmica
+(derecha).}
+\label{fig:m03-escalas-log}
+\end{figure}
+
+\textbf{Cómo leerla.} En la escala lineal casi todos los puntos se amontonan
+en la esquina inferior izquierda: las pocas campañas millonarias dominan el
+espacio. En la \termino{escala logarítmica} cada marca del eje multiplica
+por 10 (\$1K, \$10K, \$100K, \$1M), así que las campañas pequeñas y grandes
+tienen el mismo espacio. Aparecen tres franjas paralelas: para cualquier
+nivel de inversión, Correo (azul) queda arriba, luego Redes y abajo Radio.
+Correo es el canal más rentable, sin importar el tamaño de la campaña.
+
+\begin{consejo}
+Usa escala logarítmica cuando tus datos abarcan varios órdenes de magnitud
+(ventas por cliente, tamaño de empresas, inversión) y cuando te interesan
+las \emph{proporciones} más que las diferencias absolutas. Dilo siempre en
+el subtítulo o en el eje: mucha gente no está acostumbrada a leerla. Y
+limita el color a \textbf{tres grupos como máximo} en una dispersión; con
+más, los puntos se vuelven confeti.
+\end{consejo}
+
+\begin{hazlotu}
+En \codigo{g\_precio\_cantidad} quita \codigo{position\_jitter(\ldots)} y
+cambia \codigo{alpha} a 1. ¿Cuántos puntos crees ver ahora? Compara con la
+figura~\ref{fig:m03-dispersion-precio}.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Distribuciones: cómo se reparten los datos}
+\label{sec:m3-distribuciones}
+
+El promedio del ticket es \$960, pero ¿la mayoría de los tickets andan
+cerca de \$960? ¿Hay muchos tickets chicos y pocos enormes? Para responder
+graficamos la \termino{distribución}: cuántas observaciones caen en cada
+rango de valores.
+
+\subsection{Histograma y densidad}
+
+\textbf{Pregunta de negocio:} ¿de qué tamaño son los tickets típicos?
+
+\begin{rcode}
+g_hist <- ggplot(ventas_detalle, aes(x = total_transaccion)) +
+  # binwidth = ancho de cada barra ($200); boundary = 0 hace que los
+  # cortes caigan en 0, 200, 400...
+  geom_histogram(binwidth = 200, boundary = 0,
+                 fill = color_principal, color = "white") +
+  scale_x_continuous(labels = dollar) +
+  labs(title = "Histograma (conteos)", x = "Importe del ticket",
+       y = "Número de tickets") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+
+g_densidad <- ggplot(ventas_detalle, aes(x = total_transaccion)) +
+  # after_stat(density): la altura pasa de conteo a densidad para que
+  # el histograma y la curva compartan la misma escala
+  geom_histogram(aes(y = after_stat(density)), binwidth = 200,
+                 boundary = 0, fill = color_gris, color = "white") +
+  geom_density(color = color_principal, linewidth = 0.8) +
+  scale_x_continuous(labels = dollar) +
+  scale_y_continuous(labels = label_number(accuracy = 0.0001)) +
+  labs(title = "Histograma + densidad", x = "Importe del ticket",
+       y = "Densidad") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+g_hist
+g_densidad
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.48\textwidth]{m03-histograma}\hfill
+\includegraphics[width=0.48\textwidth]{m03-densidad}
+\caption{Distribución del importe por ticket: histograma de conteos
+(izquierda) y la misma distribución como densidad (derecha).}
+\label{fig:m03-histograma}
+\end{figure}
+
+\textbf{Cómo leerla.} La distribución es \termino{asimétrica a la derecha}:
+la mayoría de los tickets están entre \$0 y \$600 (las barras más altas),
+y luego hay una ``cola'' larga de tickets cada vez menos frecuentes que
+llega hasta casi \$3,000. Por eso el promedio (\$960) es bastante mayor que
+la mediana (\$713): los tickets grandes jalan el promedio hacia arriba.
+
+\begin{concepto}{\texttt{bins}, \texttt{binwidth} y \texttt{after\_stat()}}
+Un histograma divide el eje $x$ en intervalos (\emph{bins}) y cuenta
+cuántas observaciones caen en cada uno. Puedes fijar el \emph{número} de
+intervalos (\codigo{bins = 15}) o su \emph{ancho} (\codigo{binwidth = 200}).
+En negocio suele ser más claro el ancho: ``cada barra son \$200''. Prueba
+varios valores: con muy pocos intervalos pierdes la forma, con demasiados
+ves solo ruido. \codigo{after\_stat(density)} usa una variable que
+\paquete{ggplot2} \emph{calcula} al construir el histograma; en código
+antiguo verás \codigo{..density..}, que hoy está obsoleto.
+\end{concepto}
+
+\subsection{El diagrama de caja (boxplot)}
+
+El \termino{boxplot} resume una distribución en cinco números y marca los
+atípicos. Es ideal para \emph{comparar} distribuciones entre grupos. La
+figura~\ref{fig:m3-anatomia-boxplot} explica cómo leerlo.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=1.15cm, y=1cm,
+  etq/.style={font=\sffamily\scriptsize, text=gristexto, align=center}]
+  % eje
+  \draw[gristexto!60] (0,-0.9) -- (11,-0.9);
+  % bigotes
+  \draw[primario, thick] (0.6,0) -- (2.4,0);
+  \draw[primario, thick] (6.2,0) -- (8.8,0);
+  \draw[primario, thick] (0.6,-0.2) -- (0.6,0.2);
+  \draw[primario, thick] (8.8,-0.2) -- (8.8,0.2);
+  % caja
+  \draw[primario, thick, fill=primario!12] (2.4,-0.45) rectangle (6.2,0.45);
+  \draw[primario, very thick] (3.8,-0.45) -- (3.8,0.45);
+  % atípicos
+  \fill[acento] (9.7,0) circle (2.5pt);
+  \fill[acento] (10.3,0) circle (2.5pt);
+  % etiquetas
+  \node[etq, above=2pt] at (0.6,0.25) {Mínimo sin\\atípicos};
+  \node[etq, above=2pt] at (2.4,0.5) {Q1\\(25\%)};
+  \node[etq, above=2pt] at (3.8,0.5) {Mediana\\(50\%)};
+  \node[etq, above=2pt] at (6.2,0.5) {Q3\\(75\%)};
+  \node[etq, above=2pt] at (8.8,0.25) {Máximo sin\\atípicos};
+  \node[etq, above=2pt, text=acento] at (10,0.2) {Atípicos};
+  \draw[{Stealth}-{Stealth}, gristexto] (2.4,-0.65) -- (6.2,-0.65)
+    node[midway, below=1pt, etq] {Rango intercuartílico (RIC):
+    el 50\% central};
+  \node[etq] at (5.5,-1.35) {Los bigotes llegan hasta el dato más
+    extremo que esté a menos de 1.5 $\times$ RIC de la caja;
+    lo que queda más lejos es atípico.};
+\end{tikzpicture}
+\caption{Anatomía de un boxplot.}
+\label{fig:m3-anatomia-boxplot}
+\end{figure}
+
+\textbf{Pregunta de negocio:} ¿el importe de los tickets es distinto según
+el método de pago? Primero los números, luego la gráfica.
+
+\begin{rcode}
+ventas_detalle %>%
+  group_by(metodo_pago) %>%
+  summarise(q1      = quantile(total_transaccion, 0.25),
+            mediana = median(total_transaccion),
+            q3      = quantile(total_transaccion, 0.75),
+            promedio = mean(total_transaccion),
+            .groups = "drop") %>%
+  arrange(desc(mediana))
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\begin{rcode}
+g_caja <- ggplot(ventas_detalle,
+                 aes(x = total_transaccion,
+                     # ordena los métodos por su mediana
+                     y = fct_reorder(metodo_pago, total_transaccion,
+                                     .fun = median))) +
+  geom_boxplot(fill = "#cde2fb", color = color_principal,
+               width = 0.6, outlier.color = color_resalte) +
+  # agrega el promedio como un rombo oscuro
+  stat_summary(fun = mean, geom = "point", shape = 18, size = 3,
+               color = "#0d366b") +
+  scale_x_continuous(labels = dollar) +
+  labs(title = "Transferencia: tickets más bajos y varios atípicos",
+       subtitle = "Importe por ticket según método de pago (rombo = promedio)",
+       x = "Importe del ticket (MXN)", y = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank())
+g_caja
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m03-boxplot-pago}
+\caption{Boxplot del importe por ticket según método de pago, con el
+promedio marcado.}
+\label{fig:m03-boxplot-pago}
+\end{figure}
+
+\textbf{Cómo leerla.} Tarjeta de crédito tiene la mediana más alta (\$780)
+y la caja más ancha: sus tickets son más variados. Transferencia tiene la
+mediana más baja (\$608) y su caja es más corta; por eso sus tickets de más
+de \$2,700 quedan marcados como atípicos (puntos naranjas), mientras que en
+los otros métodos un ticket de ese tamaño cae dentro del bigote. En todos
+los métodos el promedio (rombo) queda a la derecha de la mediana: de nuevo,
+la asimetría que vimos en el histograma.
+
+\begin{consejo}
+Un ``atípico'' en un boxplot no es un error: es un dato alejado de la
+mayoría. En BI conviene revisarlos (¿es un cliente mayorista?, ¿un error de
+captura?), pero nunca borrarlos solo porque el boxplot los marca.
+\end{consejo}
+
+\textbf{Variante: gráfica de violín.} \codigo{geom\_violin()} dibuja la
+densidad de cada grupo en espejo, de modo que ves la \emph{forma} completa
+de la distribución y no solo cinco números. Es útil cuando sospechas que un
+grupo tiene dos ``jorobas'' (por ejemplo, clientes minoristas y
+mayoristas). Para una audiencia ejecutiva, el boxplot suele ser más fácil de
+explicar.
+
+\begin{rcode}
+g_violin <- ggplot(ventas_detalle,
+                   aes(x = total_transaccion, y = metodo_pago)) +
+  geom_violin(fill = "#cde2fb", color = color_principal) +
+  scale_x_continuous(labels = dollar) +
+  theme_minimal()
+\end{rcode}
+
+\begin{hazlotu}
+Haz un boxplot del importe por ticket según \codigo{categoria} (10 cajas).
+¿Qué categoría tiene la mediana más alta? ¿Coincide con la que más ingresos
+totales tiene? Pista: los ingresos totales dependen del importe \emph{y} del
+número de tickets.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Mapa de calor: dos categorías y un valor}
+\label{sec:m3-calor}
+
+Un \termino{mapa de calor} (\emph{heatmap}) es una tabla donde cada celda se
+colorea según su valor. Funciona muy bien para cruzar dos variables
+categóricas u ordenadas (día $\times$ mes, tienda $\times$ categoría, hora
+$\times$ día).
+
+\textbf{Pregunta de negocio:} ¿hay días de la semana que vendan
+sistemáticamente más? ¿Depende del mes? \codigo{month(fecha, label = TRUE)}
+y \codigo{wday(fecha, label = TRUE, week\_start = 1)} (de
+\paquete{lubridate}) devuelven el mes y el día como \emph{factores
+ordenados} (``ene'' < ``feb''\ldots; ``lun'' < ``mar''\ldots), así que el
+orden correcto viene gratis.
+
+\begin{rcode}
+calor <- ventas_detalle %>%
+  mutate(mes = month(fecha, label = TRUE),                 # ene, feb...
+         dia = wday(fecha, label = TRUE, week_start = 1)) %>% # lun...dom
+  group_by(mes, dia) %>%
+  summarise(ingresos = sum(total_transaccion), .groups = "drop")
+
+calor %>% slice_max(ingresos, n = 3)
+calor %>% slice_min(ingresos, n = 1)
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\begin{rcode}
+g_calor <- ggplot(calor, aes(x = mes, y = fct_rev(dia), fill = ingresos)) +
+  # cada celda es un rectángulo; el borde blanco separa las celdas
+  geom_tile(color = "white", linewidth = 0.6) +
+  # gradiente SECUENCIAL de un solo tono: claro = poco, oscuro = mucho
+  scale_fill_gradient(low = "#cde2fb", high = "#0d366b",
+                      labels = dollar) +
+  labs(title = "Los días fuertes cambian de un mes a otro",
+       subtitle = "Ingresos por día de la semana y mes, 2023",
+       x = NULL, y = NULL, fill = "Ingresos") +
+  theme_minimal() +
+  theme(panel.grid = element_blank(),     # sin cuadrícula
+        legend.position = "right")
+g_calor
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m03-calor}
+\caption{Mapa de calor de ingresos por día de la semana y mes, con un
+gradiente secuencial de un solo tono.}
+\label{fig:m03-calor}
+\end{figure}
+
+\textbf{Cómo leerla.} Las celdas oscuras son las combinaciones con más
+ingresos: los lunes de enero (\$21,287), los viernes de mayo y los domingos
+de diciembre. La celda más clara, casi blanca, es el martes de abril: solo
+\$303 en todo el mes. Pero no hay una \emph{fila} oscura completa: ningún
+día de la semana es fuerte todo el año. \codigo{fct\_rev(dia)} invierte el
+orden para que el lunes quede arriba, como en un calendario.
+
+\begin{concepto}{Escala secuencial contra arcoíris}
+Para un valor que va de ``poco'' a ``mucho'' usa una \termino{escala
+secuencial}: \emph{un solo tono} que va de claro a oscuro. El cerebro
+entiende de inmediato que más oscuro es más. Una escala arcoíris (rojo,
+amarillo, verde, azul\ldots) no tiene un orden natural, crea ``fronteras''
+falsas donde cambia el tono y es ilegible para personas con daltonismo.
+Si tus datos tienen un centro con significado (por ejemplo, crecimiento
+negativo contra positivo) usa una \termino{escala divergente}: dos tonos
+opuestos con gris claro en el centro, con
+\codigo{scale\_fill\_gradient2(low = ..., mid = "\#f0efec", high = ...,
+midpoint = 0)}.
+\end{concepto}
+
+\begin{hazlotu}
+Cambia \codigo{ingresos = sum(total\_transaccion)} por \codigo{tickets =
+n()} y ajusta \codigo{fill} y \codigo{labels = comma}. ¿Las celdas oscuras
+coinciden con las del mapa de ingresos?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Facetas: muchas gráficas pequeñas}
+\label{sec:m3-facetas}
+
+Las \termino{facetas} (\emph{small multiples}) dividen los datos en paneles
+pequeños, uno por grupo, con los mismos ejes. En lugar de diez líneas de
+colores encimadas tienes diez gráficas limpias que el ojo compara de un
+vistazo.
+
+\textbf{Pregunta de negocio:} ¿cómo evolucionó cada categoría mes a mes?
+
+\begin{rcode}
+categoria_mes <- ventas_detalle %>%
+  mutate(mes = floor_date(fecha, unit = "month")) %>%
+  group_by(categoria, mes) %>%
+  summarise(ingresos = sum(total_transaccion), .groups = "drop") %>%
+  # si una categoría no vendió en un mes, ese mes no existe: lo creamos
+  # con ingresos = 0 para que la línea no "salte" el mes
+  complete(categoria, mes, fill = list(ingresos = 0))
+
+g_facetas <- ggplot(categoria_mes, aes(x = mes, y = ingresos)) +
+  geom_line(color = color_principal, linewidth = 0.7) +
+  # un panel por categoría, ordenados de mayor a menor ingreso anual
+  facet_wrap(~ fct_reorder(categoria, ingresos, .fun = sum,
+                           .desc = TRUE),
+             ncol = 5) +
+  scale_x_date(date_labels = "%b", date_breaks = "4 months") +
+  scale_y_continuous(labels = label_number(scale = 1e-3)) +
+  labs(title = "Ingresos mensuales por categoría (misma escala)",
+       x = NULL, y = "Ingresos (miles de MXN)") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+g_facetas
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{m03-facetas}
+\caption{Facetas con la misma escala en todos los paneles: se compara el
+\emph{tamaño} de cada categoría.}
+\label{fig:m03-facetas}
+\end{figure}
+
+\textbf{Cómo leerla.} Con la misma escala en todos los paneles salta a la
+vista el tamaño: Belleza se mueve casi siempre entre \$10,000 y \$23,000 al
+mes, mientras que Ropa rara vez pasa de \$6,000. También se ve la caída de
+Belleza a partir de julio. \codigo{complete()} (de \paquete{tidyr}) fue
+necesario porque Mascotas y Ropa tuvieron un mes sin ventas; sin él, la
+línea uniría directamente el mes anterior con el siguiente y ocultaría el
+hueco.
+
+\subsection{¿Escala fija o libre?}
+
+Con \codigo{scales = "free\_y"} cada panel tiene su propio eje $y$.
+
+\begin{rcode}
+g_facetas_libre <- g_facetas +
+  facet_wrap(~ fct_reorder(categoria, ingresos, .fun = sum,
+                           .desc = TRUE),
+             ncol = 5, scales = "free_y") +   # eje y propio por panel
+  labs(title = "Ingresos mensuales por categoría (escala libre)")
+g_facetas_libre
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{m03-facetas-libre}
+\caption{Las mismas facetas con \codigo{scales = "free\_y"}: se compara la
+\emph{forma} de cada serie, no su tamaño.}
+\label{fig:m03-facetas-libre}
+\end{figure}
+
+\textbf{Cómo leerla.} Ahora Ropa ocupa todo su panel y se ve su propio
+patrón (picos en septiembre y noviembre), pero ya no puedes comparar
+tamaños entre paneles: el pico de Ropa (unos \$6,000) parece tan alto como
+el de Juguetes (más de \$20,000). La regla:
+
+\begin{itemize}
+  \item \textbf{Escala fija} (por defecto) si la pregunta es ``¿quién es más
+        grande?''.
+  \item \textbf{Escala libre} (\codigo{"free\_y"}) si la pregunta es ``¿qué
+        patrón sigue cada uno?'' (estacionalidad, tendencia). Avísalo en el
+        título o subtítulo, porque es fácil malinterpretarla.
+\end{itemize}
+
+\codigo{facet\_wrap()} acomoda los paneles en filas y columnas
+(\codigo{ncol}, \codigo{nrow}). \codigo{facet\_grid(filas \textasciitilde{}
+columnas)} crea una cuadrícula con dos variables, por ejemplo
+\codigo{facet\_grid(trimestre \textasciitilde{} metodo\_pago)}.
+
+\begin{hazlotu}
+Haz facetas por \codigo{tienda} (10 paneles) del ingreso mensual. ¿Qué
+tienda tiene el mes más alto? ¿Conviene aquí escala fija o libre?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Escalas y formato de negocio}
+\label{sec:m3-escalas}
+
+Una gráfica de negocio con el eje en ``1e+05'' o ``0.25'' no está
+terminada. El paquete \paquete{scales} convierte números en formatos que la
+dirección lee sin pensar. Cada función existe en dos versiones:
+\codigo{dollar(x)} formatea un número ya, y \codigo{label\_dollar()} crea una
+\emph{función} de formato que le pasas a un eje con \codigo{labels =}.
+
+\begin{rcode}
+montos <- c(500, 25000, 750000, 1200000, 3500000)
+dollar(montos)                                    # moneda
+comma(montos)                                     # separador de miles
+percent(c(0.19, 0.0877, 0.366), accuracy = 0.1)   # porcentajes
+label_dollar(scale = 1e-3, suffix = "K")(montos)  # en miles
+label_number(scale_cut = cut_short_scale())(montos)   # K, M automáticos
+label_dollar(scale_cut = cut_short_scale())(montos)
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Funciones de formato más usadas (paquete \paquete{scales}).}
+\label{tab:m3-formatos}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{5.6cm} X}
+\toprule
+\textbf{En el eje} & \textbf{Resultado} \\
+\midrule
+\codigo{labels = dollar} & \$1,200,000 \\
+\codigo{labels = comma} & 1,200,000 \\
+\codigo{labels = percent} & 0.25 $\rightarrow$ 25\% \\
+\codigo{labels = label\_percent(accuracy = 0.1)} & 25.3\% \\
+\codigo{labels = label\_dollar(scale = 1e-3, suffix = "K")} & \$1,200K \\
+\codigo{labels = label\_dollar(scale\_cut = cut\_short\_scale())} &
+\$1.2M, \$750K \\
+\codigo{labels = label\_number(big.mark = ".", decimal.mark = ",")} &
+1.200.000 (formato europeo) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{advertencia}
+En la versión 1.3.0 de \paquete{scales}, \codigo{cut\_short\_scale()} a
+veces falla con el mensaje \codigo{NAs no son permitidos en asignaciones
+subscritas} cuando formatea \emph{algunas} combinaciones de números no
+redondos (por ejemplo, \codigo{c(182143, 959992.7)}) como etiquetas de
+texto. En los ejes funciona bien, porque las marcas son números redondos.
+Si te pasa en una etiqueta, usa \codigo{label\_dollar(scale = 1e-3, suffix
+= "K", accuracy = 0.1)}, que siempre funciona.
+\end{advertencia}
+
+\subsection{Límites del eje y el error de truncar las barras}
+
+\textbf{Pregunta de negocio:} ¿qué tan distintas son las ventas de las
+tiendas? Observa qué pasa si ``hacemos zoom'' al eje para que las
+diferencias se vean más.
+
+\begin{rcode}
+ingresos_tienda <- ventas_detalle %>%
+  group_by(tienda) %>%
+  summarise(ingresos = sum(total_transaccion), .groups = "drop")
+
+g_truncado <- ggplot(ingresos_tienda,
+                     aes(x = ingresos,
+                         y = fct_reorder(tienda, ingresos))) +
+  geom_col(fill = color_principal, width = 0.7) +
+  coord_cartesian(xlim = c(78000, 116000)) +   # el eje empieza en 78K
+  scale_x_continuous(labels = label_dollar(scale = 1e-3,
+                                           suffix = "K")) +
+  labs(title = "MAL: eje truncado", x = "Ingresos", y = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank())
+
+g_honesto <- ggplot(ingresos_tienda,
+                    aes(x = ingresos,
+                        y = fct_reorder(tienda, ingresos))) +
+  geom_col(fill = color_principal, width = 0.7) +
+  scale_x_continuous(labels = label_dollar(scale = 1e-3,
+                                           suffix = "K"),
+                     expand = expansion(mult = c(0, 0.1))) +
+  labs(title = "BIEN: eje desde cero", x = "Ingresos", y = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.margin = margin(5, 15, 5, 5))
+g_truncado
+g_honesto
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.48\textwidth]{m03-eje-truncado}\hfill
+\includegraphics[width=0.48\textwidth]{m03-eje-honesto}
+\caption{Los mismos datos con el eje truncado (izquierda) y con el eje
+desde cero (derecha).}
+\label{fig:m03-eje-truncado}
+\end{figure}
+
+\textbf{Cómo leerla.} En la versión truncada, la barra de Outlet parece
+\emph{quince veces} más larga que la de Plaza B. En realidad Outlet vendió
+\$114,377 y Plaza B \$80,236: 43\% más, no quince veces más. En una barra,
+la \emph{longitud} es el dato; si cortas el eje, mientes con la longitud.
+
+\begin{advertencia}
+\textbf{Las barras siempre empiezan en cero.} Si las diferencias son
+pequeñas y quieres mostrarlas, grafica la diferencia (por ejemplo, ``\% vs
+el promedio'') o usa puntos o líneas, donde no es obligatorio que el eje
+empiece en cero. Para acercar el eje sin perder datos usa
+\codigo{coord\_cartesian(xlim = ...)}; \codigo{scale\_x\_continuous(limits
+= ...)} o \codigo{xlim()} \emph{eliminan} los datos fuera del rango (y las
+barras que no caben desaparecen con un aviso \codigo{Removed 2 rows
+containing missing values}).
+\end{advertencia}
+
+\begin{hazlotu}
+Toma \codigo{g\_linea} (sección~\ref{sec:m3-lineas}) y cambia el formato del
+eje $y$ a miles: \codigo{labels = label\_dollar(scale = 1e-3, suffix =
+"K")}. ¿Por qué en una gráfica de líneas no es obligatorio que el eje
+empiece en cero?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Temas y diseño corporativo}
+\label{sec:m3-temas}
+
+Hasta ahora cada gráfica repetía \codigo{theme\_minimal() +
+theme(panel.grid.minor = element\_blank())}. En una empresa quieres que
+\emph{todas} las gráficas del área se vean iguales: mismos colores, mismas
+fuentes, mismo lugar para la leyenda. La solución es crear tu propio
+\termino{tema corporativo}: una función que guarda todas esas decisiones.
+
+\subsection{Los colores corporativos}
+
+En la sección~\ref{sec:m3-barras} definiste cuatro objetos de color. Esta es
+la lógica detrás de ellos:
+
+\begin{itemize}
+  \item \codigo{color\_principal} (azul \codigo{\#2a78d6}): el color de
+        \emph{una sola serie}. Todas las barras de un ranking, la línea de
+        ingresos. El azul es serio, se imprime bien y lo distinguen
+        prácticamente todas las personas.
+  \item \codigo{color\_resalte} (naranja \codigo{\#eb6834}): para
+        \emph{destacar un} elemento. Contrasta fuertemente con el azul y con
+        el gris.
+  \item \codigo{color\_gris} (\codigo{\#b5b3ad}): para ``el resto'' cuando
+        resaltas algo, y para referencias (metas, promedios).
+  \item \codigo{paleta\_libro}: ocho colores para \emph{varias series}.
+\end{itemize}
+
+\textbf{¿Por qué importa el orden de la paleta?} Alrededor de 1 de cada 12
+hombres tiene algún tipo de \termino{daltonismo}, casi siempre dificultad
+para distinguir rojo de verde. Por eso los dos primeros colores de la paleta
+son azul y naranja: el par que mejor se distingue con cualquier tipo de
+visión. Como la mayoría de tus gráficas tendrán 2 o 3 series, usarás casi
+siempre los primeros colores, que son los más seguros. Por eso siempre se
+toman \emph{en orden}: \codigo{paleta\_libro[1:3]}, nunca colores sueltos
+al azar.
+
+\textbf{¿Por qué nunca más de 8 colores?} Con más de 6--8 colores el lector
+ya no distingue los tonos y tiene que ir y venir a la leyenda: la gráfica
+se vuelve un juego de memoria. Si tienes más categorías, agrupa las
+pequeñas en ``Otros'' (con \codigo{fct\_lump\_n()}), usa facetas o resalta
+solo las importantes.
+
+\subsection{Construir \texorpdfstring{\codigo{tema\_empresa()}}{tema\_empresa()} paso a paso}
+
+La función \codigo{theme()} controla cada elemento visual que no depende de
+los datos. Los elementos se modifican con tres funciones:
+\codigo{element\_text()} (textos), \codigo{element\_line()} (líneas de
+cuadrícula y ejes) y \codigo{element\_blank()} (eliminar el elemento). Los
+más usados están en la tabla~\ref{tab:m3-theme}.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Elementos de \codigo{theme()} más usados.}
+\label{tab:m3-theme}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{4.8cm} X}
+\toprule
+\textbf{Elemento} & \textbf{Qué controla} \\
+\midrule
+\codigo{plot.title}, \codigo{plot.subtitle}, \codigo{plot.caption} &
+Título, subtítulo y nota al pie (fuente) \\
+\codigo{plot.title.position = "plot"} &
+Alinear el título con el borde de la gráfica y no con el panel \\
+\codigo{axis.title}, \codigo{axis.text} & Títulos y números de los ejes \\
+\codigo{panel.grid.major}, \codigo{panel.grid.minor} &
+Líneas principales y secundarias de la cuadrícula \\
+\codigo{panel.grid.major.x}, \codigo{panel.grid.major.y} &
+Solo las verticales o solo las horizontales \\
+\codigo{legend.position} & \codigo{"top"}, \codigo{"right"},
+\codigo{"bottom"}, \codigo{"none"} \\
+\codigo{plot.margin} & Márgenes alrededor de la gráfica \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Construimos la función en tres decisiones: (1) partir de
+\codigo{theme\_minimal()}, que ya quita el fondo gris y los bordes; (2) dar
+jerarquía a los textos: título en negritas y casi negro, todo lo demás en
+gris oscuro para que no compita con los datos; (3) limpiar: sin cuadrícula
+secundaria, cuadrícula principal muy tenue, leyenda arriba y un poco de
+margen.
+
+\begin{rcode}
+tema_empresa <- function(base_size = 11) {
+  # (1) punto de partida: tema minimalista con el tamaño de letra base
+  theme_minimal(base_size = base_size) +
+    theme(
+      # (2) jerarquía de textos
+      plot.title    = element_text(face = "bold", color = "#0b0b0b"),
+      plot.subtitle = element_text(color = "#52514e"),
+      plot.caption  = element_text(color = "#52514e", size = rel(0.8),
+                                   hjust = 0),     # fuente a la izquierda
+      plot.title.position   = "plot",   # título alineado a la izquierda
+      plot.caption.position = "plot",
+      axis.title    = element_text(color = "#52514e"),
+      axis.text     = element_text(color = "#52514e"),
+      # (3) limpieza
+      panel.grid.minor = element_blank(),
+      panel.grid.major = element_line(color = "#e6e5e1",
+                                      linewidth = 0.3),
+      legend.position = "top",
+      legend.title    = element_text(color = "#52514e"),
+      plot.margin     = margin(10, 15, 10, 10)  # arriba, der., abajo, izq.
+    )
+}
+\end{rcode}
+
+\codigo{rel(0.8)} significa ``80\% del tamaño base'': si algún día usas
+\codigo{tema\_empresa(base\_size = 14)} para una presentación, todo crece en
+proporción. Ahora úsala exactamente como usarías \codigo{theme\_minimal()}.
+
+\textbf{Pregunta de negocio:} ¿qué tienda vendió más en 2023?
+
+\begin{rcode}
+ingresos_tienda <- ingresos_tienda %>%
+  mutate(destacar = if_else(tienda == "Outlet", "Outlet", "Resto"))
+
+g_tema <- ggplot(ingresos_tienda,
+                 aes(x = ingresos, y = fct_reorder(tienda, ingresos),
+                     fill = destacar)) +
+  geom_col(width = 0.7) +
+  scale_fill_manual(values = c(Outlet = color_resalte,
+                               Resto  = color_gris),
+                    guide = "none") +
+  scale_x_continuous(labels = dollar,
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(title = "Outlet, la tienda que más vendió en 2023",
+       subtitle = "Ingresos por tienda, en pesos",
+       x = NULL, y = NULL,
+       caption = "Fuente: transacciones.csv | Área de BI") +
+  tema_empresa() +                               # nuestro tema
+  theme(panel.grid.major.y = element_blank())    # ajuste puntual
+g_tema
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m03-tema-empresa}
+\caption{Una gráfica con \codigo{tema\_empresa()}: título alineado a la
+izquierda, textos grises, cuadrícula tenue y la fuente de los datos al
+pie.}
+\label{fig:m03-tema-empresa}
+\end{figure}
+
+Observa que después de \codigo{tema\_empresa()} todavía puedes sumar otro
+\codigo{theme()} para ajustes de una sola gráfica (aquí, quitar las líneas
+horizontales). Lo que va después \emph{gana}.
+
+\begin{negocio}{Un archivo de estilo para todo el equipo}
+En un área de BI es común guardar \codigo{tema\_empresa()} y los colores en
+un archivo \archivo{estilo\_empresa.R} dentro del proyecto y empezar cada
+script con \codigo{source("estilo\_empresa.R")}. Si mañana cambia el color
+de la marca, se cambia en un solo lugar y todos los reportes se actualizan.
+En el Módulo~\ref{cap:reportes} lo usarás para tus reportes automáticos.
+\end{negocio}
+
+\begin{hazlotu}
+Crea una variante \codigo{tema\_presentacion()} que llame a
+\codigo{tema\_empresa(base\_size = 16)} y ponga \codigo{legend.position =
+"bottom"}. Aplícala a \codigo{g\_agrupadas} (¡cuidado!: esa gráfica ya
+tiene \codigo{theme\_minimal()}; el último tema que sumes reemplaza al
+anterior).
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Buenas y malas prácticas: antes y después}
+\label{sec:m3-antes-despues}
+
+Las siguientes situaciones aparecen todos los días en reportes reales.
+Aprende a reconocerlas y a corregirlas.
+
+\subsection{Caso 1: barras multicolor sin significado}
+
+\begin{rcode}
+# ANTES: lo que sale "por defecto" si pones fill = tienda
+g_antes <- ggplot(ingresos_tienda, aes(x = tienda, y = ingresos,
+                                       fill = tienda)) +
+  geom_col() +
+  labs(title = "Antes")
+
+# DESPUÉS: un color, horizontal, ordenado, eje con formato
+g_despues <- ggplot(ingresos_tienda,
+                    aes(x = ingresos, y = fct_reorder(tienda, ingresos))) +
+  geom_col(fill = color_principal, width = 0.7) +
+  scale_x_continuous(labels = label_dollar(scale = 1e-3, suffix = "K"),
+                     breaks = seq(0, 120000, by = 40000),
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(title = "Después", x = "Ingresos", y = NULL) +
+  tema_empresa() +
+  theme(panel.grid.major.y = element_blank())
+g_antes
+g_despues
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.48\textwidth]{m03-antes-multicolor}\hfill
+\includegraphics[width=0.48\textwidth]{m03-despues-multicolor}
+\caption{Antes: diez colores sin significado, nombres encimados, orden
+alfabético, eje en números crudos. Después: la misma información, legible
+en dos segundos.}
+\label{fig:m03-antes-despues-1}
+\end{figure}
+
+La versión ``antes'' tiene cinco problemas: (1) diez colores que no
+significan nada y una leyenda que repite el eje; (2) nombres encimados en el
+eje $x$; (3) orden alfabético; (4) números del eje sin formato; (5) fondo
+gris que resta contraste. Todos se resuelven con lo que ya sabes.
+
+\subsection{Caso 2: el pastel de diez rebanadas}
+
+Imagina un pastel con las diez categorías de la
+tabla~\ref{tab:m3-elegir}. En \paquete{ggplot2} se haría con una barra
+apilada en coordenadas polares:
+
+\begin{rcode}
+# ANTES (no lo hagas): pastel de 10 porciones
+g_pastel <- ggplot(ingresos_categoria,
+                   aes(x = "", y = ingresos, fill = categoria)) +
+  geom_col() +
+  coord_polar(theta = "y")
+\end{rcode}
+
+El ojo humano compara mal ángulos y áreas: ¿Juguetes (13.0\%) o Alimentos
+(12.7\%) es más grande? En un pastel es imposible decirlo, y además
+necesitarías diez colores. La alternativa son barras ordenadas con la
+participación.
+
+\begin{rcode}
+g_sin_pastel <- ggplot(ingresos_categoria,
+                       aes(x = participacion,
+                           y = fct_reorder(categoria, participacion))) +
+  geom_col(fill = color_principal, width = 0.7) +
+  # aquí sí etiquetamos cada barra: son pocas y el % es el mensaje
+  geom_text(aes(label = percent(participacion, accuracy = 0.1)),
+            hjust = -0.15, size = 3.2, color = "#52514e") +
+  scale_x_continuous(labels = percent,
+                     expand = expansion(mult = c(0, 0.12))) +
+  labs(title = "Cinco categorías concentran el 69% de los ingresos",
+       subtitle = "Participación de cada categoría en los ingresos 2023",
+       x = NULL, y = NULL) +
+  tema_empresa() +
+  theme(panel.grid.major.y = element_blank())
+g_sin_pastel
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m03-despues-pastel}
+\caption{En lugar de un pastel de diez porciones: barras ordenadas con la
+participación.}
+\label{fig:m03-despues-pastel}
+\end{figure}
+
+\begin{consejo}
+Un pastel solo es aceptable con 2 o 3 porciones muy distintas (``70\% de los
+ingresos viene de clientes recurrentes'') y nunca en 3D. Aun así, una sola
+barra al 100\% o una tarjeta KPI con el porcentaje suelen comunicar mejor.
+\end{consejo}
+
+\subsection{Caso 3: el doble eje Y}
+
+\textbf{Pregunta de negocio:} ¿los ingresos y el número de tickets se
+mueven juntos? La tentación es poner ingresos (decenas de miles de pesos) en
+el eje izquierdo y tickets (decenas) en un eje derecho:
+
+\begin{rnoejecutar}
+# ANTES (no lo hagas): segundo eje con sec_axis()
+ggplot(ventas_mes, aes(x = mes)) +
+  geom_col(aes(y = ingresos)) +
+  geom_line(aes(y = tickets * 1000)) +              # escala inventada
+  scale_y_continuous(sec.axis = sec_axis(~ . / 1000, name = "Tickets"))
+\end{rnoejecutar}
+
+El problema: el factor 1000 lo eliges tú, y con él decides si las líneas
+``se cruzan'', ``van juntas'' o ``se separan''. Cambia el factor y cambia la
+historia. El lector no puede saber qué es dato y qué es decisión de diseño.
+Dos alternativas honestas: dos gráficas una debajo de la otra con el mismo
+eje $x$, o un \termino{índice base 100}: dividir cada serie entre su primer
+valor y multiplicar por 100. Así ambas miden ``cuánto cambió respecto a
+enero'' y comparten la misma escala.
+
+\begin{rcode}
+indice <- ventas_mes %>%
+  mutate(Ingresos = ingresos / first(ingresos) * 100,   # enero = 100
+         Tickets  = tickets / first(tickets) * 100) %>%
+  select(mes, Ingresos, Tickets) %>%
+  pivot_longer(-mes, names_to = "medida", values_to = "indice")
+
+g_indice <- ggplot(indice, aes(x = mes, y = indice, color = medida)) +
+  geom_hline(yintercept = 100, color = color_gris, linewidth = 0.5) +
+  geom_line(linewidth = 0.8) +
+  geom_point(size = 1.8) +
+  scale_color_manual(values = paleta_libro[1:2]) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+  labs(title = "En abril cayeron ambas; de mayo a julio subió el ticket",
+       subtitle = "Índice base 100 = enero de 2023",
+       x = NULL, y = "Índice (enero = 100)", color = NULL) +
+  tema_empresa()
+g_indice
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m03-despues-doble-eje}
+\caption{En lugar de doble eje: índice base 100 con ambas medidas en la
+misma escala.}
+\label{fig:m03-despues-doble-eje}
+\end{figure}
+
+\textbf{Cómo leerla.} Un valor de 110 significa ``10\% arriba de enero''.
+En abril ambas medidas caen juntas (hubo menos tickets). De mayo a julio los
+ingresos quedan arriba de 100 mientras los tickets quedan debajo: se
+vendieron menos tickets pero de mayor importe. Esa conclusión es honesta
+porque no depende de ningún factor inventado.
+
+\subsection{Caso 4: el arcoíris}
+
+Si en el mapa de calor de la figura~\ref{fig:m03-calor} hubieras usado
+\codigo{scale\_fill\_gradientn(colors = rainbow(7))}, las celdas de
+\$10,000 serían verdes y las de \$15,000 azules: el lector vería dos
+``grupos'' que no existen y no sabría si el rojo es mucho o poco. La
+corrección es la que ya usaste: un gradiente secuencial de un solo tono
+(\codigo{scale\_fill\_gradient(low = "\#cde2fb", high = "\#0d366b")}).
+
+\subsection{Lista de verificación de una gráfica ejecutiva}
+
+Antes de enviar una gráfica a la dirección, revisa:
+
+\begin{itemize}
+  \item[\ding{51}] El título dice la \emph{conclusión}; el subtítulo dice
+        qué se mide, el periodo y las unidades.
+  \item[\ding{51}] Es el tipo de gráfica correcto para la pregunta
+        (tabla~\ref{tab:m3-elegir}).
+  \item[\ding{51}] Las categorías están ordenadas por valor (salvo el tiempo,
+        que va en orden cronológico).
+  \item[\ding{51}] Una serie = un color. Para destacar: resalte + gris.
+  \item[\ding{51}] Con 2 o más series hay leyenda (o etiquetas directas);
+        nunca más de 8 colores.
+  \item[\ding{51}] Las barras empiezan en cero. No hay doble eje Y.
+  \item[\ding{51}] Los ejes tienen formato de negocio (\$, \%, K, M) y
+        unidades.
+  \item[\ding{51}] Los escalas de color son secuenciales (un tono) o
+        divergentes (dos tonos y gris), nunca arcoíris.
+  \item[\ding{51}] Las etiquetas de valor están solo en lo importante.
+  \item[\ding{51}] Sin 3D, sin sombras, sin fondo gris, cuadrícula tenue.
+  \item[\ding{51}] La fuente de los datos aparece en el \codigo{caption}.
+  \item[\ding{51}] Ningún texto está encimado o cortado al exportar.
+\end{itemize}
+
+\begin{hazlotu}
+Toma \codigo{g\_conteo} (la de \codigo{geom\_bar()} de la
+sección~\ref{sec:m3-barras}) y aplícale la lista completa: horizontal,
+ordenada, con título-conclusión, \codigo{tema\_empresa()} y fuente.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Exportar gráficas}
+\label{sec:m3-exportar}
+
+\codigo{ggsave()} guarda una gráfica en un archivo. El formato se deduce de
+la extensión (\archivo{.png}, \archivo{.pdf}, \archivo{.jpg},
+\archivo{.svg}). Guardaremos siempre en una carpeta \archivo{resultados/}
+dentro del proyecto.
+
+\begin{rcode}
+dir.create("resultados", showWarnings = FALSE)   # crea la carpeta
+
+# PNG para PowerPoint o correo: 300 puntos por pulgada (alta calidad)
+ggsave("resultados/ingresos_categoria.png", plot = g_resalte,
+       width = 8, height = 4.5, units = "in", dpi = 300, bg = "white")
+
+# PDF para imprimir o para LaTeX: vectorial, no se pixelea al ampliar
+ggsave("resultados/ingresos_categoria.pdf", plot = g_resalte,
+       width = 8, height = 4.5)
+
+file.exists(c("resultados/ingresos_categoria.png",
+              "resultados/ingresos_categoria.pdf"))
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Los argumentos clave:
+\begin{itemize}
+  \item \codigo{plot}: la gráfica a guardar. Si lo omites, guarda la
+        \emph{última} que se mostró, lo cual es fuente de errores: nómbrala
+        siempre.
+  \item \codigo{width}, \codigo{height} y \codigo{units}: el tamaño físico.
+        Los textos conservan su tamaño en puntos, así que una gráfica
+        guardada muy grande tendrá letras que se ven diminutas.
+  \item \codigo{dpi}: resolución de los formatos de imagen (PNG, JPG). 300
+        para impresión y presentaciones; 150 basta para correo.
+  \item \codigo{bg = "white"}: \codigo{theme\_minimal()} tiene fondo
+        \emph{transparente}. En un PNG, eso se ve bien sobre fondo blanco
+        pero se vuelve ilegible en una diapositiva oscura o en el modo
+        oscuro del correo. Fija el fondo blanco al exportar.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Tamaños recomendados para exportar con \codigo{ggsave()}.}
+\label{tab:m3-tamanos}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.8cm}
+  >{\raggedright\arraybackslash}p{3.6cm} X}
+\toprule
+\textbf{Destino} & \textbf{Tamaño (pulgadas)} & \textbf{Formato} \\
+\midrule
+Diapositiva completa 16:9 & 10 $\times$ 5.6 & PNG, \codigo{dpi = 300} \\
+Media diapositiva & 6 $\times$ 4.5 & PNG, \codigo{dpi = 300} \\
+Documento de Word (carta) & 6.5 $\times$ 4 & PNG 300 dpi o PDF \\
+Cuerpo de un correo & 7 $\times$ 4 & PNG, \codigo{dpi = 150} \\
+Reporte PDF / LaTeX & 6.5 $\times$ 3.8 & PDF (vectorial) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{consejo}
+Abre siempre el archivo exportado antes de enviarlo: lo que ves en el panel
+\menu{Plots} de RStudio depende del tamaño de esa ventana, y el archivo
+puede verse distinto. Si los textos se enciman, aumenta \codigo{width} o
+reduce el texto (\codigo{base\_size} del tema).
+\end{consejo}
+
+% ----------------------------------------------------------------------------
+\section{Gráficas interactivas con plotly}
+\label{sec:m3-plotly}
+
+El paquete \paquete{plotly} convierte una gráfica de \paquete{ggplot2} en
+una gráfica \termino{interactiva}: al pasar el ratón ves el valor exacto,
+puedes hacer zoom y ocultar series desde la leyenda. Es ideal para
+exploración y para tableros web (Módulo~\ref{cap:shiny}).
+
+\begin{rnoejecutar}
+# install.packages("plotly")      # solo la primera vez
+library(plotly)
+
+# Convierte cualquier ggplot en interactiva: se abre en el visor
+# (panel Viewer) de RStudio o en el navegador
+ggplotly(g_linea)
+
+# Controla qué se muestra al pasar el ratón con la estética "text"
+g_interactiva <- ggplot(ventas_mes,
+                        aes(x = mes, y = ingresos,
+                            text = paste("Mes:", format(mes, "%B"),
+                                         "<br>Ingresos:", dollar(ingresos),
+                                         "<br>Tickets:", tickets))) +
+  geom_point(color = color_principal, size = 2) +
+  tema_empresa()
+ggplotly(g_interactiva, tooltip = "text")
+
+# Guardar como página HTML para compartir por correo o intranet
+htmlwidgets::saveWidget(ggplotly(g_linea),
+                        "resultados/ingresos_mensuales.html")
+\end{rnoejecutar}
+
+Este código no se ejecuta en el script del libro porque abre una ventana;
+pruébalo tú en RStudio. Dos advertencias: \codigo{ggplotly()} no traduce al
+100\% todos los detalles (algunas anotaciones o subtítulos se pierden) y un
+archivo HTML no se puede pegar en PowerPoint como imagen. Para la
+presentación del consejo, exporta PNG; para el equipo que explora, HTML.
+

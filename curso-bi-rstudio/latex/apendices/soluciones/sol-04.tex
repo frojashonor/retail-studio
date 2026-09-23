@@ -1,0 +1,395 @@
+% ============================================================================
+% SOLUCIONES DEL MÓDULO 4
+% ============================================================================
+
+\begin{solucion}{m4-1}
+Cargamos los datos y calculamos cada medida sobre \codigo{precio\_venta}.
+
+\begin{rcode}
+library(tidyverse)
+options(cli.unicode = FALSE)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+\end{rcode}
+
+\begin{rcode}
+precio <- transacciones$precio_venta
+
+c(media    = mean(precio),
+  mediana  = median(precio),
+  desv_est = sd(precio),
+  cv       = sd(precio) / mean(precio),
+  iqr      = IQR(precio))
+quantile(precio, probs = c(0.10, 0.90))
+\end{rcode}
+\begin{rsalida}
+AUTO
+\end{rsalida}
+
+La media (\$318.31) y la mediana (\$324.92) son casi iguales: la
+distribución del precio es simétrica (recuerda que su asimetría era
+$-0.08$). El coeficiente de variación es 0.54, menor que el del ticket
+(0.79): el precio varía menos en términos relativos porque el ticket
+multiplica dos fuentes de variación (precio y cantidad). El 80\% central de
+los precios está entre \$73 y \$541.
+\end{solucion}
+
+\begin{solucion}{m4-2}
+Definimos la función \codigo{moda()} y luego armamos la tabla por día.
+
+\begin{rcode}
+library(tidyverse)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+
+moda <- function(x) {
+  frecuencias <- table(x)
+  names(frecuencias)[which.max(frecuencias)]
+}
+\end{rcode}
+
+\begin{rcode}
+moda(transacciones$dia_semana)
+
+transacciones %>%
+  group_by(dia_semana) %>%
+  summarise(transacciones = n(),
+            ventas = sum(total_transaccion),
+            .groups = "drop") %>%
+  mutate(pct_transacciones = transacciones / sum(transacciones)) %>%
+  arrange(desc(transacciones))
+\end{rcode}
+\begin{rsalida}
+AUTO
+\end{rsalida}
+
+El viernes es el día con más transacciones (moda). Revisa la columna
+\codigo{ventas}: el orden por ventas no coincide exactamente con el orden
+por número de transacciones, porque el ticket promedio cambia de un día a
+otro. Para programar personal importa el número de transacciones; para
+metas de venta, el monto.
+\end{solucion}
+
+\begin{solucion}{m4-3}
+\begin{rcode}
+library(tidyverse)
+empleados <- read_csv("datasets/empleados.csv", show_col_types = FALSE)
+\end{rcode}
+
+\begin{rcode}
+empleados %>%
+  group_by(departamento) %>%
+  summarise(empleados  = n(),
+            media      = mean(salario_mensual),
+            mediana    = median(salario_mensual),
+            diferencia = media - mediana,
+            .groups = "drop") %>%
+  arrange(desc(abs(diferencia)))
+\end{rcode}
+\begin{rsalida}
+AUTO
+\end{rsalida}
+
+En RRHH la media supera a la mediana por unos \$4,665: hay algunos
+salarios altos que la jalan hacia arriba, mientras que la mitad de los 15
+empleados gana menos de \$18,291. Para anunciar el ``salario típico'' de RRHH
+conviene la mediana. En IT y Operaciones pasa lo contrario (media menor que
+la mediana): hay salarios bajos que la jalan hacia abajo. Nota que algunos
+departamentos tienen muy pocos empleados (9 en Finanzas e IT), así que sus
+medidas son poco estables.
+\end{solucion}
+
+\begin{solucion}{m4-4}
+\begin{rcode}
+library(tidyverse)
+ventas <- read_csv("datasets/ventas_retail.csv", show_col_types = FALSE)
+\end{rcode}
+
+\begin{rcode}
+q1 <- quantile(ventas$total, 0.25)
+q3 <- quantile(ventas$total, 0.75)
+limite_superior <- unname(q3 + 1.5 * (q3 - q1))
+limite_superior
+
+ventas_marcadas <- ventas %>%
+  mutate(atipico_iqr = total < q1 - 1.5 * (q3 - q1) |
+                       total > limite_superior,
+         z = (total - mean(total)) / sd(total),
+         atipico_z = abs(z) > 3)
+
+sum(ventas_marcadas$atipico_iqr)   # regla IQR
+sum(ventas_marcadas$atipico_z)     # regla z
+
+ventas_marcadas %>%
+  filter(atipico_iqr) %>%
+  select(fecha, cantidad, precio_unitario, descuento_pct, total, z)
+
+# Asimetría
+mean((ventas$total - mean(ventas$total))^3) / sd(ventas$total)^3
+\end{rcode}
+\begin{rsalida}
+AUTO
+\end{rsalida}
+
+La regla del IQR marca 3 ventas (todas por encima de \$4,751) y la regla $z$
+ninguna. Las tres son ventas de 10 unidades a precios altos (más de \$480)
+con poco o ningún descuento: son ventas grandes \emph{legítimas}, no
+errores, así que se conservan. La asimetría de 0.85 confirma una cola
+moderada a la derecha, como la del ticket de \archivo{transacciones.csv}.
+\end{solucion}
+
+\begin{solucion}{m4-5}
+\begin{rcode}
+library(tidyverse)
+library(scales)
+ventas <- read_csv("datasets/ventas_retail.csv", show_col_types = FALSE)
+\end{rcode}
+
+\begin{rcode}
+meta_trimestral <- 130000
+
+kpi_trimestral <- ventas %>%
+  group_by(trimestre) %>%
+  summarise(ventas = sum(total), .groups = "drop") %>%
+  arrange(trimestre) %>%
+  mutate(crec_qoq   = ventas / lag(ventas) - 1,
+         acumulado  = cumsum(ventas),
+         indice_100 = ventas / first(ventas) * 100,
+         vs_meta    = ventas / meta_trimestral - 1)
+kpi_trimestral
+
+sum(kpi_trimestral$vs_meta >= 0)            # trimestres en meta
+sum(kpi_trimestral$ventas) / (4 * meta_trimestral) - 1   # vs meta anual
+\end{rcode}
+\begin{rsalida}
+AUTO
+\end{rsalida}
+
+Solo el tercer y el cuarto trimestre superaron la meta de \$130,000 (Q3 por
+3.4\% y Q4 por 1.9\%). El segundo trimestre cayó 4.4\% contra el primero y
+el tercero creció 11.4\%. En el año, las ventas quedaron 0.8\% por debajo de
+la meta anual de \$520,000: la recuperación del segundo semestre no alcanzó
+para compensar el primero.
+\end{solucion}
+
+\begin{solucion}{m4-6}
+$H_0$: el número promedio de compras por cliente es igual en premium y no
+premium. $H_1$: es distinto. Usamos $\alpha = 0.05$.
+
+\begin{rcode}
+library(tidyverse)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+clientes <- read_csv("datasets/clientes.csv", show_col_types = FALSE)
+\end{rcode}
+
+\begin{rcode}
+frecuencia <- transacciones %>%
+  count(cliente_id, name = "compras") %>%          # compras por cliente
+  left_join(clientes, by = "cliente_id")
+
+frecuencia %>%
+  group_by(es_premium) %>%
+  summarise(clientes = n(), compras_prom = mean(compras),
+            .groups = "drop")
+
+t.test(compras ~ es_premium, data = frecuencia)
+\end{rcode}
+\begin{rsalida}
+AUTO
+\end{rsalida}
+
+Los clientes premium compraron en promedio 5.2 veces en el año y los no
+premium 5.0: una diferencia de apenas 0.2 compras. Con $p = 0.61$ no
+rechazamos $H_0$. Conclusión para la directora: \emph{con los datos de 2023
+no hay evidencia de que los clientes premium compren con más frecuencia ni
+gasten más por ticket que los demás; el programa premium no está cambiando
+el comportamiento de compra}. Solo se incluyen los 198 clientes con al menos
+una compra.
+\end{solucion}
+
+\begin{solucion}{m4-7}
+\begin{rcode}
+library(tidyverse)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+\end{rcode}
+
+\begin{rcode}
+abc_clientes <- transacciones %>%
+  group_by(cliente_id) %>%
+  summarise(gasto = sum(total_transaccion), .groups = "drop") %>%
+  arrange(desc(gasto)) %>%
+  mutate(pct_acumulado = cumsum(gasto) / sum(gasto),
+         pct_clientes  = row_number() / n(),
+         clase = case_when(pct_acumulado <= 0.80 ~ "A",
+                           pct_acumulado <= 0.95 ~ "B",
+                           TRUE                  ~ "C"))
+
+abc_clientes %>%
+  group_by(clase) %>%
+  summarise(clientes = n(),
+            pct_clientes = n() / nrow(abc_clientes),
+            pct_ingresos = sum(gasto) / sum(abc_clientes$gasto),
+            .groups = "drop")
+
+# Participación del 20% de clientes que más gasta
+abc_clientes %>%
+  filter(pct_clientes <= 0.20) %>%
+  summarise(clientes = n(), pct_ingresos = max(pct_acumulado))
+\end{rcode}
+\begin{rsalida}
+AUTO
+\end{rsalida}
+
+Se necesitan 116 clientes (el 58.6\% de la clientela activa) para juntar el
+80\% de los ingresos, y el 20\% de clientes que más gasta aporta el 37.2\%.
+Los ingresos están más concentrados en clientes que en productos (donde el
+20\% superior aportaba el 26.4\%), pero siguen lejos de la regla 80/20.
+Para la empresa significa que un programa de lealtad no puede enfocarse en
+unos cuantos clientes: la base de clientes valiosos es amplia.
+\end{solucion}
+
+\begin{solucion}{m4-8}
+\begin{rcode}
+# 1. Normal: ventas semanales
+pnorm(20000, mean = 18445, sd = 4591) -
+  pnorm(15000, mean = 18445, sd = 4591)       # P(15,000 < X < 20,000)
+qnorm(0.95, mean = 18445, sd = 4591)          # se supera 5% de las veces
+
+# 2. Binomial: devoluciones de 150 ventas con p = 0.03
+1 - pbinom(8, size = 150, prob = 0.03)        # P(más de 8)
+dbinom(0, size = 150, prob = 0.03)            # P(ninguna)
+
+# 3. Poisson: llamadas en 10 minutos con lambda = 4
+1 - ppois(7, lambda = 4)                      # P(8 o más)
+\end{rcode}
+\begin{rsalida}
+AUTO
+\end{rsalida}
+
+\begin{enumerate}
+  \item Hay un 40.6\% de probabilidad de que una semana venda entre
+        \$15,000 y \$20,000. Solo el 5\% de las semanas supera \$25,997.
+  \item Con 150 ventas se esperan $150 \times 0.03 = 4.5$ devoluciones. Tener
+        más de 8 ocurre el 3.9\% de los días; no tener ninguna, solo el
+        1.0\%.
+  \item Recibir 8 o más llamadas en 10 minutos tiene una probabilidad de
+        5.1\%: pasa en uno de cada 20 intervalos, útil para dimensionar el
+        personal del centro de atención.
+\end{enumerate}
+Observa los detalles de ``más de'' y ``o más'': $P(X > 8) = 1 - P(X \leq 8)$,
+pero $P(X \geq 8) = 1 - P(X \leq 7)$.
+\end{solucion}
+
+\begin{solucion}{m4-9}
+\textbf{1. Prueba A/B.} $H_0$: las dos tasas de conversión son iguales.
+
+\begin{rcode}
+compras <- c(A = 180, B = 225)
+visitas <- c(A = 3000, B = 3000)
+compras / visitas                    # tasas de conversión
+prop.test(x = compras, n = visitas)
+\end{rcode}
+\begin{rsalida}
+AUTO
+\end{rsalida}
+
+El diseño A convierte 6.0\% y el B 7.5\%. Con $p = 0.024 < 0.05$ rechazamos
+$H_0$: el diseño B convierte más. La diferencia real está entre 0.2 y 2.8
+puntos porcentuales a favor de B (R la reporta como A menos B, por eso los
+signos negativos).
+
+\textbf{2. ANOVA de salarios por departamento.}
+
+\begin{rcode}
+library(tidyverse)
+empleados <- read_csv("datasets/empleados.csv", show_col_types = FALSE)
+\end{rcode}
+
+\begin{rcode}
+modelo_salarios <- aov(salario_mensual ~ departamento, data = empleados)
+summary(modelo_salarios)
+\end{rcode}
+\begin{rsalida}
+AUTO
+\end{rsalida}
+
+El p-valor es 0.516: no hay evidencia de que el salario promedio difiera
+entre departamentos. Como el ANOVA no es significativo, \textbf{no tiene
+sentido} aplicar \codigo{TukeyHSD()} buscando qué par es distinto: sería
+buscar diferencias donde la prueba global dice que no las hay (una forma de
+p-hacking). Además, los datos de salarios son simulados al azar, así que el
+resultado es el esperado.
+\end{solucion}
+
+\begin{solucion}{m4-10}
+\begin{rcode}
+library(tidyverse)
+set.seed(123)
+semanas <- tibble(
+  precio = runif(52, min = 80, max = 120)
+) %>%
+  mutate(unidades = 500 - 3 * precio + rnorm(52, sd = 15))
+\end{rcode}
+
+\textbf{1. Regresión.}
+
+\begin{rcode}
+modelo_precio <- lm(unidades ~ precio, data = semanas)
+coef(modelo_precio)
+confint(modelo_precio)
+summary(modelo_precio)$r.squared
+\end{rcode}
+\begin{rsalida}
+AUTO
+\end{rsalida}
+
+La pendiente estimada es $-3.13$: por cada peso que sube el precio, se
+venden en promedio 3.1 unidades menos a la semana. Su intervalo del 95\%
+(de $-3.63$ a $-2.64$) contiene el valor real de $-3$, así que la regresión
+recuperó la relación simulada. El $R^2$ de 0.76 indica que el precio explica
+el 76\% de la variación de las unidades.
+
+\textbf{2 y 3. Predicciones.}
+
+\begin{rcode}
+predict(modelo_precio, newdata = tibble(precio = 100),
+        interval = "prediction")
+predict(modelo_precio, newdata = tibble(precio = 200))
+range(semanas$precio)       # rango de precios observado
+\end{rcode}
+\begin{rsalida}
+AUTO
+\end{rsalida}
+
+Con un precio de \$100 esperamos vender unas 196 unidades en la semana,
+con un intervalo de predicción de 164 a 228. Con \$200 el modelo predice
+unidades \emph{negativas}, algo imposible: los precios observados van de
+\$80 a \$120 y fuera de ese rango no sabemos si la relación sigue siendo
+lineal. Es un ejemplo claro de por qué no se debe extrapolar.
+
+\textbf{4. Residuos.}
+
+\begin{rcode}
+diagnostico <- tibble(ajustado = fitted(modelo_precio),
+                      residuo  = residuals(modelo_precio))
+summary(diagnostico$residuo)
+# Correlación entre residuos y ajustados (debe ser ~0)
+round(cor(diagnostico$ajustado, diagnostico$residuo), 4)
+
+ggplot(diagnostico, aes(x = ajustado, y = residuo)) +
+  geom_hline(yintercept = 0, color = "#eb6834") +
+  geom_point(color = "#2a78d6") +
+  labs(x = "Unidades ajustadas", y = "Residuo") +
+  theme_minimal()
+\end{rcode}
+\begin{rsalida}
+AUTO
+\end{rsalida}
+
+Los residuos están centrados en cero (mediana cercana a 0), son más o menos
+simétricos y no guardan relación con los valores ajustados. En la gráfica
+deberías ver una nube sin patrón: el modelo lineal es adecuado dentro del
+rango de precios observado.
+\end{solucion}

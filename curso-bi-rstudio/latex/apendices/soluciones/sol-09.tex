@@ -1,0 +1,571 @@
+% ============================================================================
+% SOLUCIONES - MÓDULO 9 (PROYECTO FINAL: RETOS DE EXTENSIÓN)
+% ============================================================================
+
+\begin{solucion}{p-1}
+La recompra se mide sobre los clientes \emph{activos} (los que compraron al
+menos una vez). Para los días entre compras ordenamos las compras de cada
+cliente por fecha y restamos la fecha anterior con \codigo{lag()}.
+
+\begin{rcode}
+library(tidyverse)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+
+# (a) Porcentaje de clientes activos con 2 o más compras
+compras_cliente <- transacciones %>% count(cliente_id, name = "compras")
+compras_cliente %>%
+  summarise(activos = n(),
+            recompran = sum(compras >= 2),
+            tasa_recompra = round(100 * mean(compras >= 2), 1))
+
+# (b) Días entre compras consecutivas del mismo cliente
+intervalos <- transacciones %>%
+  arrange(cliente_id, fecha) %>%
+  group_by(cliente_id) %>%
+  mutate(dias_desde_anterior = as.numeric(fecha - lag(fecha))) %>%
+  ungroup() %>%
+  filter(!is.na(dias_desde_anterior))
+
+quantile(intervalos$dias_desde_anterior, c(0.25, 0.5, 0.75))
+
+# (c) Clientes con al menos una recompra en 30 días o menos
+intervalos %>%
+  group_by(cliente_id) %>%
+  summarise(recompra_30 = any(dias_desde_anterior <= 30)) %>%
+  summarise(clientes = sum(recompra_30))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 1 x 3
+  activos recompran tasa_recompra
+    <int>     <int>         <dbl>
+1     198       192            97
+25% 50% 75% 
+ 19  41  82 
+# A tibble: 1 x 1
+  clientes
+     <int>
+1      140
+\end{rsalida}
+
+\textbf{Interpretación:} 192 de los 198 clientes activos (97\%) compraron
+dos veces o más, así que ``conseguir la segunda compra'' no es el problema de
+TechRetail. La mediana entre compras es de 41 días (la mitad de las
+recompras ocurre entre 19 y 82 días) y 140 clientes volvieron alguna vez en
+30 días o menos. Una campaña de segunda compra aportaría poco; es más útil
+una campaña que \emph{acorte} el intervalo (por ejemplo, un cupón válido 30
+días) y medir si la mediana baja de 41 días.
+\end{solucion}
+
+\begin{solucion}{p-2}
+Unimos las ventas por sucursal con \archivo{tiendas.csv}, dividimos entre
+m\textsuperscript{2} y empleados y usamos \codigo{min\_rank(desc())} para
+los rankings.
+
+\begin{rcode}
+library(tidyverse)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+tiendas <- read_csv("datasets/tiendas.csv", show_col_types = FALSE)
+
+productividad <- transacciones %>%
+  group_by(tienda_id) %>%
+  summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
+  left_join(tiendas, by = "tienda_id") %>%
+  mutate(ventas_m2       = ventas / tamano_m2,
+         ventas_empleado = ventas / empleados,
+         rank_ventas     = min_rank(desc(ventas)),
+         rank_m2         = min_rank(desc(ventas_m2)),
+         rank_empleado   = min_rank(desc(ventas_empleado)),
+         cambio          = rank_ventas - rank_m2) %>%
+  arrange(rank_m2)
+
+productividad %>%
+  transmute(tienda = str_remove(nombre_tienda, "Sucursal "),
+            m2 = tamano_m2, ventas = round(ventas),
+            por_m2 = round(ventas_m2), por_empleado = round(ventas_empleado),
+            rank_ventas, rank_m2, cambio)
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 10 x 8
+   tienda     m2 ventas por_m2 por_empleado rank_ventas rank_m2 cambio
+   <chr>   <dbl>  <dbl>  <dbl>        <dbl>       <int>   <int>  <int>
+ 1 Express   300 102791    343         8566           4       1      3
+ 2 Outlet    350 114377    327         7625           1       2     -1
+ 3 Este      400  88420    221         4912           7       3      4
+ 4 Norte     450  89024    198         4451           6       4      2
+ 5 Centro    500  88414    177         3537           8       5      3
+ 6 Sur       600 105305    176         3510           2       6     -4
+ 7 Plaza B   480  80236    167         3821          10       7      3
+ 8 Oeste     550  84672    154         3849           9       8      1
+ 9 Plaza A   700 105216    150         3006           3       9     -6
+10 Premium   800 101538    127         2538           5      10     -5
+\end{rsalida}
+
+\begin{rcode}
+color_resalte <- "#eb6834"; color_gris <- "#b5b3ad"
+productividad %>%
+  mutate(mejor = rank_m2 == 1) %>%
+  ggplot(aes(x = ventas_m2, y = fct_reorder(nombre_tienda, ventas_m2),
+             fill = mejor)) +
+  geom_col(width = 0.7, show.legend = FALSE) +
+  scale_fill_manual(values = c(`TRUE` = color_resalte,
+                               `FALSE` = color_gris)) +
+  scale_x_continuous(labels = scales::dollar) +
+  labs(title = "Ventas por metro cuadrado, 2023",
+       x = "Ventas por m²", y = NULL) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+\end{rcode}
+
+\textbf{Interpretación:} la Express (300~m\textsuperscript{2}) es la más
+productiva por metro cuadrado (\$343) y por empleado (\$8,566), seguida de la
+Outlet. La Plaza A es la que más cae: tercera en ventas totales y novena por
+m\textsuperscript{2} (6 lugares), y la Premium queda última por
+m\textsuperscript{2} (\$127). Si la dirección piensa en expansión, los
+formatos chicos producen casi el triple por metro cuadrado que los grandes;
+antes de decidir habría que agregar el costo de renta por
+m\textsuperscript{2}, que no está en los datos.
+\end{solucion}
+
+\begin{solucion}{p-3}
+La venta diaria promedio es el total de unidades de 2023 entre 365 días. La
+cobertura dice cuántos días alcanza el stock actual a ese ritmo.
+
+\begin{rcode}
+library(tidyverse)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+productos <- read_csv("datasets/productos.csv", show_col_types = FALSE)
+
+alerta <- transacciones %>%
+  group_by(producto_id) %>%
+  summarise(unidades_2023 = sum(cantidad), .groups = "drop") %>%
+  right_join(productos, by = "producto_id") %>%
+  filter(activo) %>%
+  mutate(unidades_2023   = replace_na(unidades_2023, 0),
+         venta_diaria    = unidades_2023 / 365,
+         dias_cobertura  = stock_actual / venta_diaria,
+         bajo_minimo     = stock_actual < stock_minimo,
+         alerta          = dias_cobertura < 30 | bajo_minimo) %>%
+  filter(alerta) %>%
+  arrange(dias_cobertura) %>%
+  transmute(producto_id, stock = stock_actual, minimo = stock_minimo,
+            diaria = round(venta_diaria, 2),
+            cobertura = round(dias_cobertura), bajo_minimo)
+
+alerta
+
+# Contexto: distribución de la cobertura de todos los activos
+productos %>%
+  filter(activo) %>%
+  left_join(count(transacciones, producto_id, wt = cantidad,
+                  name = "unidades"), by = "producto_id") %>%
+  mutate(dias_cobertura = stock_actual / (unidades / 365)) %>%
+  pull(dias_cobertura) %>%
+  quantile(c(0, 0.25, 0.5)) %>%
+  round()
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 3 x 6
+  producto_id stock minimo diaria cobertura bajo_minimo
+        <dbl> <dbl>  <dbl>  <dbl>     <dbl> <lgl>      
+1           3    22     26   0.18       125 TRUE       
+2           6    36     38   0.22       160 TRUE       
+3          33    42     45   0.21       199 TRUE       
+  0%  25%  50% 
+ 125  927 1717 
+\end{rsalida}
+
+\textbf{Interpretación:} ningún producto activo tiene menos de 30 días de
+cobertura: el que menos tiene alcanza para 125 días. Las 3 alertas se deben
+a que el stock está por debajo del mínimo definido (productos 3, 6 y 33),
+aunque al ritmo de venta actual (unas 0.2 unidades diarias) les alcanza para más
+de cuatro meses. El hallazgo importante es el contrario: la mediana de
+cobertura es de 1,717 días (más de cuatro años de inventario). Con 1,000
+transacciones al año, TechRetail parece tener \emph{sobreinventario}, y los
+\codigo{stock\_minimo} están desalineados con la demanda real. Recomendación:
+recalcular mínimos a partir de la venta diaria (por ejemplo, 30 días de
+cobertura) y revisar si el stock se registra en unidades o en cajas.
+\end{solucion}
+
+\begin{solucion}{p-4}
+La cohorte es el mes de la primera compra. Para cada compra calculamos
+cuántos meses pasaron desde ese mes (\codigo{meses\_desde}) y contamos
+clientes distintos por cohorte y mes.
+
+\begin{rcode}
+library(tidyverse)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+
+compras <- transacciones %>%
+  mutate(mes_compra = floor_date(fecha, "month")) %>%
+  group_by(cliente_id) %>%
+  mutate(cohorte = min(mes_compra)) %>%
+  ungroup() %>%
+  mutate(meses_desde = (year(mes_compra) - year(cohorte)) * 12 +
+                        month(mes_compra) - month(cohorte))
+
+# Tamaño de cada cohorte
+compras %>% distinct(cliente_id, cohorte) %>% count(cohorte) %>%
+  mutate(cohorte = format(cohorte, "%Y-%m"))
+
+matriz <- compras %>%
+  distinct(cliente_id, cohorte, meses_desde) %>%
+  count(cohorte, meses_desde, name = "clientes") %>%
+  group_by(cohorte) %>%
+  mutate(pct = round(100 * clientes / clientes[meses_desde == 0])) %>%
+  ungroup()
+
+# Primer trimestre: % de la cohorte que compró 1, 2 y 3 meses después
+matriz %>%
+  filter(cohorte <= as.Date("2023-03-01"), meses_desde <= 3) %>%
+  mutate(cohorte = format(cohorte, "%Y-%m")) %>%
+  select(-clientes) %>%
+  pivot_wider(names_from = meses_desde, values_from = pct,
+              names_prefix = "mes_")
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 10 x 2
+   cohorte     n
+   <chr>   <int>
+ 1 2023-01    80
+ 2 2023-02    36
+ 3 2023-03    29
+ 4 2023-04    16
+ 5 2023-05    14
+ 6 2023-06     3
+ 7 2023-07     9
+ 8 2023-08     6
+ 9 2023-09     3
+10 2023-12     2
+# A tibble: 3 x 5
+  cohorte mes_0 mes_1 mes_2 mes_3
+  <chr>   <dbl> <dbl> <dbl> <dbl>
+1 2023-01   100    39    38    30
+2 2023-02   100    36    19    31
+3 2023-03   100    34    38    28
+\end{rsalida}
+
+\textbf{Interpretación:} 80 de los 198 clientes activos hicieron su primera
+compra en enero, y las cohortes se achican mes a mes porque con compras
+aleatorias casi todos los clientes aparecen pronto (solo 2 debutan en
+diciembre). En las cohortes del primer trimestre, entre 34\% y 39\% vuelve a
+comprar al mes siguiente y alrededor de 30\% al tercer mes, sin una caída
+clara. Ojo al interpretar: las cohortes tardías tienen muy pocos clientes
+(3 en junio o septiembre) y sus porcentajes serían puro ruido; por eso
+mostramos solo las del primer trimestre. En una empresa real las cohortes se
+definen con fecha de alta confiable y varios años de historia.
+\end{solucion}
+
+\begin{solucion}{p-5}
+La regla de Tukey marca como atípico lo que queda fuera de
+$[Q_1 - 1.5\,\mathrm{IQR},\ Q_3 + 1.5\,\mathrm{IQR}]$. La segunda regla
+compara el precio de cada transacción con la mediana del mismo producto.
+
+\begin{rcode}
+library(tidyverse)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+
+# Regla (a): Tukey sobre el total de la transacción
+q <- quantile(transacciones$total_transaccion, c(0.25, 0.75))
+iqr <- unname(q[2] - q[1])
+limites <- c(inferior = q[[1]] - 1.5 * iqr, superior = q[[2]] + 1.5 * iqr)
+round(limites, 2)
+sum(transacciones$total_transaccion < limites["inferior"] |
+      transacciones$total_transaccion > limites["superior"])
+
+# Regla (b): precio muy alejado de la mediana del mismo producto
+revision <- transacciones %>%
+  group_by(producto_id) %>%
+  mutate(precio_mediano = median(precio_venta),
+         razon = precio_venta / precio_mediano) %>%
+  ungroup() %>%
+  mutate(atipico_precio = razon > 3 | razon < 1 / 3)
+
+sum(revision$atipico_precio)
+
+# Lista para Auditoría: los casos más extremos primero
+revision %>%
+  filter(atipico_precio) %>%
+  mutate(distancia = abs(log(razon))) %>%
+  arrange(desc(distancia)) %>%
+  transmute(id = transaccion_id, tienda = tienda_id,
+            vendedor = vendedor_id, producto = producto_id,
+            precio = precio_venta, mediana = precio_mediano,
+            razon = round(razon, 2)) %>%
+  head(6)
+
+# ¿Se concentran en algún vendedor?
+revision %>% filter(atipico_precio) %>%
+  count(vendedor_id, sort = TRUE) %>% head(3)
+\end{rcode}
+
+\begin{rsalida}
+inferior superior 
+-1365.16  3184.89 
+[1] 0
+[1] 148
+# A tibble: 6 x 7
+     id tienda vendedor producto precio mediana razon
+  <dbl>  <dbl>    <dbl>    <dbl>  <dbl>   <dbl> <dbl>
+1   106      9       12       45   20.1    434.  0.05
+2   930      6        6       43   24.2    393.  0.06
+3   185      3       22       16   22.7    299.  0.08
+4   909      1       20       42   22.6    293.  0.08
+5   745      4       22       24   20.2    260.  0.08
+6   925      2       19        7   26.4    335.  0.08
+# A tibble: 3 x 2
+  vendedor_id     n
+        <dbl> <int>
+1          23     9
+2          24     9
+3           5     8
+\end{rsalida}
+
+\textbf{Interpretación:} la regla de Tukey no marca \emph{ninguna}
+transacción: el total máximo (\$2,992) está por debajo del límite superior
+(\$3,185) y el límite inferior es negativo. Esto pasa porque la cantidad
+(1 a 5) y el precio (20 a 600) están acotados. En cambio, comparar el precio
+con el de su propio producto marca 148 transacciones (15\%); las más extremas se cobraron a entre 5\% y
+8\% del precio mediano del producto, lo cual confirma
+el hallazgo de la auditoría: el problema no son los montos, sino precios
+inconsistentes para un mismo producto. Los vendedores 23 y 24 concentran 9
+casos cada uno; antes de sacar conclusiones sobre personas, compáralo con su
+número total de transacciones (43 y 44), porque con 148 casos repartidos en
+25 vendedores, 9 por vendedor está dentro de lo esperable.
+\end{solucion}
+
+\begin{solucion}{p-6}
+Primero medimos si los descuentos se asocian con más unidades en
+\archivo{ventas\_retail.csv}; después simulamos diciembre con un descuento
+de 10\% y un aumento aleatorio de unidades.
+
+\begin{rcode}
+library(tidyverse)
+ventas_retail <- read_csv("datasets/ventas_retail.csv",
+                          show_col_types = FALSE)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+
+# 1. ¿Con descuento se venden más unidades?
+ventas_retail %>%
+  mutate(con_descuento = descuento_pct > 0) %>%
+  group_by(con_descuento) %>%
+  summarise(ventas = n(), cantidad_promedio = round(mean(cantidad), 2),
+            .groups = "drop")
+t.test(cantidad ~ descuento_pct > 0, data = ventas_retail)$p.value
+
+# 2. Simulación de diciembre con 10% de descuento
+ingreso_base <- transacciones %>%
+  filter(month(fecha) == 12) %>%
+  summarise(total = sum(total_transaccion)) %>%
+  pull(total)
+
+set.seed(123)
+simulacion <- tibble(aumento_unidades = runif(1000, 0, 0.15)) %>%
+  mutate(ingreso = ingreso_base * (1 + aumento_unidades) * 0.90,
+         diferencia = ingreso - ingreso_base)
+
+simulacion %>%
+  summarise(ingreso_base = round(ingreso_base),
+            ingreso_promedio = round(mean(ingreso)),
+            pct_pierde = round(100 * mean(diferencia < 0), 1),
+            peor_caso = round(min(diferencia)),
+            mejor_caso = round(max(diferencia)))
+
+# 3. Aumento de unidades necesario para no perder: (1 + x) * 0.9 = 1
+round(100 * (1 / 0.90 - 1), 1)
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 2 x 3
+  con_descuento ventas cantidad_promedio
+  <lgl>          <int>             <dbl>
+1 FALSE            188              5.61
+2 TRUE             177              5.67
+[1] 0.8404565
+# A tibble: 1 x 5
+  ingreso_base ingreso_promedio pct_pierde peor_caso mejor_caso
+         <dbl>            <dbl>      <dbl>     <dbl>      <dbl>
+1        96394            93225       74.5     -9633       3366
+[1] 11.1
+\end{rsalida}
+
+\textbf{Interpretación:} en \archivo{ventas\_retail.csv} las ventas con
+descuento no tienen más unidades (5.67 contra 5.61, $p = 0.84$): no hay
+evidencia de que los descuentos muevan volumen. Con un descuento de 10\% se
+necesita vender 11.1\% más unidades solo para igualar el ingreso. Si el
+aumento está entre 0\% y 15\%, la campaña pierde ingreso en 74.5\% de las
+simulaciones; en promedio el ingreso de diciembre bajaría de \$96,394 a
+\$93,225, con una pérdida de hasta \$9,633 y una ganancia máxima de apenas
+\$3,366. Y esto es ingreso: con márgenes estimados de 46\%, el efecto en
+utilidad sería peor. Recomendación: no lanzar un descuento general; probarlo
+primero en unas tiendas con un grupo de control.
+\end{solucion}
+
+\begin{solucion}{p-7}
+Las \termino{funciones de ventana} (\codigo{min\_rank()}, \codigo{lag()},
+\codigo{cumsum()}) calculan un valor por fila usando otras filas del mismo
+grupo. Primero completamos la tabla vendedor-mes con \codigo{complete()},
+para que un mes sin ventas cuente como cero.
+
+\begin{rcode}
+library(tidyverse)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+
+ranking <- transacciones %>%
+  mutate(mes = month(fecha)) %>%
+  count(vendedor_id, mes, wt = total_transaccion, name = "ventas") %>%
+  complete(vendedor_id, mes = 1:12, fill = list(ventas = 0)) %>%
+  group_by(mes) %>%
+  mutate(lugar = min_rank(desc(ventas))) %>%          # ranking del mes
+  group_by(vendedor_id) %>%
+  arrange(mes, .by_group = TRUE) %>%
+  mutate(acumulado = cumsum(ventas),                  # venta acumulada
+         cambio_lugar = lag(lugar) - lugar) %>%       # + = subió
+  ungroup()
+
+# Vendedores con más meses en el top 5
+ranking %>%
+  group_by(vendedor_id) %>%
+  summarise(meses_top5 = sum(lugar <= 5),
+            ventas_anuales = round(max(acumulado)), .groups = "drop") %>%
+  arrange(desc(meses_top5), desc(ventas_anuales)) %>%
+  head(5)
+
+# Mayor subida de un mes a otro
+ranking %>%
+  slice_max(cambio_lugar, n = 1) %>%
+  select(vendedor_id, mes, lugar, cambio_lugar, ventas) %>%
+  mutate(ventas = round(ventas))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 5 x 3
+  vendedor_id meses_top5 ventas_anuales
+        <dbl>      <int>          <dbl>
+1           7          6          50470
+2          11          4          50017
+3           3          4          48784
+4           6          4          47946
+5          15          4          42709
+# A tibble: 3 x 5
+  vendedor_id   mes lugar cambio_lugar ventas
+        <dbl> <dbl> <int>        <int>  <dbl>
+1           1    10     3           21   5357
+2           2     5     3           21   8119
+3          17     3     2           21   9971
+\end{rsalida}
+
+\textbf{Interpretación:} el vendedor 7, que fue el primero del año
+(\$50,470), estuvo en el top 5 en 6 de los 12 meses; ningún otro supera 4
+meses. La mayor subida fue de 21 lugares y la lograron tres vendedores (el 1
+en octubre, el 2 en mayo y el 17 en marzo): pasar del lugar 23 o 24 al top 3
+de un mes a otro indica que el ranking mensual es muy volátil con pocas
+transacciones por vendedor (unas 3 o 4 al mes). Para evaluar desempeño
+conviene un ranking trimestral o un promedio móvil, no el mes aislado.
+\end{solucion}
+
+\begin{solucion}{p-8}
+La función arma las tres hojas como una lista con nombre y la escribe con
+\codigo{write\_xlsx()} de \paquete{writexl} (cada elemento de la lista es una
+hoja). \codigo{walk()} la aplica a las 10 tiendas.
+
+\begin{rcode}
+library(tidyverse)
+library(writexl)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+tiendas   <- read_csv("datasets/tiendas.csv", show_col_types = FALSE)
+productos <- read_csv("datasets/productos.csv", show_col_types = FALSE)
+
+dir.create("resultados/gerentes", recursive = TRUE, showWarnings = FALSE)
+
+# KPIs de un conjunto de transacciones
+kpis_de <- function(datos) {
+  datos %>% summarise(ventas = round(sum(total_transaccion)),
+                      transacciones = n(),
+                      ticket = round(mean(total_transaccion), 2),
+                      clientes = n_distinct(cliente_id))
+}
+
+# Promedio de la cadena por tienda (para comparar)
+cadena <- transacciones %>%
+  group_by(tienda_id) %>%
+  group_modify(~ kpis_de(.x)) %>%
+  ungroup() %>%
+  summarise(across(-tienda_id, mean)) %>%
+  mutate(ventas = round(ventas), ticket = round(ticket, 2),
+         clientes = round(clientes, 1))
+
+paquete_gerente <- function(id) {
+  info  <- filter(tiendas, tienda_id == id)
+  datos <- filter(transacciones, tienda_id == id)
+
+  resumen <- bind_rows(
+    kpis_de(datos) %>% mutate(nivel = info$nombre_tienda),
+    cadena %>% mutate(nivel = "Promedio cadena")) %>%
+    relocate(nivel)
+
+  mensual <- datos %>%
+    group_by(mes) %>%
+    summarise(ventas = round(sum(total_transaccion)),
+              transacciones = n(), .groups = "drop") %>%
+    mutate(crecimiento_pct = round(100 * (ventas / lag(ventas) - 1), 1))
+
+  top <- datos %>%
+    group_by(producto_id) %>%
+    summarise(unidades = sum(cantidad),
+              ventas = round(sum(total_transaccion)), .groups = "drop") %>%
+    left_join(select(productos, producto_id, nombre_producto, categoria),
+              by = "producto_id") %>%
+    slice_max(ventas, n = 10, with_ties = FALSE)
+
+  archivo <- file.path("resultados/gerentes",
+                       str_c("tienda_", sprintf("%02d", id), "_",
+                             str_replace_all(info$nombre_tienda, " ", "_"),
+                             ".xlsx"))
+  write_xlsx(list(Resumen = resumen, Mensual = mensual,
+                  `Top productos` = top), archivo)
+}
+
+walk(tiendas$tienda_id, paquete_gerente)
+
+archivos <- list.files("resultados/gerentes", pattern = "xlsx$")
+length(archivos)
+head(archivos, 3)
+
+# Comprobación: leer la hoja Resumen de la tienda 8
+readxl::read_excel(file.path("resultados/gerentes", archivos[8]),
+                   sheet = "Resumen")
+\end{rcode}
+
+\begin{rsalida}
+[1] 10
+[1] "tienda_01_Sucursal_Centro.xlsx" "tienda_02_Sucursal_Norte.xlsx" 
+[3] "tienda_03_Sucursal_Sur.xlsx"   
+# A tibble: 2 x 5
+  nivel           ventas transacciones ticket clientes
+  <chr>            <dbl>         <dbl>  <dbl>    <dbl>
+1 Sucursal Outlet 114377           106  1079.     82  
+2 Promedio cadena  95999           100   959.     79.5
+\end{rsalida}
+
+\textbf{Interpretación:} se generaron los 10 archivos, uno por sucursal,
+con nombre ordenable (\archivo{tienda\_01\_\ldots}). La hoja
+\emph{Resumen} de la Sucursal Outlet muestra que vendió \$114,377 contra un
+promedio de \$95,999 por tienda, con un ticket de \$1,079 contra \$959. Ese
+formato de ``mi tienda contra la cadena'' es justo lo que un gerente
+necesita. Para automatizarlo cada mes, combina esta función con la
+programación de tareas del Módulo~\ref{cap:reportes}. Si quieres dar formato
+(colores, anchos de columna) usa \paquete{openxlsx}, que no está instalado
+en este entorno.
+\end{solucion}
