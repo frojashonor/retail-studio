@@ -210,13 +210,15 @@ install.packages(c("shiny", "shinydashboard", "DT", "plotly", "writexl"))
 
 A lo largo del módulo usaremos estos paquetes. Cárgalos al inicio de tu
 script (al cargar \paquete{shinydashboard} y \paquete{DT} verás avisos de que
-``enmascaran'' funciones como \codigo{box()} o \codigo{renderDataTable()}; son
-normales):
+``enmascaran'' funciones como \codigo{box()}, \codigo{renderDataTable()} o
+\codigo{filter()}; son normales):
 
 \begin{rcode}
 library(shiny)            # apps web con R
 library(shinydashboard)   # plantillas de dashboard
 library(DT)               # tablas interactivas
+library(plotly)           # gráficas interactivas
+library(writexl)          # exportar a Excel
 library(tidyverse)        # dplyr, ggplot2, readr...
 library(lubridate)        # fechas
 library(scales)           # formatos de moneda y porcentaje
@@ -2440,7 +2442,6 @@ Como \codigo{content} es una función normal, puedes probar lo que hará
 escribiendo tú mismo los archivos:
 
 \begin{rcode}
-library(writexl)
 dir.create("resultados", showWarnings = FALSE)
 detalle <- datos_detalle(filtrar_datos(datos, anio, tiendas = "Outlet"))
 write_excel_csv(detalle, "resultados/ventas_outlet.csv")
@@ -2520,29 +2521,14 @@ confusiones.
 
 Con \paquete{plotly} una gráfica de \paquete{ggplot2} gana tooltips (al
 pasar el ratón ves el valor exacto), zoom y la opción de ocultar series. La
-forma más rápida es \codigo{ggplotly()}, que convierte un ggplot ya hecho:
+forma más rápida es \codigo{ggplotly()}, que convierte un ggplot ya hecho
+(ya cargamos \paquete{plotly} al inicio del módulo):
 
 \begin{rcode}
-library(plotly)
 graf_interactiva <- ggplotly(p_tiendas)
 class(graf_interactiva)
 \end{rcode}
 \begin{rsalida}
-
-Attaching package: ‘plotly’
-
-The following object is masked from ‘package:ggplot2’:
-
-    last_plot
-
-The following object is masked from ‘package:stats’:
-
-    filter
-
-The following object is masked from ‘package:graphics’:
-
-    layout
-
 [1] "plotly"     "htmlwidget"
 \end{rsalida}
 
