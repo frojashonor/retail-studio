@@ -1,0 +1,2230 @@
+% ============================================================================
+% MÓDULO 2 - Manipulación de datos con dplyr y tidyr
+% ============================================================================
+\chapter{Manipulación de datos con dplyr y tidyr}
+\label{cap:manipulacion}
+
+\begin{objetivos}
+\begin{itemize}
+  \item Explicar qué son los \emph{datos ordenados} (\emph{tidy data}) y por
+        qué facilitan todo el análisis posterior.
+  \item Importar archivos CSV con \paquete{readr}, controlar los tipos de
+        columna y detectar problemas de lectura.
+  \item Encadenar pasos con el pipe (\codigo{\%>\%} y \codigo{|>}) y leer tu
+        código como si fuera una receta.
+  \item Responder preguntas de negocio con los verbos de \paquete{dplyr}:
+        \codigo{filter()}, \codigo{select()}, \codigo{mutate()},
+        \codigo{arrange()}, \codigo{summarise()} y \codigo{group\_by()}.
+  \item Calcular KPIs con funciones de ventana: crecimiento mes contra mes,
+        acumulado del año, rankings y promedios móviles.
+  \item Manejar fechas con \paquete{lubridate} y texto con \paquete{stringr}.
+  \item Unir tablas con los distintos tipos de \emph{join} y detectar sus
+        trampas (llaves duplicadas, registros huérfanos).
+  \item Cambiar la forma de una tabla con \paquete{tidyr} (formato ancho y
+        largo, tablas dinámicas, celdas vacías).
+  \item Limpiar un archivo ``sucio'' paso a paso y construir un reporte
+        mensual completo que se exporta a Excel.
+\end{itemize}
+\end{objetivos}
+
+Es lunes, 9:00 de la mañana. La directora comercial te escribe: \emph{``¿Me
+mandas antes de la junta de las 12 las ventas de 2023 por mes y por
+categoría, cuánto crecimos contra el mes anterior, quiénes son nuestros cinco
+mejores clientes y qué tienda va peor? En Excel, por favor.''} Tienes los
+datos, pero están repartidos en varios archivos: las ventas por un lado, el
+catálogo de productos por otro, los clientes, las tiendas y los empleados en
+archivos distintos. Ninguno, por sí solo, responde la pregunta.
+
+Si haces esto a mano en Excel, te espera una mañana de \codigo{BUSCARV},
+tablas dinámicas, copiar y pegar\ldots{} y el próximo mes, repetirlo todo. En
+este módulo aprenderás a hacerlo con \paquete{dplyr} y \paquete{tidyr}, los
+dos paquetes que más vas a usar en tu vida como analista. Al final del módulo
+(sección~\ref{sec:m2-caso}) construirás exactamente ese reporte con un script
+de R que, el mes que entra, se vuelve a ejecutar en segundos.
+
+Este es el módulo más largo del libro, y con razón: aquí está el 80\% de tu
+trabajo diario. No intentes memorizar todas las funciones; concéntrate en
+entender la \emph{lógica} de cada verbo y teclea los ejemplos tú mismo. Todo
+el código usa los datos del curso (\archivo{ventas\_retail.csv},
+\archivo{productos.csv}, \archivo{clientes.csv}, \archivo{tiendas.csv},
+\archivo{empleados.csv} y \archivo{transacciones.csv}), así que puedes
+reproducir cada salida exactamente como aparece en el libro.
+
+% ----------------------------------------------------------------------------
+\section{Preparar los datos: el 80\% del trabajo}
+\label{sec:m2-motivacion}
+
+En la industria se repite mucho una cifra: un analista dedica alrededor del
+80\% de su tiempo a \emph{preparar} datos (conseguirlos, limpiarlos, unirlos y
+darles forma) y solo el 20\% restante a analizarlos y presentarlos. La cifra
+exacta varía según la empresa, pero la idea es cierta: los datos casi nunca
+llegan listos para el análisis. La figura~\ref{fig:m2-flujo} muestra el flujo
+de trabajo típico y qué paquete del \emph{tidyverse} te ayuda en cada paso.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  paso/.style={draw=primario, fill=primario!8, rounded corners=3pt,
+               minimum width=2.25cm, minimum height=1cm, align=center,
+               font=\sffamily\small\bfseries, text=primario},
+  paq/.style={font=\ttfamily\scriptsize, text=gristexto, align=center},
+  flecha/.style={-{Stealth[length=2.5mm]}, thick, color=acento}]
+  \node[paso] (imp) {Importar};
+  \node[paso, right=0.55cm of imp] (ord) {Ordenar};
+  \node[paso, right=0.55cm of ord] (tra) {Transformar};
+  \node[paso, right=0.55cm of tra] (res) {Resumir};
+  \node[paso, right=0.55cm of res, draw=exito, fill=exito!8, text=exito]
+       (com) {Comunicar};
+  \foreach \a/\b in {imp/ord, ord/tra, tra/res, res/com}
+    \draw[flecha] (\a) -- (\b);
+  \node[paq, below=0.2cm of imp] {readr\\readxl};
+  \node[paq, below=0.2cm of ord] {tidyr};
+  \node[paq, below=0.2cm of tra] {dplyr\\lubridate\\stringr};
+  \node[paq, below=0.2cm of res] {dplyr\\(group\_by,\\summarise)};
+  \node[paq, below=0.2cm of com] {ggplot2\\writexl\\rmarkdown};
+  \begin{scope}[on background layer]
+    \node[draw=acento, dashed, rounded corners=5pt, inner sep=6pt,
+          fit=(imp)(res), label={[font=\sffamily\scriptsize\bfseries,
+          text=acento]above:Este módulo: preparar los datos}] {};
+  \end{scope}
+\end{tikzpicture}
+\caption{Flujo de trabajo de un análisis de datos y los paquetes que usarás
+en cada paso. Este módulo cubre los cuatro primeros; el Módulo~3 se dedica a
+comunicar con gráficas.}
+\label{fig:m2-flujo}
+\end{figure}
+
+\subsection{Datos ordenados (\emph{tidy data})}
+\label{sec:m2-tidy}
+
+Antes de transformar datos conviene saber a qué forma queremos llegar. El
+estadístico Hadley Wickham, creador de buena parte de los paquetes de este
+módulo, propuso una forma estándar llamada \termino{datos ordenados}
+(\emph{tidy data}).
+
+\begin{concepto}{Las tres reglas de los datos ordenados}
+Una tabla está \emph{ordenada} cuando cumple tres reglas:
+\begin{enumerate}
+  \item \textbf{Cada variable es una columna.} Fecha, sucursal, producto y
+        monto son cuatro variables: cuatro columnas.
+  \item \textbf{Cada observación es una fila.} Una venta, un cliente o un
+        mes de una sucursal ocupa una fila.
+  \item \textbf{Cada valor está en su propia celda.} Nada de
+        ``\texttt{CDMX-Centro}'' en una celda si ciudad y zona son cosas
+        distintas.
+\end{enumerate}
+Cuando tus datos cumplen estas reglas, todas las funciones del
+\emph{tidyverse} ``encajan'': filtras, agrupas, unes y graficas sin pelearte
+con la forma de la tabla.
+\end{concepto}
+
+El ejemplo más común de datos \emph{desordenados} en una empresa es el reporte
+de Excel ``bonito'', pensado para leerse, no para analizarse. En la
+tabla~\ref{tab:m2-tidy} el reporte de la izquierda tiene los meses como
+columnas: la variable \emph{mes} está escondida en los encabezados y la
+variable \emph{ventas} está repartida en tres columnas. La versión ordenada
+(derecha) tiene una columna por variable.
+
+\begin{table}[H]
+\centering
+\caption{El mismo dato en dos formas: un reporte ``ancho'' típico de Excel
+(desordenado) y su versión ordenada (\emph{tidy}).}
+\label{tab:m2-tidy}
+\begin{minipage}[t]{0.44\textwidth}
+\centering
+\textbf{\sffamily\small\color{peligro}Desordenado (ancho)}\\[4pt]
+\small
+\begin{tabular}{lrrr}
+\toprule
+Sucursal & Ene & Feb & Mar \\
+\midrule
+Centro & 12\,500 & 13\,200 & 11\,800 \\
+Norte  &  9\,800 & 10\,100 & 11\,350 \\
+Sur    & 15\,200 & 14\,900 & 16\,050 \\
+\bottomrule
+\end{tabular}
+
+\smallskip
+{\footnotesize\color{gristexto} 3 filas; la variable ``mes''\\ vive en los
+encabezados.}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\textbf{\sffamily\small\color{exito}Ordenado (largo)}\\[4pt]
+\small
+\begin{tabular}{llr}
+\toprule
+sucursal & mes & ventas \\
+\midrule
+Centro & Ene & 12\,500 \\
+Centro & Feb & 13\,200 \\
+Centro & Mar & 11\,800 \\
+Norte  & Ene &  9\,800 \\
+\multicolumn{3}{c}{\ldots} \\
+Sur    & Mar & 16\,050 \\
+\bottomrule
+\end{tabular}
+
+\smallskip
+{\footnotesize\color{gristexto} 9 filas; cada fila es una sucursal en un mes.}
+\end{minipage}
+\end{table}
+
+¿Por qué es mejor la versión larga? Porque preguntas como ``¿cuánto se vendió
+en total en febrero?'' o ``¿qué mes fue el mejor de cada sucursal?'' se
+resuelven con un filtro o un agrupamiento, sin importar si mañana el reporte
+trae 3 meses o 36. En la sección~\ref{sec:m2-tidyr} aprenderás a pasar de una
+forma a la otra con una sola función. Otros síntomas de datos desordenados que
+encontrarás en la práctica son:
+
+\begin{itemize}
+  \item Dos datos en una celda: \texttt{"Guadalajara, Jal."} o
+        \texttt{"2023-Q1"}.
+  \item Celdas combinadas de Excel: la región aparece solo en la primera fila
+        del bloque y las demás quedan vacías.
+  \item Totales y subtotales mezclados con los datos (la fila ``Total
+        general'' al final).
+  \item Varias tablas en una misma hoja, o encabezados en dos renglones.
+\end{itemize}
+
+\subsection{El \emph{tidyverse}: una caja de herramientas coherente}
+
+El \termino{tidyverse} es una colección de paquetes de R diseñados para
+trabajar juntos con datos ordenados. Comparten la misma filosofía: funciones
+con nombres de verbos, el \emph{data frame} siempre como primer argumento y
+resultados que también son \emph{data frames}. La tabla~\ref{tab:m2-tidyverse}
+resume los que usarás en este módulo.
+
+\begin{table}[H]
+\centering
+\caption{Paquetes del \emph{tidyverse} que usarás en este módulo.}
+\label{tab:m2-tidyverse}
+\small
+\begin{tabularx}{\textwidth}{@{}lXl@{}}
+\toprule
+Paquete & ¿Para qué sirve? & Funciones estrella \\
+\midrule
+\paquete{readr}     & Leer y escribir archivos de texto (CSV)
+                    & \codigo{read\_csv()}, \codigo{write\_csv()} \\
+\paquete{tibble}    & La versión moderna del \emph{data frame}
+                    & \codigo{tibble()}, \codigo{glimpse()} \\
+\paquete{dplyr}     & Transformar: filtrar, calcular, resumir, unir
+                    & \codigo{filter()}, \codigo{mutate()}, \codigo{left\_join()} \\
+\paquete{tidyr}     & Cambiar la forma de las tablas y tratar vacíos
+                    & \codigo{pivot\_longer()}, \codigo{fill()} \\
+\paquete{lubridate} & Fechas y horas
+                    & \codigo{ymd()}, \codigo{month()}, \codigo{floor\_date()} \\
+\paquete{stringr}   & Texto (cadenas de caracteres)
+                    & \codigo{str\_detect()}, \codigo{str\_squish()} \\
+\paquete{forcats}   & Variables categóricas (factores)
+                    & \codigo{fct\_reorder()}, \codigo{fct\_lump()} \\
+\paquete{ggplot2}   & Gráficas (Módulo~3)
+                    & \codigo{ggplot()}, \codigo{geom\_col()} \\
+\paquete{purrr}     & Repetir una operación sobre muchos elementos
+                    & \codigo{map()} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Si todavía no lo tienes, instala el \emph{tidyverse} y el paquete
+\paquete{writexl} (que usaremos para exportar a Excel). Solo se hace una vez
+por computadora:
+
+\begin{rnoejecutar}
+# Se ejecuta UNA sola vez (tarda unos minutos)
+install.packages(c("tidyverse", "writexl"))
+\end{rnoejecutar}
+
+Y al inicio de cada script cargas los paquetes (esto sí, cada vez):
+
+\begin{rcode}
+# Carga dplyr, tidyr, readr, stringr, lubridate, ggplot2, etc.
+library(tidyverse)
+# writexl no es parte del tidyverse: se carga aparte
+library(writexl)
+\end{rcode}
+
+Al cargar el \emph{tidyverse} verás un mensaje de bienvenida con dos partes.
+La primera, \emph{Attaching core tidyverse packages}, lista los nueve paquetes
+que se cargaron y sus versiones. La segunda, \emph{Conflicts}, avisa que
+algunas funciones ``tapan'' (\emph{mask}) a otras con el mismo nombre; por
+ejemplo, \codigo{dplyr::filter() masks stats::filter()} significa que, a
+partir de ahora, cuando escribas \codigo{filter()} R usará la versión de
+\paquete{dplyr} y no la del paquete base \paquete{stats}. No es un error:
+es un aviso, y es justo lo que queremos. (En la sección~\ref{sec:m2-errores}
+verás qué pasa cuando olvidas cargar el paquete.)
+
+\begin{consejo}
+La notación \codigo{paquete::funcion()} llama a una función de un paquete
+específico sin ambigüedad, aunque haya otra con el mismo nombre. Por ejemplo,
+\codigo{dplyr::filter()} siempre es el filtro de \paquete{dplyr}. La verás
+en foros y en código profesional; también sirve para usar una función de un
+paquete instalado sin cargarlo con \codigo{library()}.
+\end{consejo}
+
+% ----------------------------------------------------------------------------
+\section{Importar datos con \texorpdfstring{\paquete{readr}}{readr}}
+\label{sec:m2-readr}
+
+\subsection{Tu primera lectura con \texorpdfstring{\codigo{read\_csv()}}{read\_csv()}}
+
+Un \termino{CSV} (\emph{comma-separated values}) es un archivo de texto donde
+cada renglón es una fila y las columnas se separan con comas. Es el formato
+más común para intercambiar datos entre sistemas: casi cualquier ERP, CRM o
+base de datos puede exportar a CSV. La función \codigo{read\_csv()} de
+\paquete{readr} lo lee y devuelve un \emph{tibble}.
+
+Recuerda que todas las rutas del libro son relativas a la carpeta del curso
+(la que contiene \archivo{datasets/}). Si en RStudio abriste el proyecto del
+curso, ya estás ahí; si no, revisa el Módulo~\ref{cap:fundamentos}.
+
+\begin{rcode}
+# Leer el archivo de ventas y guardarlo en el objeto "ventas"
+ventas <- read_csv("datasets/ventas_retail.csv")
+\end{rcode}
+\begin{rsalida}
+Rows: 365 Columns: 14
+-- Column specification ----------------------------------------------
+Delimiter: ","
+chr   (3): dia_semana, mes, trimestre
+dbl  (10): producto_id, cliente_id, cantidad, precio_unitario, des...
+date  (1): fecha
+
+i Use `spec()` to retrieve the full column specification for this data.
+i Specify the column types or set `show_col_types = FALSE` to quiet this message.
+\end{rsalida}
+
+Este mensaje, la \termino{especificación de columnas}, no es un error: es
+\paquete{readr} contándote qué hizo. Léelo de arriba abajo:
+
+\begin{itemize}
+  \item \texttt{Rows: 365 Columns: 14}: se leyeron 365 filas (una venta por
+        día de 2023) y 14 columnas. Compara siempre estos números con lo que
+        esperabas; es tu primera prueba de calidad.
+  \item \texttt{Delimiter: ","}: el separador que detectó.
+  \item \texttt{chr (3)}: tres columnas de texto (\emph{character}).
+  \item \texttt{dbl (10)}: diez columnas numéricas (\emph{double}, números
+        con decimales). Los identificadores como \codigo{producto\_id}
+        también se leyeron como números.
+  \item \texttt{date (1)}: una columna de fecha. \paquete{readr} reconoció
+        el formato \texttt{2023-01-01} y lo convirtió automáticamente.
+\end{itemize}
+
+\paquete{readr} \emph{adivina} el tipo de cada columna mirando las primeras
+1000 filas. Casi siempre acierta, pero no siempre (lo verás en un momento).
+Cuando ya conoces el archivo, puedes silenciar el mensaje con
+\codigo{show\_col\_types = FALSE}, que es lo que haremos en el resto del
+libro.
+
+\subsection{Mirar los datos: \texorpdfstring{\emph{tibble}}{tibble} y
+\texorpdfstring{\codigo{glimpse()}}{glimpse()}}
+
+Escribe el nombre del objeto para verlo:
+
+\begin{rcode}
+ventas
+\end{rcode}
+\begin{rsalida}
+# A tibble: 365 x 14
+   fecha      dia_semana producto_id cliente_id cantidad
+   <date>     <chr>            <dbl>      <dbl>    <dbl>
+ 1 2023-01-01 domingo             31         94       10
+ 2 2023-01-02 lunes               15        169        8
+ 3 2023-01-03 martes              14        136        3
+ 4 2023-01-04 miércoles            3        167        2
+ 5 2023-01-05 jueves              42         81       10
+ 6 2023-01-06 viernes             50        191        8
+ 7 2023-01-07 sábado              43         82       10
+ 8 2023-01-08 domingo             37        106        7
+ 9 2023-01-09 lunes               14        119        7
+10 2023-01-10 martes              25         11        6
+# i 355 more rows
+# i 9 more variables: precio_unitario <dbl>, descuento_pct <dbl>,
+#   tienda_id <dbl>, vendedor_id <dbl>, subtotal <dbl>,
+#   descuento_monto <dbl>, total <dbl>, mes <chr>, trimestre <chr>
+\end{rsalida}
+
+Un \termino{tibble} es un \emph{data frame} con mejores modales. Fíjate en
+lo que hace al imprimirse:
+
+\begin{itemize}
+  \item La primera línea dice qué es y su tamaño: \texttt{A tibble: 365 x 14}.
+  \item Debajo de cada nombre de columna aparece su tipo entre
+        \texttt{< >}: \texttt{<date>}, \texttt{<chr>}, \texttt{<dbl>}.
+  \item Muestra solo 10 filas y las columnas que caben en la pantalla; al
+        final te dice cuántas filas y columnas quedaron sin mostrar.
+  \item Los números se muestran con pocas cifras significativas (por eso
+        verás \texttt{3508.} en vez de \texttt{3507.9}). Es solo la
+        impresión: el valor guardado conserva todos sus decimales.
+\end{itemize}
+
+Un \emph{data frame} clásico, en cambio, imprime \emph{todas} las filas y
+parte las columnas en bloques. Con 365 filas eso inunda la consola; por eso
+aquí mostramos solo tres:
+
+\begin{rcode}
+# Convertimos a data.frame clásico solo para comparar la impresión
+as.data.frame(head(ventas, 3))
+\end{rcode}
+\begin{rsalida}
+       fecha dia_semana producto_id cliente_id cantidad
+1 2023-01-01    domingo          31         94       10
+2 2023-01-02      lunes          15        169        8
+3 2023-01-03     martes          14        136        3
+  precio_unitario descuento_pct tienda_id vendedor_id subtotal
+1          350.79             5         6           5  3507.90
+2          282.75             0         5          24  2262.00
+3          296.51            10         2          25   889.53
+  descuento_monto    total     mes trimestre
+1         175.395 3332.505 2023-01        Q1
+2           0.000 2262.000 2023-01        Q1
+3          88.953  800.577 2023-01        Q1
+\end{rsalida}
+
+Para ver \emph{todas} las columnas de un tibble de un vistazo, usa
+\codigo{glimpse()}: pone las columnas como renglones, con su tipo y sus
+primeros valores. Es la función que más vas a usar para ``conocer'' una
+tabla nueva.
+
+\begin{rcode}
+glimpse(ventas)
+\end{rcode}
+\begin{rsalida}
+Rows: 365
+Columns: 14
+$ fecha           <date> 2023-01-01, 2023-01-02, 2023-01-03, 2023-01~
+$ dia_semana      <chr> "domingo", "lunes", "martes", "miércoles", "~
+$ producto_id     <dbl> 31, 15, 14, 3, 42, 50, 43, 37, 14, 25, 26, 2~
+$ cliente_id      <dbl> 94, 169, 136, 167, 81, 191, 82, 106, 119, 11~
+$ cantidad        <dbl> 10, 8, 3, 2, 10, 8, 10, 7, 7, 6, 1, 4, 1, 5,~
+$ precio_unitario <dbl> 350.79, 282.75, 296.51, 222.48, 218.83, 302.~
+$ descuento_pct   <dbl> 5, 0, 10, 0, 0, 0, 15, 0, 0, 15, 0, 15, 0, 0~
+$ tienda_id       <dbl> 6, 5, 2, 7, 3, 3, 4, 1, 6, 5, 2, 7, 10, 1, 5~
+$ vendedor_id     <dbl> 5, 24, 25, 18, 8, 19, 3, 5, 8, 12, 5, 23, 25~
+$ subtotal        <dbl> 3507.90, 2262.00, 889.53, 444.96, 2188.30, 2~
+$ descuento_monto <dbl> 175.395, 0.000, 88.953, 0.000, 0.000, 0.000,~
+$ total           <dbl> 3332.505, 2262.000, 800.577, 444.960, 2188.3~
+$ mes             <chr> "2023-01", "2023-01", "2023-01", "2023-01", ~
+$ trimestre       <chr> "Q1", "Q1", "Q1", "Q1", "Q1", "Q1", "Q1", "Q~
+\end{rsalida}
+
+Con esto ya sabes qué contiene cada venta: la \codigo{fecha}, qué producto
+(\codigo{producto\_id}), a qué cliente, cuántas unidades, a qué precio, con
+qué descuento, en qué tienda y qué vendedor la hizo. Las columnas
+\codigo{subtotal}, \codigo{descuento\_monto} y \codigo{total} son cálculos
+ya hechos, y \codigo{mes} y \codigo{trimestre} son etiquetas de texto.
+
+\begin{consejo}
+Si quieres ver más filas de un tibble usa \codigo{print(ventas, n = 30)};
+para ver todas las columnas, \codigo{print(ventas, width = Inf)}. En RStudio
+también puedes abrir la tabla como hoja de cálculo con \codigo{View(ventas)}
+o haciendo clic en su nombre en el panel \menu{Environment}.
+\end{consejo}
+
+\subsection{Controlar los tipos con \texorpdfstring{\codigo{col\_types}}{col\_types}}
+
+A veces la adivinanza de \paquete{readr} no es lo que necesitas. Un caso
+típico son los identificadores: \codigo{cliente\_id} es una etiqueta, no una
+cantidad (sumar identificadores no tiene sentido). Con el argumento
+\codigo{col\_types} le dices a \paquete{readr} exactamente cómo leer cada
+columna; las que no menciones se siguen adivinando.
+
+\begin{rcode}
+# Leer los identificadores como texto y la cantidad como entero
+ventas_tipos <- read_csv(
+  "datasets/ventas_retail.csv",
+  col_types = cols(
+    producto_id = col_character(),   # texto
+    cliente_id  = col_character(),   # texto
+    cantidad    = col_integer(),     # número entero
+    .default    = col_guess()        # el resto: que readr adivine
+  )
+)
+# Revisamos solo las columnas que nos interesan
+glimpse(select(ventas_tipos, producto_id, cliente_id, cantidad))
+\end{rcode}
+\begin{rsalida}
+Rows: 365
+Columns: 3
+$ producto_id <chr> "31", "15", "14", "3", "42", "50", "43", "37", "~
+$ cliente_id  <chr> "94", "169", "136", "167", "81", "191", "82", "1~
+$ cantidad    <int> 10, 8, 3, 2, 10, 8, 10, 7, 7, 6, 1, 4, 1, 5, 10,~
+\end{rsalida}
+
+Ahora \codigo{producto\_id} es \texttt{<chr>} y \codigo{cantidad} es
+\texttt{<int>} (entero). Las funciones más usadas en \codigo{cols()} son
+\codigo{col\_character()}, \codigo{col\_double()}, \codigo{col\_integer()},
+\codigo{col\_logical()}, \codigo{col\_date(format = "\%d/\%m/\%Y")} y
+\codigo{col\_skip()} (para no leer una columna). Si solo necesitas algunas
+columnas de un archivo grande, \codigo{col\_select} lee únicamente esas:
+\codigo{read\_csv(ruta, col\_select = c(fecha, total))}.
+
+\begin{advertencia}
+Para unir tablas (sección~\ref{sec:m2-joins}), la llave debe tener el
+\emph{mismo tipo} en ambas. Si lees \codigo{producto\_id} como texto en
+ventas y como número en productos, el \emph{join} fallará con un error
+\texttt{Can't join ... due to incompatible types}. En este módulo dejaremos
+los identificadores como números en todas las tablas para evitarlo.
+\end{advertencia}
+
+\subsection{Cuando algo sale mal: \texorpdfstring{\codigo{problems()}}{problems()}}
+
+Imagina que la sucursal Norte te manda su inventario y alguien escribió
+``N/D'' y ``sin dato'' en lugar de un número. Para simular ese archivo, lo
+creamos nosotros mismos con \codigo{write\_lines()} (cada elemento es un
+renglón del archivo) en una carpeta \archivo{datos/}:
+
+\begin{rcode}
+# Crear la carpeta datos/ (si ya existe, no pasa nada)
+dir.create("datos", showWarnings = FALSE)
+# Escribir un CSV pequeño con dos valores "raros" en existencias
+write_lines(c("sucursal,producto,existencias",
+              "Centro,P01,120",
+              "Norte,P01,N/D",
+              "Sur,P02,85",
+              "Este,P02,sin dato"),
+            "datos/inventario.csv")
+# Leerlo exigiendo que existencias sea numérica
+inventario <- read_csv("datos/inventario.csv",
+                       col_types = cols(existencias = col_double()))
+\end{rcode}
+\begin{rsalida}
+Warning message:
+One or more parsing issues, call `problems()` on your data frame for
+details, e.g.:
+  dat <- vroom(...)
+  problems(dat)
+\end{rsalida}
+
+\paquete{readr} no se detiene: lee lo que puede, pone \codigo{NA} (valor
+faltante) donde no pudo convertir y te avisa. La función \codigo{problems()}
+te dice exactamente dónde está cada problema (su columna \codigo{file}
+muestra la ruta completa del archivo; aquí la omitimos para ahorrar espacio):
+
+\begin{rcode}
+problems(inventario) %>%
+  select(row, col, expected, actual)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 2 x 4
+    row   col expected actual  
+  <int> <int> <chr>    <chr>   
+1     3     3 a double N/D     
+2     5     3 a double sin dato
+\end{rsalida}
+
+Las filas 3 y 5 del archivo (contando el encabezado como fila 1), en la
+columna 3, esperaban un número y encontraron \texttt{N/D} y
+\texttt{sin dato}. Como sabemos que esos textos significan ``no hay dato'',
+la solución limpia es decírselo a \paquete{readr} con el argumento
+\codigo{na}:
+
+\begin{rcode}
+inventario <- read_csv("datos/inventario.csv",
+                       na = c("", "NA", "N/D", "sin dato"),
+                       show_col_types = FALSE)
+inventario
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 3
+  sucursal producto existencias
+  <chr>    <chr>          <dbl>
+1 Centro   P01              120
+2 Norte    P01               NA
+3 Sur      P02               85
+4 Este     P02               NA
+\end{rsalida}
+
+Ya no hay advertencia y \codigo{existencias} es numérica
+(\texttt{<dbl>}). Los faltantes son explícitos: nadie los confundirá con
+un cero.
+
+\begin{negocio}{CSV exportados desde Excel en español}
+Si tu empresa exporta los CSV desde Excel con configuración regional de
+México o España, puede que encuentres dos sorpresas. La primera: columnas
+separadas por punto y coma (\texttt{;}) y decimales con coma
+(\texttt{1234,50}); para eso existe \codigo{read\_csv2()}. La segunda:
+acentos que se ven como \texttt{\~{A}\textcopyright} o
+\texttt{\~{A}\textpm}, porque el archivo no está
+en UTF-8; se corrige indicando la codificación:
+\begin{rnoejecutar}
+reporte <- read_csv2("datos/reporte_excel.csv")      # ; y decimal ,
+clientes_erp <- read_csv("datos/clientes_erp.csv",
+                         locale = locale(encoding = "latin1"))
+\end{rnoejecutar}
+\end{negocio}
+
+\subsection{Cargar todas las tablas del curso}
+
+Ahora sí, carguemos el resto de las tablas que usaremos en el módulo. Todas
+se leen igual; solo cambia el nombre del archivo:
+
+\begin{rcode}
+productos     <- read_csv("datasets/productos.csv",
+                          show_col_types = FALSE)
+clientes      <- read_csv("datasets/clientes.csv",
+                          show_col_types = FALSE)
+tiendas       <- read_csv("datasets/tiendas.csv",
+                          show_col_types = FALSE)
+empleados     <- read_csv("datasets/empleados.csv",
+                          show_col_types = FALSE)
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+
+# Un pequeño inventario de lo que cargamos
+tibble(
+  tabla    = c("ventas", "productos", "clientes", "tiendas",
+               "empleados", "transacciones"),
+  filas    = c(nrow(ventas), nrow(productos), nrow(clientes),
+               nrow(tiendas), nrow(empleados), nrow(transacciones)),
+  columnas = c(ncol(ventas), ncol(productos), ncol(clientes),
+               ncol(tiendas), ncol(empleados), ncol(transacciones))
+)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 6 x 3
+  tabla         filas columnas
+  <chr>         <int>    <int>
+1 ventas          365       14
+2 productos        50       13
+3 clientes        200       10
+4 tiendas          10        8
+5 empleados       100       12
+6 transacciones  1000       14
+\end{rsalida}
+
+En BI a esta distinción se le da nombre: \codigo{ventas} y
+\codigo{transacciones} son \termino{tablas de hechos} (registran eventos:
+cada fila es una venta) y \codigo{productos}, \codigo{clientes},
+\codigo{tiendas} y \codigo{empleados} son \termino{tablas de dimensiones}
+(describen a los protagonistas de esos eventos). Las conectarás en la
+sección~\ref{sec:m2-joins}.
+
+\begin{hazlotu}
+Lee \archivo{datasets/transacciones.csv} \emph{sin}
+\codigo{show\_col\_types = FALSE} y revisa la especificación de columnas.
+¿Qué tipo le asignó \paquete{readr} a la columna \codigo{hora}? Luego usa
+\codigo{glimpse()} sobre \codigo{clientes} y responde: ¿de qué tipo es
+\codigo{es\_premium}?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{El pipe: encadenar pasos como una receta}
+\label{sec:m2-pipe}
+
+Supón que quieres ver las ventas de la tienda 1 en diciembre, solo con la
+fecha, el producto, la cantidad y el total, de la más grande a la más
+chica. Son tres pasos: filtrar, seleccionar columnas y ordenar. Hay tres
+maneras de escribirlo.
+
+\textbf{Opción 1: funciones anidadas.} Cada función envuelve a la anterior.
+Funciona, pero se lee de adentro hacia afuera y los argumentos quedan lejos
+de su función:
+
+\begin{rcode}
+arrange(
+  select(
+    filter(ventas, tienda_id == 1, mes == "2023-12"),
+    fecha, producto_id, cantidad, total
+  ),
+  desc(total)
+)
+\end{rcode}
+
+\textbf{Opción 2: objetos intermedios.} Se lee mejor, pero llenas tu
+ambiente de objetos (\codigo{paso1}, \codigo{paso2}\ldots) que no vuelves a
+usar, y es fácil equivocarte de nombre:
+
+\begin{rcode}
+paso1 <- filter(ventas, tienda_id == 1, mes == "2023-12")
+paso2 <- select(paso1, fecha, producto_id, cantidad, total)
+paso3 <- arrange(paso2, desc(total))
+\end{rcode}
+
+\textbf{Opción 3: el pipe.} El operador \codigo{\%>\%}, llamado
+\termino{pipe} (tubería), toma lo que está a su izquierda y lo pasa como
+\emph{primer argumento} a la función de su derecha. Así,
+\codigo{x \%>\% f(y)} es lo mismo que \codigo{f(x, y)}:
+
+\begin{rcode}
+ventas %>%                                   # toma las ventas,
+  filter(tienda_id == 1, mes == "2023-12") %>% # y luego filtra,
+  select(fecha, producto_id, cantidad, total) %>% # y luego elige,
+  arrange(desc(total))                       # y luego ordena
+\end{rcode}
+\begin{rsalida}
+# A tibble: 5 x 4
+  fecha      producto_id cantidad  total
+  <date>           <dbl>    <dbl>  <dbl>
+1 2023-12-18          18        9 2646. 
+2 2023-12-26          26        5 1847. 
+3 2023-12-12          35        3  441. 
+4 2023-12-24          42        1  349. 
+5 2023-12-25          32        1   54.0
+\end{rsalida}
+
+Las tres opciones dan exactamente el mismo resultado, pero la tercera se lee
+de arriba abajo como una receta. Lee cada \codigo{\%>\%} como
+\textbf{``y luego''}: \emph{``toma las ventas, y luego filtra la tienda 1 en
+diciembre, y luego elige cuatro columnas, y luego ordena por total
+descendente''}. La tienda 1 tuvo 5 ventas en diciembre y la mayor fue de
+\$2,646 el 18 de diciembre.
+
+\begin{consejo}
+El atajo de teclado para escribir el pipe en RStudio es
+\tecla{Ctrl} + \tecla{Shift} + \tecla{M} (en Mac, \tecla{Cmd} +
+\tecla{Shift} + \tecla{M}). Úsalo desde hoy: lo vas a teclear cientos de
+veces al día. Escribe un paso por línea y deja el \codigo{\%>\%} \emph{al
+final} de la línea, nunca al principio de la siguiente.
+\end{consejo}
+
+\subsection{El pipe nativo \texorpdfstring{\codigo{|>}}{|>}}
+
+Desde la versión 4.1, R trae su propio pipe, el \termino{pipe nativo}
+\codigo{|>}, que no necesita cargar ningún paquete. Para el trabajo diario
+ambos hacen lo mismo:
+
+\begin{rcode}
+# Mismo resultado que con %>%: contar las ventas de diciembre
+ventas |>
+  filter(mes == "2023-12") |>
+  nrow()
+\end{rcode}
+\begin{rsalida}
+[1] 31
+\end{rsalida}
+
+Las diferencias que te pueden afectar son pocas:
+
+\begin{itemize}
+  \item \codigo{|>} siempre exige paréntesis: \codigo{ventas |> nrow()}
+        funciona pero \codigo{ventas |> nrow} da error, mientras que
+        \codigo{ventas \%>\% nrow} sí funciona.
+  \item Para mandar el dato a un argumento que no es el primero,
+        \codigo{\%>\%} usa un punto (\codigo{data = .}) y \codigo{|>} usa un
+        guion bajo con nombre (\codigo{data = \_}, desde R 4.2).
+  \item \codigo{\%>\%} viene del paquete \paquete{magrittr} y se carga con
+        el \emph{tidyverse}; \codigo{|>} está siempre disponible.
+\end{itemize}
+
+En este libro usamos \codigo{\%>\%} porque es el que encontrarás en la
+mayoría de los ejemplos en internet, pero puedes usar el que prefieras. Si
+quieres que el atajo \tecla{Ctrl} + \tecla{Shift} + \tecla{M} escriba
+\codigo{|>}, activa la casilla \emph{Use native pipe operator} en
+\menu{Tools > Global Options > Code}.
+
+\begin{hazlotu}
+Reescribe con pipe la siguiente instrucción anidada y léela en voz alta
+usando ``y luego'':
+\begin{rnoejecutar}
+head(arrange(filter(productos, categoria == "Ropa"), precio_catalogo), 3)
+\end{rnoejecutar}
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Los verbos de \texorpdfstring{\paquete{dplyr}}{dplyr}}
+\label{sec:m2-verbos}
+
+\paquete{dplyr} está construido alrededor de unos cuantos \termino{verbos}:
+funciones cuyo nombre dice lo que hacen con la tabla. Todos siguen las mismas
+reglas, y una vez que las entiendes, aprender un verbo nuevo es trivial:
+
+\begin{enumerate}
+  \item El primer argumento siempre es un \emph{data frame} (por eso encajan
+        tan bien con el pipe).
+  \item Los demás argumentos usan los nombres de las columnas \emph{sin
+        comillas} y sin \codigo{\$}: escribes \codigo{total}, no
+        \codigo{ventas\$total}.
+  \item El resultado siempre es un \emph{data frame} nuevo. La tabla original
+        \emph{no se modifica}; si quieres conservar el resultado, guárdalo con
+        \codigo{<-}.
+\end{enumerate}
+
+\begin{table}[H]
+\centering
+\caption{Los seis verbos fundamentales de \paquete{dplyr}.}
+\label{tab:m2-verbos}
+\small
+\begin{tabularx}{\textwidth}{@{}lXl@{}}
+\toprule
+Verbo & Qué hace & Actúa sobre \\
+\midrule
+\codigo{filter()}    & Se queda con las filas que cumplen una condición & Filas \\
+\codigo{select()}    & Elige, quita o reordena columnas & Columnas \\
+\codigo{mutate()}    & Crea columnas nuevas o modifica las existentes & Columnas \\
+\codigo{arrange()}   & Ordena las filas & Filas \\
+\codigo{summarise()} & Resume muchas filas en una (totales, promedios\ldots) & Filas \\
+\codigo{group\_by()} & Divide la tabla en grupos para que los demás verbos
+                       trabajen grupo por grupo & Grupos \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ............................................................................
+\subsection{\texorpdfstring{\codigo{filter()}}{filter()}: quedarte con las filas que importan}
+\label{sec:m2-filter}
+
+\codigo{filter()} recibe una o más condiciones lógicas y conserva solo las
+filas donde la condición es \codigo{TRUE}. Las condiciones se construyen con
+los operadores de la tabla~\ref{tab:m2-operadores}.
+
+\begin{table}[H]
+\centering
+\caption{Operadores para construir condiciones en \codigo{filter()}.}
+\label{tab:m2-operadores}
+\small
+\begin{tabularx}{\textwidth}{@{}lXl@{}}
+\toprule
+Operador & Significado & Ejemplo \\
+\midrule
+\codigo{==}  & Igual a (¡dos signos!) & \codigo{tienda\_id == 3} \\
+\codigo{!=}  & Distinto de & \codigo{trimestre != "Q4"} \\
+\codigo{>}, \codigo{>=} & Mayor, mayor o igual & \codigo{total >= 1000} \\
+\codigo{<}, \codigo{<=} & Menor, menor o igual & \codigo{cantidad < 3} \\
+\codigo{\&} o coma & Y: se deben cumplir ambas & \codigo{tienda\_id == 1, cantidad > 5} \\
+\codigo{|}   & O: basta con que se cumpla una & \codigo{descuento\_pct == 20 | cantidad == 10} \\
+\codigo{!}   & No (niega la condición) & \codigo{!activo} \\
+\codigo{\%in\%} & Pertenece a una lista de valores & \codigo{tienda\_id \%in\% c(1, 4)} \\
+\codigo{between()} & Dentro de un rango (incluye extremos) & \codigo{between(total, 500, 900)} \\
+\codigo{is.na()} & Es un valor faltante & \codigo{is.na(email)} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{ejemplo}{Ventas grandes}
+El gerente de riesgos quiere revisar las ventas de más de \$4,500, porque
+un ticket tan alto es poco común. ¿Cuántas son y de qué tiendas?
+\end{ejemplo}
+
+\begin{rcode}
+ventas %>%
+  filter(total > 4500) %>%                       # condición numérica
+  select(fecha, tienda_id, cantidad, precio_unitario, total)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 5
+  fecha      tienda_id cantidad precio_unitario total
+  <date>         <dbl>    <dbl>           <dbl> <dbl>
+1 2023-02-15         8       10            488. 4638.
+2 2023-04-21         2       10            492. 4925.
+3 2023-07-24         8       10            495. 4950.
+4 2023-09-04         6       10            487. 4875.
+\end{rsalida}
+
+Solo 4 ventas del año superan los \$4,500. Fíjate en que las cuatro son de
+10 unidades (el máximo posible) con precios unitarios cercanos a \$490: no
+parecen errores sino compras al mayoreo de productos caros.
+
+\begin{ejemplo}{Varias condiciones a la vez (Y)}
+¿Qué ventas hizo la tienda 9 (la sucursal \emph{Premium}) en el primer
+trimestre con algún descuento?
+\end{ejemplo}
+
+Separar condiciones con comas equivale a unirlas con \codigo{\&}: se deben
+cumplir \emph{todas}.
+
+\begin{rcode}
+ventas %>%
+  filter(tienda_id == 9,            # tienda Premium
+         trimestre == "Q1",         # y primer trimestre
+         descuento_pct > 0) %>%     # y con descuento
+  select(fecha, producto_id, descuento_pct, total)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 5 x 4
+  fecha      producto_id descuento_pct total
+  <date>           <dbl>         <dbl> <dbl>
+1 2023-01-29          39            10 3650.
+2 2023-02-14          25             5 1468.
+3 2023-02-27          15             5  155.
+4 2023-03-16          49             5 1290.
+5 2023-03-18           4            10 1486.
+\end{rsalida}
+
+\begin{ejemplo}{Una u otra condición (O) y listas de valores}
+Mercadotecnia quiere las ventas ``extremas'': las que tuvieron el descuento
+máximo (20\%) \emph{o} se llevaron 10 unidades. Y, aparte, las ventas de
+las cuatro tiendas de la CDMX (tiendas 1, 4, 6 y 9).
+\end{ejemplo}
+
+\begin{rcode}
+# O: basta con que se cumpla una de las dos condiciones
+ventas %>%
+  filter(descuento_pct == 20 | cantidad == 10) %>%
+  nrow()
+
+# %in%: la tienda está en la lista (más corto que cuatro "|")
+ventas_cdmx <- ventas %>%
+  filter(tienda_id %in% c(1, 4, 6, 9))
+nrow(ventas_cdmx)
+\end{rcode}
+\begin{rsalida}
+[1] 54
+[1] 135
+\end{rsalida}
+
+54 ventas cumplen al menos una de las dos condiciones ``extremas'', y
+135 ventas (más de un tercio del total) se hicieron en tiendas de la
+CDMX. Usa \codigo{\%in\%} siempre que compares contra una lista: es más
+legible y evitas errores como escribir
+\codigo{tienda\_id == 1 | 4}, que \emph{no} significa lo que parece.
+
+\begin{ejemplo}{Rangos de montos y de fechas}
+¿Cuántas ventas están en el rango medio, entre \$1,000 y \$2,000? ¿Qué se
+vendió durante El Buen Fin 2023 (del 17 al 20 de noviembre)?
+\end{ejemplo}
+
+\begin{rcode}
+# between() incluye ambos extremos: 1000 <= total <= 2000
+ventas %>%
+  filter(between(total, 1000, 2000)) %>%
+  nrow()
+
+# Con fechas: compara contra objetos Date, no contra texto
+ventas %>%
+  filter(fecha >= as.Date("2023-11-17"),
+         fecha <= as.Date("2023-11-20")) %>%
+  select(fecha, dia_semana, producto_id, cantidad, total)
+\end{rcode}
+\begin{rsalida}
+[1] 96
+# A tibble: 4 x 5
+  fecha      dia_semana producto_id cantidad total
+  <date>     <chr>            <dbl>    <dbl> <dbl>
+1 2023-11-17 viernes             39        7 1731.
+2 2023-11-18 sábado              30        7 2939.
+3 2023-11-19 domingo             31        5  142.
+4 2023-11-20 lunes               30        8 3358.
+\end{rsalida}
+
+96 ventas caen entre \$1,000 y \$2,000. Durante El Buen Fin hubo 4 ventas
+(recuerda que este archivo tiene una venta por día). Como la columna
+\codigo{fecha} es de tipo \texttt{<date>}, la comparamos con
+\codigo{as.Date("2023-11-17")}; así R compara fechas reales y no texto.
+
+\begin{ejemplo}{Negaciones y valores faltantes}
+¿Qué productos del catálogo están inactivos? Y en una tabla de metas de
+vendedores donde algunas metas aún no se capturan, ¿quiénes no tienen meta?
+\end{ejemplo}
+
+La columna \codigo{activo} ya es lógica (\codigo{TRUE}/\codigo{FALSE}), así
+que basta con negarla con \codigo{!}:
+
+\begin{rcode}
+productos %>%
+  filter(!activo) %>%                 # los que NO están activos
+  select(producto_id, nombre_producto, categoria, stock_actual)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 7 x 4
+  producto_id nombre_producto categoria  stock_actual
+        <dbl> <chr>           <chr>             <dbl>
+1           7 Producto 07     Deportes            123
+2          13 Producto 13     Ropa                177
+3          15 Producto 15     Mascotas            455
+4          25 Producto 25     Juguetes            429
+5          38 Producto 38     Alimentos           141
+6          39 Producto 39     Alimentos             8
+7          46 Producto 46     Automotriz          118
+\end{rsalida}
+
+Hay 7 productos inactivos, y casi todos tienen todavía más de 100
+unidades en almacén (el \emph{Producto 15}, 455): inventario inmovilizado,
+un buen tema para la junta de compras.
+
+Para ilustrar los faltantes creamos una tabla pequeña con
+\codigo{tibble()}. Cada argumento es una columna:
+
+\begin{rcode}
+metas <- tibble(
+  vendedor = c("Ana", "Luis", "Rosa", "Jorge", "Elena"),
+  meta     = c(50000, NA, 42000, NA, 61000)   # NA = aún no capturada
+)
+# filter() descarta en silencio las filas donde la condición es NA
+metas %>% filter(meta > 45000)
+# Para encontrar los faltantes usa is.na(), nunca meta == NA
+metas %>% filter(is.na(meta))
+\end{rcode}
+\begin{rsalida}
+# A tibble: 2 x 2
+  vendedor  meta
+  <chr>    <dbl>
+1 Ana      50000
+2 Elena    61000
+# A tibble: 2 x 2
+  vendedor  meta
+  <chr>    <dbl>
+1 Luis        NA
+2 Jorge       NA
+\end{rsalida}
+
+\begin{advertencia}
+\codigo{meta == NA} no funciona: cualquier comparación con \codigo{NA} da
+\codigo{NA} (``no sé''), y \codigo{filter()} descarta esas filas. Por eso
+Luis y Jorge no aparecieron en el primer filtro \emph{ni aparecerían} con
+\codigo{meta <= 45000}. Si necesitas conservarlos, sé explícito:
+\codigo{filter(meta > 45000 | is.na(meta))}.
+\end{advertencia}
+
+\begin{ejemplo}{Filtrar por un patrón de texto}
+En \codigo{transacciones}, ¿cuántas se pagaron con algún tipo de tarjeta?
+\end{ejemplo}
+
+La función \codigo{str\_detect()} de \paquete{stringr} devuelve
+\codigo{TRUE} si el texto contiene el patrón buscado. La veremos a fondo en
+la sección~\ref{sec:m2-stringr}.
+
+\begin{rcode}
+transacciones %>%
+  filter(str_detect(metodo_pago, "Tarjeta")) %>%  # contiene "Tarjeta"
+  count(metodo_pago)                              # cuántas de cada una
+\end{rcode}
+\begin{rsalida}
+# A tibble: 2 x 2
+  metodo_pago         n
+  <chr>           <int>
+1 Tarjeta Crédito   350
+2 Tarjeta Débito    233
+\end{rsalida}
+
+583 de las 1000 transacciones (350 + 233) se pagaron con tarjeta.
+La función \codigo{count()} cuenta filas por categoría; la estudiaremos en
+la sección~\ref{sec:m2-summarise}.
+
+\begin{hazlotu}
+Con \codigo{productos}: (a) filtra los de la categoría ``Electrónica'' con
+precio de catálogo mayor a \$400; (b) filtra los que están en
+``Stock Bajo'' o ``Sin Stock'' usando \codigo{\%in\%}; (c) cuenta cuántos
+clientes de \codigo{clientes} son premium y viven en Monterrey.
+\end{hazlotu}
+
+% ............................................................................
+\subsection{\texorpdfstring{\codigo{select()}}{select()}: elegir, quitar y renombrar columnas}
+\label{sec:m2-select}
+
+Las tablas reales tienen decenas de columnas y casi nunca las necesitas
+todas. \codigo{select()} se queda con las que le pidas, en el orden en que
+las pidas.
+
+\begin{ejemplo}{Una lista de precios para el equipo de ventas}
+El equipo de piso solo necesita el nombre, la categoría y el precio de cada
+producto; el costo es confidencial y no debe aparecer.
+\end{ejemplo}
+
+\begin{rcode}
+lista_precios <- productos %>%
+  select(nombre_producto, categoria, precio_catalogo)   # por nombre
+head(lista_precios, 4)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 3
+  nombre_producto categoria  precio_catalogo
+  <chr>           <chr>                <dbl>
+1 Producto 01     Juguetes              300.
+2 Producto 02     Belleza               313.
+3 Producto 03     Automotriz            400.
+4 Producto 04     Juguetes              744.
+\end{rsalida}
+
+También puedes seleccionar un \emph{rango} de columnas consecutivas con
+\codigo{:}, o \emph{quitar} columnas con un signo menos:
+
+\begin{rcode}
+# Rango: de fecha hasta cantidad (columnas consecutivas)
+ventas %>% select(fecha:cantidad) %>% names()
+
+# Quitar: todo menos las etiquetas de texto que no usaremos
+ventas %>% select(-dia_semana, -mes, -trimestre) %>% names()
+\end{rcode}
+\begin{rsalida}
+[1] "fecha"       "dia_semana"  "producto_id" "cliente_id" 
+[5] "cantidad"   
+ [1] "fecha"           "producto_id"     "cliente_id"     
+ [4] "cantidad"        "precio_unitario" "descuento_pct"  
+ [7] "tienda_id"       "vendedor_id"     "subtotal"       
+[10] "descuento_monto" "total"          
+\end{rsalida}
+
+La función \codigo{names()} devuelve los nombres de las columnas; aquí la
+usamos para mostrar el resultado de forma compacta.
+
+\subsubsection{Funciones auxiliares de selección}
+
+Cuando las columnas siguen una convención de nombres (como
+\texttt{\_id} al final de las llaves), las \termino{funciones auxiliares}
+(\emph{helpers}) te ahorran escribirlas una por una:
+
+\begin{rcode}
+# Todas las llaves: terminan en "_id"
+ventas %>% select(ends_with("_id")) %>% names()
+
+# Columnas de inventario: empiezan con "stock"
+productos %>% select(producto_id, starts_with("stock")) %>% head(3)
+
+# Columnas que contienen "fecha" en cualquier parte del nombre
+clientes %>% select(cliente_id, contains("fecha")) %>% head(3)
+
+# Solo las columnas numéricas (útil antes de calcular resúmenes)
+productos %>% select(where(is.numeric)) %>% names()
+\end{rcode}
+\begin{rsalida}
+[1] "producto_id" "cliente_id"  "tienda_id"   "vendedor_id"
+# A tibble: 3 x 3
+  producto_id stock_actual stock_minimo
+        <dbl>        <dbl>        <dbl>
+1           1          374           21
+2           2          371           46
+3           3           22           26
+# A tibble: 3 x 2
+  cliente_id fecha_registro
+       <dbl> <date>        
+1          1 2023-10-12    
+2          2 2020-01-30    
+3          3 2020-10-17    
+[1] "producto_id"     "precio_catalogo" "costo"          
+[4] "stock_actual"    "stock_minimo"    "margen_pct"     
+\end{rsalida}
+
+\codigo{where()} recibe una función que devuelve \codigo{TRUE} o
+\codigo{FALSE} para cada columna: \codigo{is.numeric}, \codigo{is.character},
+\codigo{is.logical}\ldots{} Otras auxiliares útiles son
+\codigo{everything()} (``todas las demás''), \codigo{matches()} (patrón de
+texto) y \codigo{any\_of()} (una lista de nombres que pueden no existir).
+
+\subsubsection{Renombrar y reacomodar: \texorpdfstring{\codigo{rename()}}{rename()} y \texorpdfstring{\codigo{relocate()}}{relocate()}}
+
+\codigo{rename()} cambia nombres sin quitar columnas; la sintaxis es
+\codigo{nuevo = viejo}. \codigo{relocate()} mueve columnas de lugar sin
+quitar ninguna.
+
+\begin{rcode}
+tiendas %>%
+  rename(tienda = nombre_tienda, m2 = tamano_m2) %>%  # nuevo = viejo
+  select(tienda_id, tienda, ciudad, m2) %>%
+  head(3)
+
+# Poner el total justo después de la fecha para leerlo más fácil
+ventas %>%
+  relocate(total, .after = fecha) %>%
+  head(3)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 4
+  tienda_id tienda          ciudad         m2
+      <dbl> <chr>           <chr>       <dbl>
+1         1 Sucursal Centro CDMX          500
+2         2 Sucursal Norte  Guadalajara   450
+3         3 Sucursal Sur    Monterrey     600
+# A tibble: 3 x 14
+  fecha      total dia_semana producto_id cliente_id cantidad
+  <date>     <dbl> <chr>            <dbl>      <dbl>    <dbl>
+1 2023-01-01 3333. domingo             31         94       10
+2 2023-01-02 2262  lunes               15        169        8
+3 2023-01-03  801. martes              14        136        3
+# i 8 more variables: precio_unitario <dbl>, descuento_pct <dbl>,
+#   tienda_id <dbl>, vendedor_id <dbl>, subtotal <dbl>,
+#   descuento_monto <dbl>, mes <chr>, trimestre <chr>
+\end{rsalida}
+
+\begin{consejo}
+Puedes renombrar dentro de \codigo{select()}:
+\codigo{select(tienda = nombre\_tienda, ciudad)} elige \emph{y} renombra en
+un paso. Y para mandar una columna al principio sin perder las demás, usa
+\codigo{select(total, everything())} o \codigo{relocate(total)}.
+\end{consejo}
+
+\begin{hazlotu}
+De \codigo{empleados}, arma una tabla con \codigo{empleado\_id}, el nombre
+renombrado como \codigo{vendedor}, y todas las columnas que empiecen con
+``salario''. Después usa \codigo{select(where(is.character))} para ver qué
+columnas de texto tiene la tabla.
+\end{hazlotu}
+
+% ............................................................................
+\subsection{\texorpdfstring{\codigo{mutate()}}{mutate()}: crear columnas calculadas}
+\label{sec:m2-mutate}
+
+\codigo{mutate()} agrega columnas nuevas (o reemplaza existentes) calculadas
+a partir de las demás. Es el equivalente a escribir una fórmula en una
+columna de Excel y arrastrarla hacia abajo, solo que se aplica a todas las
+filas de una vez y queda documentada en el código.
+
+\begin{ejemplo}{IVA y total con impuestos}
+Los montos de \codigo{ventas} no incluyen IVA. Contabilidad necesita, para
+cada venta, el IVA (16\%) y el total facturado.
+\end{ejemplo}
+
+\begin{rcode}
+ventas %>%
+  mutate(
+    iva            = total * 0.16,        # 16% sobre el total
+    total_con_iva  = total + iva          # usa la columna recién creada
+  ) %>%
+  select(fecha, subtotal, descuento_monto, total, iva, total_con_iva) %>%
+  head(4)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 6
+  fecha      subtotal descuento_monto total   iva total_con_iva
+  <date>        <dbl>           <dbl> <dbl> <dbl>         <dbl>
+1 2023-01-01    3508.           175.  3333. 533.          3866.
+2 2023-01-02    2262              0   2262  362.          2624.
+3 2023-01-03     890.            89.0  801. 128.           929.
+4 2023-01-04     445.             0    445.  71.2          516.
+\end{rsalida}
+
+Observa dos cosas. Dentro del mismo \codigo{mutate()} puedes usar una
+columna que acabas de crear (\codigo{total\_con\_iva} usa \codigo{iva}). Y la
+primera venta: subtotal de \$3,507.90 menos \$175.40 de descuento da
+\$3,332.50; con IVA, \$3,865.71.
+
+\begin{ejemplo}{¿Qué tan rentable es cada producto?}
+Con el catálogo, calcula el margen bruto en pesos y en porcentaje, y
+ordena del menos al más rentable.
+\end{ejemplo}
+
+\begin{rcode}
+productos %>%
+  mutate(
+    margen_pesos = precio_catalogo - costo,
+    margen_calc  = round(margen_pesos / precio_catalogo * 100, 1)
+  ) %>%
+  select(nombre_producto, precio_catalogo, costo,
+         margen_pesos, margen_calc) %>%
+  arrange(margen_calc) %>%            # del menor al mayor margen
+  head(5)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 5 x 5
+  nombre_producto precio_catalogo costo margen_pesos margen_calc
+  <chr>                     <dbl> <dbl>        <dbl>       <dbl>
+1 Producto 05                25.5  355.       -329.      -1292. 
+2 Producto 46                64.5  178.       -113.       -175. 
+3 Producto 32               143.   210.        -67.0       -46.7
+4 Producto 26               115.   159.        -44.2       -38.3
+5 Producto 29               298.   392.        -93.9       -31.5
+\end{rsalida}
+
+\begin{negocio}{Tu primer hallazgo de calidad de datos}
+¡Hay productos que cuestan más de lo que se venden! El \emph{Producto 05}
+tiene un precio de catálogo de \$25.47 y un costo de \$354.63: un margen de
+$-1292$\%. Puede ser un error de captura (¿el precio debía ser \$254.70?) o un
+producto que se vende en promoción. Como analista, tu trabajo no es ocultarlo
+sino \emph{reportarlo}: en la sección~\ref{sec:m2-caso} contaremos cuántos
+productos están en esta situación.
+\end{negocio}
+
+\subsubsection{Condiciones: \texorpdfstring{\codigo{if\_else()}}{if\_else()} y \texorpdfstring{\codigo{case\_when()}}{case\_when()}}
+
+\codigo{if\_else(condición, valor\_si\_verdadero, valor\_si\_falso)} crea
+una columna con dos posibles valores, como la función \codigo{SI()} de
+Excel:
+
+\begin{rcode}
+ventas %>%
+  mutate(tipo_dia = if_else(dia_semana %in% c("sábado", "domingo"),
+                            "Fin de semana", "Entre semana")) %>%
+  count(tipo_dia)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 2 x 2
+  tipo_dia          n
+  <chr>         <int>
+1 Entre semana    260
+2 Fin de semana   105
+\end{rsalida}
+
+Cuando hay más de dos opciones, anidar \codigo{if\_else()} se vuelve
+ilegible. Para eso existe \codigo{case\_when()}: una lista de reglas
+\codigo{condición \textasciitilde{} valor} que se evalúan \emph{en orden}; a cada
+fila se le asigna el valor de la \emph{primera} regla que cumple.
+
+\begin{ejemplo}{Segmentar ventas por tamaño de ticket}
+Mercadotecnia quiere clasificar cada venta en cuatro segmentos: Chico
+(menos de \$500), Mediano (\$500 a \$1,499), Grande (\$1,500 a \$2,999) y
+Premium (\$3,000 o más). ¿Cuántas ventas y cuánto dinero hay en cada uno?
+\end{ejemplo}
+
+\begin{rcode}
+ventas_segmentadas <- ventas %>%
+  mutate(segmento_ticket = case_when(
+    total < 500   ~ "1. Chico",       # se evalúa primero
+    total < 1500  ~ "2. Mediano",     # solo si no fue Chico
+    total < 3000  ~ "3. Grande",
+    .default      = "4. Premium"      # todo lo demás
+  ))
+
+ventas_segmentadas %>%
+  group_by(segmento_ticket) %>%
+  summarise(ventas = n(), ingresos = sum(total))
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 3
+  segmento_ticket ventas ingresos
+  <chr>            <int>    <dbl>
+1 1. Chico            98   25588.
+2 2. Mediano         129  125261.
+3 3. Grande          101  227370.
+4 4. Premium          37  135697.
+\end{rsalida}
+
+Una lectura de negocio: los tickets Premium son solo 37 ventas (una de
+cada diez), pero generan \$135,697, más de cinco veces lo que dejan los 98
+tickets Chicos juntos (\$25,588). El segmento que más dinero aporta es el
+Grande (\$227,370). La estrategia comercial debe cuidar a los tickets
+altos. (Adelantamos
+\codigo{group\_by()} y \codigo{summarise()}, que veremos en detalle muy
+pronto.)
+
+\begin{consejo}
+Pon un número al inicio de cada etiqueta (``1. Chico'', ``2. Mediano''\ldots)
+y los grupos aparecerán en orden lógico y no alfabético. El argumento
+\codigo{.default} (dplyr 1.1 o posterior) asigna un valor a todo lo que no
+cumplió ninguna regla; en código antiguo verás \codigo{TRUE \textasciitilde{} "Premium"},
+que hace lo mismo.
+\end{consejo}
+
+\subsubsection{Varias columnas a la vez: \texorpdfstring{\codigo{across()}}{across()}}
+
+Si quieres aplicar la misma operación a varias columnas, no repitas el
+código: usa \codigo{across(columnas, función)}. Las columnas se eligen con
+la misma sintaxis de \codigo{select()}.
+
+\begin{rcode}
+# Redondear a 0 decimales las tres columnas de dinero
+ventas %>%
+  mutate(across(c(subtotal, descuento_monto, total), round)) %>%
+  select(fecha, subtotal, descuento_monto, total) %>%
+  head(3)
+
+# Con una función "al vuelo": ~ .x indica "cada columna"
+productos %>%
+  mutate(across(c(precio_catalogo, costo), ~ .x * 1.16,
+                .names = "{.col}_con_iva")) %>%
+  select(nombre_producto, ends_with("_con_iva")) %>%
+  head(3)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 4
+  fecha      subtotal descuento_monto total
+  <date>        <dbl>           <dbl> <dbl>
+1 2023-01-01     3508             175  3333
+2 2023-01-02     2262               0  2262
+3 2023-01-03      890              89   801
+# A tibble: 3 x 3
+  nombre_producto precio_catalogo_con_iva costo_con_iva
+  <chr>                             <dbl>         <dbl>
+1 Producto 01                        348.          338.
+2 Producto 02                        363.          463.
+3 Producto 03                        464.          341.
+\end{rsalida}
+
+La notación \codigo{\textasciitilde{} .x * 1.16} es una \termino{función anónima}: una
+fórmula corta donde \codigo{.x} representa cada columna. El argumento
+\codigo{.names} controla el nombre de las columnas nuevas
+(\codigo{\{.col\}} es el nombre original); sin él, \codigo{across()}
+sobrescribe las columnas originales.
+
+\subsubsection{Conservar solo lo calculado: \texorpdfstring{\codigo{.keep}}{.keep} y \texorpdfstring{\codigo{transmute()}}{transmute()}}
+
+Por defecto, \codigo{mutate()} conserva todas las columnas. Con el argumento
+\codigo{.keep} decides qué más se queda: \codigo{"used"} (solo las columnas
+usadas en el cálculo) o \codigo{"none"} (solo las nuevas). La antigua función
+\codigo{transmute()} equivale a \codigo{.keep = "none"}.
+
+\begin{rcode}
+# Solo las columnas que participaron en el cálculo, más la nueva
+ventas %>%
+  mutate(precio_neto = total / cantidad, .keep = "used") %>%
+  head(3)
+
+# Solo las nuevas (equivalente a transmute())
+ventas %>%
+  mutate(anio = str_sub(mes, 1, 4), ticket = round(total),
+         .keep = "none") %>%
+  head(3)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 3
+  cantidad total precio_neto
+     <dbl> <dbl>       <dbl>
+1       10 3333.        333.
+2        8 2262         283.
+3        3  801.        267.
+# A tibble: 3 x 2
+  anio  ticket
+  <chr>  <dbl>
+1 2023    3333
+2 2023    2262
+3 2023     801
+\end{rsalida}
+
+\begin{advertencia}
+\codigo{mutate()} no modifica \codigo{ventas}: devuelve una copia con la
+columna nueva. Si ejecutas \codigo{ventas \%>\% mutate(iva = total * 0.16)}
+y luego buscas \codigo{ventas\$iva}, no existirá. Para conservarla escribe
+\codigo{ventas <- ventas \%>\% mutate(\ldots)} o, mejor, guarda el resultado
+en un objeto con otro nombre y deja intacta la tabla original.
+\end{advertencia}
+
+\begin{hazlotu}
+En \codigo{clientes}, crea una columna \codigo{rango\_edad} con
+\codigo{case\_when()}: ``18--29'', ``30--44'', ``45--59'' y ``60+''. Cuenta
+cuántos clientes hay en cada rango. Pista: termina con
+\codigo{count(rango\_edad)}.
+\end{hazlotu}
+
+% ............................................................................
+\subsection{\texorpdfstring{\codigo{arrange()}}{arrange()} y la familia \texorpdfstring{\codigo{slice\_*()}}{slice\_*()}: ordenar y quedarse con el top}
+\label{sec:m2-arrange}
+
+\codigo{arrange()} ordena las filas de menor a mayor (orden ascendente). Para
+ordenar de mayor a menor, envuelve la columna en \codigo{desc()}. Si le das
+varias columnas, ordena por la primera y usa las siguientes para desempatar.
+
+\begin{ejemplo}{Los productos más caros y las tiendas por ciudad}
+¿Cuáles son los cinco productos con mayor precio de catálogo? ¿Cómo quedan
+las tiendas ordenadas por ciudad y, dentro de cada ciudad, de la más grande
+a la más chica?
+\end{ejemplo}
+
+\begin{rcode}
+productos %>%
+  arrange(desc(precio_catalogo)) %>%    # de mayor a menor
+  select(nombre_producto, categoria, precio_catalogo) %>%
+  head(5)
+
+tiendas %>%
+  arrange(ciudad, desc(tamano_m2)) %>%  # ciudad A-Z; luego m2 desc.
+  select(ciudad, nombre_tienda, tamano_m2)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 5 x 3
+  nombre_producto categoria   precio_catalogo
+  <chr>           <chr>                 <dbl>
+1 Producto 28     Mascotas               774.
+2 Producto 47     Automotriz             766.
+3 Producto 41     Electrónica            757.
+4 Producto 04     Juguetes               744.
+5 Producto 20     Belleza                742.
+# A tibble: 10 x 3
+   ciudad      nombre_tienda    tamano_m2
+   <chr>       <chr>                <dbl>
+ 1 CDMX        Sucursal Premium       800
+ 2 CDMX        Sucursal Plaza A       700
+ 3 CDMX        Sucursal Centro        500
+ 4 CDMX        Sucursal Este          400
+ 5 Guadalajara Sucursal Plaza B       480
+ 6 Guadalajara Sucursal Norte         450
+ 7 Monterrey   Sucursal Sur           600
+ 8 Puebla      Sucursal Oeste         550
+ 9 Querétaro   Sucursal Express       300
+10 Tijuana     Sucursal Outlet        350
+\end{rsalida}
+
+La CDMX tiene cuatro tiendas y la más grande es la \emph{Sucursal Premium},
+con 800~m$^2$. Observa que el texto se ordena alfabéticamente respetando los
+acentos del español (según la configuración regional de tu computadora).
+
+Para quedarte con las primeras o las últimas filas existe la familia
+\codigo{slice\_*()}:
+
+\begin{itemize}
+  \item \codigo{slice\_head(n = 3)} y \codigo{slice\_tail(n = 3)}: las
+        primeras o las últimas 3 filas, en el orden actual.
+  \item \codigo{slice\_max(columna, n = 5)} y
+        \codigo{slice\_min(columna, n = 5)}: las 5 filas con los valores más
+        altos o más bajos de una columna. No necesitas ordenar antes.
+  \item \codigo{slice\_sample(n = 10)}: 10 filas al azar (útil para
+        auditorías; recuerda fijar la semilla con \codigo{set.seed()}).
+\end{itemize}
+
+\begin{rcode}
+# Top 3 ventas del año por monto
+ventas %>%
+  slice_max(total, n = 3) %>%
+  select(fecha, tienda_id, total)
+
+# Los 3 productos más baratos
+productos %>%
+  slice_min(precio_catalogo, n = 3) %>%
+  select(nombre_producto, precio_catalogo)
+
+# Una muestra aleatoria de 3 ventas para auditar
+set.seed(123)
+ventas %>%
+  slice_sample(n = 3) %>%
+  select(fecha, producto_id, total)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 3
+  fecha      tienda_id total
+  <date>         <dbl> <dbl>
+1 2023-07-24         8 4950.
+2 2023-04-21         2 4925.
+3 2023-09-04         6 4875.
+# A tibble: 3 x 2
+  nombre_producto precio_catalogo
+  <chr>                     <dbl>
+1 Producto 05                25.5
+2 Producto 38                36.6
+3 Producto 40                50.1
+# A tibble: 3 x 3
+  fecha      producto_id total
+  <date>           <dbl> <dbl>
+1 2023-06-28          20 1993.
+2 2023-01-14          27  982.
+3 2023-07-14          14  897.
+\end{rsalida}
+
+\subsubsection{Top-N por grupo}
+
+La verdadera potencia de \codigo{slice\_max()} aparece cuando la combinas con
+\codigo{group\_by()}: obtienes el top-N \emph{de cada grupo} en una sola
+instrucción. En Excel esto requiere fórmulas complicadas o filtros manuales
+grupo por grupo.
+
+\begin{ejemplo}{La mejor venta de cada trimestre y el producto más caro de cada categoría}
+El director quiere, para su presentación, la venta más grande de cada
+trimestre. Compras quiere saber cuál es el producto más caro de cada
+categoría.
+\end{ejemplo}
+
+\begin{rcode}
+# La venta más grande de cada trimestre
+ventas %>%
+  group_by(trimestre) %>%
+  slice_max(total, n = 1) %>%
+  ungroup() %>%
+  select(trimestre, fecha, tienda_id, total)
+
+# El producto más caro de cada categoría
+productos %>%
+  group_by(categoria) %>%
+  slice_max(precio_catalogo, n = 1) %>%
+  ungroup() %>%
+  select(categoria, nombre_producto, precio_catalogo)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 4
+  trimestre fecha      tienda_id total
+  <chr>     <date>         <dbl> <dbl>
+1 Q1        2023-02-15         8 4638.
+2 Q2        2023-04-21         2 4925.
+3 Q3        2023-07-24         8 4950.
+4 Q4        2023-12-01         7 4255.
+# A tibble: 10 x 3
+   categoria   nombre_producto precio_catalogo
+   <chr>       <chr>                     <dbl>
+ 1 Alimentos   Producto 33                683.
+ 2 Automotriz  Producto 47                766.
+ 3 Belleza     Producto 20                742.
+ 4 Deportes    Producto 19                583.
+ 5 Electrónica Producto 41                757.
+ 6 Hogar       Producto 10                691.
+ 7 Juguetes    Producto 04                744.
+ 8 Libros      Producto 35                696.
+ 9 Mascotas    Producto 28                774.
+10 Ropa        Producto 42                368.
+\end{rsalida}
+
+\codigo{group\_by()} parte la tabla en grupos y \codigo{slice\_max()} se
+aplica dentro de cada uno. Al final, \codigo{ungroup()} quita la agrupación
+para que no afecte los pasos siguientes (lo explicamos en la próxima
+sección). Si hubiera empates, \codigo{slice\_max()} devolvería todas las
+filas empatadas; agrega \codigo{with\_ties = FALSE} si necesitas exactamente
+\codigo{n} filas.
+
+\begin{hazlotu}
+Obtén las 2 ventas con más unidades (\codigo{cantidad}) de \emph{cada}
+tienda. ¿Cuántas filas esperas? ¿Cuántas obtienes? Si no coinciden,
+explica por qué y prueba con \codigo{with\_ties = FALSE}.
+\end{hazlotu}
+
+% ............................................................................
+\subsection{\texorpdfstring{\codigo{summarise()}}{summarise()} y \texorpdfstring{\codigo{group\_by()}}{group\_by()}: de miles de filas a un KPI}
+\label{sec:m2-summarise}
+
+\codigo{summarise()} (o \codigo{summarize()}, ambas funcionan) reduce muchas
+filas a una sola fila de resultados. Dentro usas \termino{funciones de
+resumen}: reciben un vector de muchos valores y devuelven uno solo.
+
+\begin{table}[H]
+\centering
+\caption{Funciones de resumen más usadas en BI.}
+\label{tab:m2-resumen-fun}
+\small
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+Función & Qué calcula \\
+\midrule
+\codigo{n()} & Número de filas (transacciones, registros) \\
+\codigo{n\_distinct(x)} & Número de valores distintos (clientes únicos, productos vendidos) \\
+\codigo{sum(x)} & Suma (ingresos, unidades) \\
+\codigo{mean(x)}, \codigo{median(x)} & Promedio y mediana (ticket promedio, ticket típico) \\
+\codigo{min(x)}, \codigo{max(x)} & Mínimo y máximo (primera y última compra, venta récord) \\
+\codigo{sd(x)} & Desviación estándar (qué tan variables son los valores) \\
+\codigo{first(x)}, \codigo{last(x)} & Primer y último valor según el orden actual \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{ejemplo}{El tablero de KPIs del año}
+La dirección quiere los indicadores clave de 2023 en una sola tabla:
+ingresos, número de ventas, unidades, ticket promedio y mediano, venta mínima
+y máxima, y clientes únicos.
+\end{ejemplo}
+
+\begin{rcode}
+kpis_2023 <- ventas %>%
+  summarise(
+    ingresos        = sum(total),
+    num_ventas      = n(),                    # cuenta filas
+    unidades        = sum(cantidad),
+    ticket_promedio = mean(total),
+    ticket_mediano  = median(total),
+    venta_minima    = min(total),
+    venta_maxima    = max(total),
+    clientes_unicos = n_distinct(cliente_id)  # clientes distintos
+  )
+glimpse(kpis_2023)
+\end{rcode}
+\begin{rsalida}
+Rows: 1
+Columns: 8
+$ ingresos        <dbl> 513916.6
+$ num_ventas      <int> 365
+$ unidades        <dbl> 2057
+$ ticket_promedio <dbl> 1407.991
+$ ticket_mediano  <dbl> 1103.67
+$ venta_minima    <dbl> 20.07
+$ venta_maxima    <dbl> 4950.3
+$ clientes_unicos <int> 172
+\end{rsalida}
+
+Usamos \codigo{glimpse()} porque la tabla tiene una sola fila y muchas
+columnas. En 2023 se vendieron \$513,916.60 en 365 ventas (2,057 unidades).
+El ticket promedio (\$1,408) es mayor que el mediano (\$1,103.67): unas cuantas
+ventas muy grandes ``jalan'' el promedio hacia arriba, algo muy común en
+ventas. Por eso en BI conviene reportar ambos. Además, 172 clientes
+distintos compraron al menos una vez.
+
+\subsubsection{Resumir por grupos}
+
+Sola, \codigo{summarise()} da un total general. Precedida de
+\codigo{group\_by()}, da un resumen \emph{por cada grupo}. Esta combinación
+sigue la estrategia \termino{dividir-aplicar-combinar}
+(figura~\ref{fig:m2-dac}): R divide la tabla según los valores de la columna
+de agrupación, aplica el resumen a cada pedazo y junta los resultados en una
+tabla nueva con una fila por grupo.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  celda/.style={draw=white, minimum width=1.25cm, minimum height=0.42cm,
+                font=\ttfamily\scriptsize, inner sep=1pt},
+  tit/.style={font=\sffamily\scriptsize\bfseries, text=gristexto},
+  flecha/.style={-{Stealth[length=2.2mm]}, thick, color=acento}]
+  % Tabla original
+  \node[tit] at (0.62,0.55) {ventas};
+  \foreach \tri/\val/\col [count=\i] in {Q1/100/primario,
+      Q2/250/secundario, Q1/300/primario, Q2/50/secundario,
+      Q1/200/primario}{
+    \node[celda, fill=\col!25] at (0,-\i*0.42) {\tri};
+    \node[celda, fill=\col!25] at (1.25,-\i*0.42) {\val};
+  }
+  % Dividir
+  \node[tit] at (4.2,0.55) {dividir (group\_by)};
+  \foreach \val [count=\i] in {100,300,200}{
+    \node[celda, fill=primario!25] at (3.6,-\i*0.42) {Q1};
+    \node[celda, fill=primario!25] at (4.85,-\i*0.42) {\val};
+  }
+  \foreach \val [count=\i] in {250,50}{
+    \node[celda, fill=secundario!25] at (3.6,-1.5-\i*0.42) {Q2};
+    \node[celda, fill=secundario!25] at (4.85,-1.5-\i*0.42) {\val};
+  }
+  % Aplicar
+  \node[tit] at (8.1,0.55) {aplicar (sum)};
+  \node[celda, fill=primario!25, minimum width=2.1cm] at (8.1,-0.84)
+       {sum = 600};
+  \node[celda, fill=secundario!25, minimum width=2.1cm] at (8.1,-2.34)
+       {sum = 300};
+  % Combinar
+  \node[tit] at (11.6,0.55) {combinar};
+  \node[celda, fill=gray!15, font=\ttfamily\scriptsize\bfseries]
+       at (11.0,-0.84) {trim.};
+  \node[celda, fill=gray!15, font=\ttfamily\scriptsize\bfseries]
+       at (12.25,-0.84) {ingresos};
+  \node[celda, fill=primario!25] at (11.0,-1.26) {Q1};
+  \node[celda, fill=primario!25] at (12.25,-1.26) {600};
+  \node[celda, fill=secundario!25] at (11.0,-1.68) {Q2};
+  \node[celda, fill=secundario!25] at (12.25,-1.68) {300};
+  % Flechas
+  \draw[flecha] (2.05,-1.26) -- (2.8,-1.26);
+  \draw[flecha] (5.65,-0.84) -- (6.9,-0.84);
+  \draw[flecha] (5.65,-2.34) -- (6.9,-2.34);
+  \draw[flecha] (9.3,-1.26) -- (10.2,-1.26);
+\end{tikzpicture}
+\caption{Dividir-aplicar-combinar: \codigo{group\_by(trimestre) \%>\%
+summarise(ingresos = sum(total))}.}
+\label{fig:m2-dac}
+\end{figure}
+
+\begin{ejemplo}{Ventas por trimestre}
+¿Cómo se comportaron las ventas en cada trimestre? ¿Cuál fue el mejor?
+\end{ejemplo}
+
+\begin{rcode}
+ventas %>%
+  group_by(trimestre) %>%                 # un grupo por trimestre
+  summarise(
+    ingresos        = sum(total),
+    num_ventas      = n(),
+    ticket_promedio = mean(total)
+  )
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 4
+  trimestre ingresos num_ventas ticket_promedio
+  <chr>        <dbl>      <int>           <dbl>
+1 Q1         126274.         90           1403.
+2 Q2         120717.         91           1327.
+3 Q3         134427.         92           1461.
+4 Q4         132498.         92           1440.
+\end{rsalida}
+
+El tercer trimestre (julio a septiembre) fue el mejor, con \$134,427, y el
+segundo el más flojo (\$120,717). Como todos los trimestres tienen casi el
+mismo número de ventas (entre 90 y 92), la diferencia viene del ticket
+promedio: \$1,461 en el Q3 contra \$1,327 en el Q2.
+
+\begin{ejemplo}{Ranking de tiendas}
+¿Qué tienda vende más? Queremos ingresos, número de ventas, unidades y
+ticket promedio por tienda, de mayor a menor.
+\end{ejemplo}
+
+\begin{rcode}
+ventas_tienda <- ventas %>%
+  group_by(tienda_id) %>%
+  summarise(
+    ingresos        = sum(total),
+    num_ventas      = n(),
+    unidades        = sum(cantidad),
+    ticket_promedio = round(mean(total), 2)
+  ) %>%
+  arrange(desc(ingresos))                 # la mejor tienda primero
+ventas_tienda
+\end{rcode}
+\begin{rsalida}
+# A tibble: 10 x 5
+   tienda_id ingresos num_ventas unidades ticket_promedio
+       <dbl>    <dbl>      <int>    <dbl>           <dbl>
+ 1         8   70155.         47      246           1493.
+ 2         9   61369.         46      260           1334.
+ 3         7   55290.         37      209           1494.
+ 4         2   54846.         38      198           1443.
+ 5         3   54066.         37      222           1461.
+ 6         6   54050.         34      219           1590.
+ 7         5   53611.         37      229           1449.
+ 8         1   43899.         32      169           1372.
+ 9        10   42171.         34      195           1240.
+10         4   24459.         23      110           1063.
+\end{rsalida}
+
+La tienda 8 lidera con \$70,155 y la tienda 4 es la última con \$24,459:
+apenas un tercio. El problema de la tienda 4 es doble: es la que menos
+ventas hizo (23) \emph{y} la de menor ticket promedio (\$1,063). En cambio,
+la tienda 6 tiene el ticket más alto (\$1,590) pero pocas ventas (34): su
+reto es atraer más tráfico, no vender más caro. Este tipo de lectura, que
+separa volumen (cuántas ventas) y valor (de cuánto cada una), es la esencia
+del análisis de BI.
+
+\subsubsection{Agrupar por varias columnas y el argumento \texorpdfstring{\codigo{.groups}}{.groups}}
+
+Puedes agrupar por más de una columna. Observa el mensaje que aparece:
+
+\begin{rcode}
+ventas_trim_tienda <- ventas %>%
+  group_by(trimestre, tienda_id) %>%
+  summarise(ingresos = sum(total))
+\end{rcode}
+\begin{rsalida}
+`summarise()` has grouped output by 'trimestre'. You can override
+using the `.groups` argument.
+\end{rsalida}
+
+No es un error. \paquete{dplyr} te avisa que el resultado \emph{sigue
+agrupado} por \codigo{trimestre}: cada \codigo{summarise()} ``pela'' solo el
+último nivel de agrupación. Esto importa porque cualquier cálculo posterior
+se hará por trimestre. Para no llevarte sorpresas, di explícitamente qué
+quieres con \codigo{.groups}:
+
+\begin{rcode}
+ventas_trim_tienda <- ventas %>%
+  group_by(trimestre, tienda_id) %>%
+  summarise(ingresos = sum(total), .groups = "drop")  # sin grupos
+ventas_trim_tienda
+\end{rcode}
+\begin{rsalida}
+# A tibble: 40 x 3
+   trimestre tienda_id ingresos
+   <chr>         <dbl>    <dbl>
+ 1 Q1                1   16711.
+ 2 Q1                2   10435.
+ 3 Q1                3   11878.
+ 4 Q1                4    5750.
+ 5 Q1                5   14250.
+ 6 Q1                6   13988.
+...
+\end{rsalida}
+
+\codigo{.groups = "drop"} quita todos los grupos (lo más seguro y lo que
+usaremos casi siempre); \codigo{.groups = "keep"} los conserva todos. El
+resultado tiene 40 filas: 4 trimestres $\times$ 10 tiendas.
+
+\begin{consejo}
+Desde \paquete{dplyr} 1.1 existe una alternativa más corta: el argumento
+\codigo{.by} agrupa \emph{solo} para esa operación y devuelve siempre una
+tabla sin grupos. \codigo{summarise(ingresos = sum(total), .by =
+c(trimestre, tienda\_id))} equivale al código anterior. Verás ambas formas
+en código real; en este libro usamos \codigo{group\_by()} porque es la más
+difundida.
+\end{consejo}
+
+\subsubsection{Contar rápido con \texorpdfstring{\codigo{count()}}{count()}}
+
+Contar filas por grupo es tan común que tiene su propio atajo:
+\codigo{count(x)} equivale a \codigo{group\_by(x) \%>\% summarise(n = n())}.
+Acepta \codigo{sort = TRUE} para ordenar de mayor a menor y \codigo{wt}
+(\emph{weight}, peso) para \emph{sumar} una columna en lugar de contar filas.
+
+\begin{rcode}
+# ¿Cuántas transacciones por método de pago?
+transacciones %>% count(metodo_pago, sort = TRUE)
+
+# Con wt: suma el total en vez de contar filas
+transacciones %>%
+  count(metodo_pago, wt = total_transaccion, sort = TRUE,
+        name = "ingresos")
+
+# Dos columnas: combinaciones de tienda y método de pago
+transacciones %>% count(tienda_id, metodo_pago) %>% head(5)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 2
+  metodo_pago         n
+  <chr>           <int>
+1 Tarjeta Crédito   350
+2 Efectivo          315
+3 Tarjeta Débito    233
+4 Transferencia     102
+# A tibble: 4 x 2
+  metodo_pago     ingresos
+  <chr>              <dbl>
+1 Tarjeta Crédito  351171.
+2 Efectivo         303735.
+3 Tarjeta Débito   220855.
+4 Transferencia     84232.
+# A tibble: 5 x 3
+  tienda_id metodo_pago         n
+      <dbl> <chr>           <int>
+1         1 Efectivo           26
+2         1 Tarjeta Crédito    37
+3         1 Tarjeta Débito     14
+4         1 Transferencia      10
+5         2 Efectivo           36
+\end{rsalida}
+
+La tarjeta de crédito es el método más frecuente (350 transacciones) y
+también el que más dinero mueve (\$351,171). El argumento \codigo{name}
+cambia el nombre de la columna de conteo, que por defecto se llama
+\codigo{n}.
+
+\subsubsection{Porcentaje del total dentro de cada grupo}
+
+Una pregunta clásica: ``¿qué porcentaje representa cada cosa \emph{dentro}
+de su grupo?''. La receta es: primero resumes con \codigo{summarise()} y
+después, con el resultado todavía agrupado por el nivel superior, calculas
+el porcentaje con \codigo{mutate()}.
+
+\begin{ejemplo}{Mezcla de métodos de pago por trimestre}
+Finanzas negocia las comisiones bancarias y quiere saber qué porcentaje de
+los ingresos de cada trimestre entró por cada método de pago.
+\end{ejemplo}
+
+\begin{rcode}
+mezcla_pago <- transacciones %>%
+  group_by(trimestre, metodo_pago) %>%
+  summarise(ingresos = sum(total_transaccion),
+            .groups = "drop_last") %>%   # queda agrupado por trimestre
+  mutate(pct_trimestre = round(ingresos / sum(ingresos) * 100, 1)) %>%
+  ungroup()                               # quitamos el último grupo
+mezcla_pago %>% filter(trimestre %in% c("Q1", "Q4"))
+\end{rcode}
+\begin{rsalida}
+# A tibble: 8 x 4
+  trimestre metodo_pago     ingresos pct_trimestre
+  <chr>     <chr>              <dbl>         <dbl>
+1 Q1        Efectivo          80565.          33.7
+2 Q1        Tarjeta Crédito   88269.          36.9
+3 Q1        Tarjeta Débito    51032.          21.3
+4 Q1        Transferencia     19524.           8.2
+5 Q4        Efectivo          78777.          31.9
+6 Q4        Tarjeta Crédito   87412.          35.4
+7 Q4        Tarjeta Débito    59178.          24  
+8 Q4        Transferencia     21537.           8.7
+\end{rsalida}
+
+Con \codigo{.groups = "drop\_last"} el resultado queda agrupado por
+\codigo{trimestre}, así que \codigo{sum(ingresos)} dentro de
+\codigo{mutate()} es la suma \emph{de ese trimestre} y los porcentajes de
+cada trimestre suman 100. La tarjeta de débito ganó terreno: pasó de
+21.3\% de los ingresos en el Q1 a 24\% en el Q4, mientras que el efectivo
+bajó de 33.7\% a 31.9\%. Si hubieras quitado los grupos antes del \codigo{mutate()},
+\codigo{sum(ingresos)} sería el total del año y los porcentajes serían
+respecto al año completo: ambas preguntas son válidas, pero distintas.
+
+\subsubsection{Agrupar sin resumir: \texorpdfstring{\codigo{group\_by()}}{group\_by()} + \texorpdfstring{\codigo{mutate()}}{mutate()}}
+
+\codigo{group\_by()} también funciona con \codigo{mutate()}: en lugar de
+reducir cada grupo a una fila, conserva todas las filas y calcula dentro de
+cada grupo. Es perfecto para comparar cada registro contra el promedio de su
+grupo.
+
+\begin{ejemplo}{¿Qué ventas están muy por encima del promedio de su tienda?}
+Para detectar ventas atípicas no basta con compararlas contra el promedio
+general: una venta de \$3,000 puede ser normal en una tienda y excepcional
+en otra.
+\end{ejemplo}
+
+\begin{rcode}
+ventas_vs_tienda <- ventas %>%
+  group_by(tienda_id) %>%
+  mutate(
+    promedio_tienda = mean(total),              # promedio de SU tienda
+    veces_promedio  = round(total / promedio_tienda, 2)
+  ) %>%
+  ungroup()                                     # ¡no lo olvides!
+
+ventas_vs_tienda %>%
+  select(fecha, tienda_id, total, promedio_tienda, veces_promedio) %>%
+  slice_max(veces_promedio, n = 4)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 5
+  fecha      tienda_id total promedio_tienda veces_promedio
+  <date>         <dbl> <dbl>           <dbl>          <dbl>
+1 2023-04-21         2 4925.           1443.           3.41
+2 2023-07-24         8 4950.           1493.           3.32
+3 2023-02-16         9 4367.           1334.           3.27
+4 2023-02-15         8 4638.           1493.           3.11
+\end{rsalida}
+
+La venta del 21 de abril en la tienda 2 fue 3.41 veces el promedio de
+esa tienda: vale la pena confirmar que sea real. Observa que el resultado
+conserva las 365 filas; \codigo{mutate()} no resume, solo agrega columnas.
+
+\begin{advertencia}
+Una tabla agrupada \emph{recuerda} sus grupos. Si olvidas
+\codigo{ungroup()}, los pasos siguientes (un \codigo{mutate()}, un
+\codigo{slice\_max()}, un \codigo{summarise()}) se aplicarán grupo por grupo
+sin que te des cuenta. Cuando imprimas una tabla y veas una línea
+\texttt{\# Groups: tienda\_id [10]} debajo del encabezado, esa tabla sigue
+agrupada.
+\end{advertencia}
+
+\subsubsection{Valores faltantes en los resúmenes}
+
+Si una columna tiene aunque sea un \codigo{NA}, su suma y su promedio serán
+\codigo{NA}: R se niega a adivinar. Usa \codigo{na.rm = TRUE} para ignorar
+los faltantes, pero hazlo \emph{a conciencia} y reporta cuántos había.
+
+\begin{rcode}
+metas %>%
+  summarise(
+    suma_sin_na_rm  = sum(meta),               # NA "contagia"
+    suma_capturada  = sum(meta, na.rm = TRUE), # ignora los NA
+    metas_faltantes = sum(is.na(meta))         # cuántos NA hay
+  )
+\end{rcode}
+\begin{rsalida}
+# A tibble: 1 x 3
+  suma_sin_na_rm suma_capturada metas_faltantes
+           <dbl>          <dbl>           <int>
+1             NA         153000               2
+\end{rsalida}
+
+El truco \codigo{sum(is.na(x))} cuenta los faltantes: \codigo{is.na()}
+devuelve \codigo{TRUE}/\codigo{FALSE} y al sumar, cada \codigo{TRUE} vale 1.
+
+\begin{hazlotu}
+Con \codigo{transacciones}: (a) calcula por \codigo{dia\_semana} el número
+de transacciones, los ingresos y el ticket promedio, ordenado de mayor a
+menor ingreso; (b) con \codigo{count()} y \codigo{wt}, obtén los ingresos
+por tienda; (c) calcula qué porcentaje de las transacciones de cada tienda
+se pagó en efectivo.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Funciones de ventana para KPIs}
+\label{sec:m2-ventana}
+
+Las funciones de resumen (\codigo{sum()}, \codigo{mean()}\ldots) convierten
+muchos valores en uno. Las \termino{funciones de ventana} (\emph{window
+functions}) devuelven \emph{un valor por cada fila}, pero calculado mirando
+a otras filas: la anterior, la siguiente, todas las previas o todo el grupo.
+Con ellas se calculan casi todos los KPIs de tendencia de un tablero de BI.
+
+\begin{table}[H]
+\centering
+\caption{Funciones de ventana más útiles en BI.}
+\label{tab:m2-ventana}
+\small
+\begin{tabularx}{\textwidth}{@{}lXl@{}}
+\toprule
+Función & Qué devuelve & KPI típico \\
+\midrule
+\codigo{lag(x)} & El valor de la fila anterior & Crecimiento mes contra mes \\
+\codigo{lead(x)} & El valor de la fila siguiente & Comparar con el periodo siguiente \\
+\codigo{cumsum(x)} & Suma acumulada & Acumulado del año (YTD) \\
+\codigo{row\_number()} & Posición 1, 2, 3\ldots{} sin empates & Numerar filas \\
+\codigo{min\_rank()} & Ranking con huecos tras empates (1, 2, 2, 4) & Ranking de tiendas \\
+\codigo{dense\_rank()} & Ranking sin huecos (1, 2, 2, 3) & Niveles de precio \\
+\codigo{x / sum(x)} & Proporción de cada fila en el total & Participación de mercado \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Primero construimos la serie mensual de ingresos: una fila por mes.
+
+\begin{rcode}
+ventas_mensuales <- ventas %>%
+  group_by(mes) %>%
+  summarise(ingresos = sum(total), num_ventas = n(),
+            .groups = "drop") %>%
+  arrange(mes)                  # ¡las ventanas dependen del orden!
+\end{rcode}
+
+\subsection{Crecimiento mes contra mes (MoM) y acumulado del año (YTD)}
+
+El \termino{crecimiento mes contra mes} (MoM, \emph{month over month}) mide
+cuánto cambió un indicador respecto al mes anterior:
+\[
+\text{MoM} = \left(\frac{\text{ingresos del mes}}{\text{ingresos del mes
+anterior}} - 1\right) \times 100 .
+\]
+El \termino{acumulado del año} (YTD, \emph{year to date}) es la suma de
+todos los meses del año hasta el mes actual.
+
+\begin{rcode}
+kpis_mensuales <- ventas_mensuales %>%
+  mutate(
+    mes_anterior = lag(ingresos),                    # fila previa
+    mom_pct      = (ingresos / lag(ingresos) - 1) * 100,
+    ytd          = cumsum(ingresos)                  # acumulado
+  )
+
+kpis_mensuales %>%
+  mutate(across(where(is.numeric), ~ round(.x, 1))) %>%
+  select(mes, ingresos, mes_anterior, mom_pct, ytd)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 12 x 5
+   mes     ingresos mes_anterior mom_pct     ytd
+   <chr>      <dbl>        <dbl>   <dbl>   <dbl>
+ 1 2023-01   46884.          NA     NA    46884.
+ 2 2023-02   42656.       46884.    -9    89540.
+ 3 2023-03   36734.       42656.   -13.9 126274.
+ 4 2023-04   34738.       36734.    -5.4 161012.
+ 5 2023-05   48108.       34738.    38.5 209120.
+ 6 2023-06   37871.       48108.   -21.3 246991.
+ 7 2023-07   54056.       37871.    42.7 301047.
+ 8 2023-08   41421        54056.   -23.4 342468.
+ 9 2023-09   38950.       41421     -6   381418.
+10 2023-10   36584.       38950.    -6.1 418002.
+11 2023-11   50398.       36584.    37.8 468400.
+12 2023-12   45516.       50398.    -9.7 513917.
+\end{rsalida}
+
+¿Qué nos dice esto? Enero no tiene mes anterior dentro de los datos, por eso
+\codigo{lag()} devuelve \codigo{NA} y el crecimiento también: es correcto,
+no un error. El mayor crecimiento fue en julio (42.7\% contra junio) y la
+peor caída en agosto ($-23.4$\%). Nota el patrón de ``serrucho'': a cada
+mes fuerte le sigue uno débil. La columna \codigo{ytd} muestra que al cierre
+de junio se llevaban \$246,991 (48\% del año) y el año cerró en
+\$513,916.60.
+
+\begin{advertencia}
+\codigo{lag()} toma ``la fila de arriba'', no ``el mes anterior''. Si la
+tabla no está ordenada por mes, o si falta un mes, el cálculo será
+incorrecto sin ningún aviso. Por eso ordenamos con \codigo{arrange(mes)}
+antes, y en la sección~\ref{sec:m2-complete} verás cómo rellenar los meses
+faltantes con \codigo{complete()}. Para una serie con fechas desordenadas
+puedes usar \codigo{lag(ingresos, order\_by = mes)}.
+\end{advertencia}
+
+\subsection{Participación y promedio móvil}
+
+La \termino{participación} de cada mes es su porcentaje del total anual. El
+\termino{promedio móvil} de 3 meses suaviza los altibajos: en cada mes
+promedia ese mes y los dos anteriores, y deja ver la tendencia de fondo.
+\codigo{lag(x, 2)} es el valor de dos filas atrás.
+
+\begin{rcode}
+kpis_mensuales <- kpis_mensuales %>%
+  mutate(
+    participacion = ingresos / sum(ingresos) * 100,
+    prom_movil_3m = (ingresos + lag(ingresos) + lag(ingresos, 2)) / 3,
+    vs_siguiente  = lead(ingresos) - ingresos     # ¿el mes que sigue?
+  )
+
+kpis_mensuales %>%
+  mutate(across(where(is.numeric), ~ round(.x, 1))) %>%
+  select(mes, ingresos, participacion, prom_movil_3m, vs_siguiente)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 12 x 5
+   mes     ingresos participacion prom_movil_3m vs_siguiente
+   <chr>      <dbl>         <dbl>         <dbl>        <dbl>
+ 1 2023-01   46884.           9.1           NA        -4228.
+ 2 2023-02   42656.           8.3           NA        -5923.
+ 3 2023-03   36734.           7.1        42091.       -1996.
+ 4 2023-04   34738.           6.8        38042.       13370.
+ 5 2023-05   48108.           9.4        39860.      -10238.
+ 6 2023-06   37871.           7.4        40239        16185.
+ 7 2023-07   54056.          10.5        46678.      -12635.
+ 8 2023-08   41421            8.1        44449.       -2471.
+ 9 2023-09   38950.           7.6        44809.       -2366 
+10 2023-10   36584.           7.1        38985.       13814.
+11 2023-11   50398.           9.8        41977.       -4882.
+12 2023-12   45516.           8.9        44166.          NA 
+\end{rsalida}
+
+Cada mes aporta entre 6.8\% (abril) y 10.5\% (julio) de las ventas del
+año. El promedio móvil empieza en marzo (necesita tres meses) y se mueve
+entre \$38,042 y \$46,678: un rango mucho más estrecho que el de los
+ingresos mensuales, que van de \$34,738 a \$54,056. Es decir, detrás de la volatilidad mensual el negocio
+es bastante estable. La columna \codigo{vs\_siguiente}, calculada con
+\codigo{lead()}, es \codigo{NA} en diciembre porque no hay mes siguiente.
+
+\subsection{Rankings}
+
+Hay tres funciones de ranking y se diferencian en cómo tratan los empates.
+Míralo con un ejemplo pequeño:
+
+\begin{rcode}
+tibble(vendedor = c("Ana", "Beto", "Caro", "Dani", "Eva"),
+       ventas   = c(900, 700, 700, 500, 300)) %>%
+  mutate(
+    row_number = row_number(desc(ventas)),  # 1,2,3,4,5 (sin empates)
+    min_rank   = min_rank(desc(ventas)),    # 1,2,2,4,5 (con hueco)
+    dense_rank = dense_rank(desc(ventas))   # 1,2,2,3,4 (sin hueco)
+  )
+\end{rcode}
+\begin{rsalida}
+# A tibble: 5 x 5
+  vendedor ventas row_number min_rank dense_rank
+  <chr>     <dbl>      <int>    <int>      <int>
+1 Ana         900          1        1          1
+2 Beto        700          2        2          2
+3 Caro        700          3        2          2
+4 Dani        500          4        4          3
+5 Eva         300          5        5          4
+\end{rsalida}
+
+Usamos \codigo{desc()} para que el valor más alto reciba el lugar 1.
+\codigo{min\_rank()} es el ranking ``deportivo'' (dos segundos lugares y
+nadie en tercero) y es el más usado en reportes.
+
+\begin{ejemplo}{Las 3 mejores tiendas de cada trimestre}
+Recursos Humanos quiere premiar cada trimestre a las tres tiendas con más
+ingresos. ¿Cuáles son y repiten las mismas?
+\end{ejemplo}
+
+\begin{rcode}
+podio_trimestral <- ventas_trim_tienda %>%     # la calculamos antes
+  group_by(trimestre) %>%
+  mutate(lugar = min_rank(desc(ingresos))) %>% # ranking por trimestre
+  filter(lugar <= 3) %>%
+  arrange(trimestre, lugar) %>%
+  ungroup()
+podio_trimestral
+\end{rcode}
+\begin{rsalida}
+# A tibble: 12 x 4
+   trimestre tienda_id ingresos lugar
+   <chr>         <dbl>    <dbl> <int>
+ 1 Q1                8   17226.     1
+ 2 Q1                1   16711.     2
+ 3 Q1                9   16706.     3
+ 4 Q2                2   20947.     1
+ 5 Q2                8   19290.     2
+ 6 Q2                3   14997.     3
+ 7 Q3                9   19581.     1
+ 8 Q3                6   18015.     2
+ 9 Q3                2   16639.     3
+10 Q4                5   19978.     1
+11 Q4                8   18245.     2
+12 Q4                1   14823.     3
+\end{rsalida}
+
+La tienda 8 subió al podio en tres de los cuatro trimestres: es la más
+consistente. Más interesante es la tienda 1: en el ranking anual quedó en
+octavo lugar, pero estuvo en el podio del Q1 y del Q4. Sus problemas se
+concentran a mitad de año, algo que el total anual escondía. Observa también
+que \codigo{min\_rank()} dentro de \codigo{group\_by(trimestre)} reinicia el
+ranking en cada trimestre.
+
+\begin{ejemplo}{Análisis ABC (Pareto) de productos}
+El principio de Pareto dice que pocos productos generan la mayor parte de las
+ventas. El \termino{análisis ABC} clasifica los productos en: \textbf{A}, los
+que acumulan el primer 80\% de los ingresos; \textbf{B}, el siguiente 15\%;
+y \textbf{C}, el último 5\%. ¿Cuántos productos hay en cada clase?
+\end{ejemplo}
+
+\begin{rcode}
+abc_productos <- ventas %>%
+  group_by(producto_id) %>%
+  summarise(ingresos = sum(total), .groups = "drop") %>%
+  arrange(desc(ingresos)) %>%                    # del mejor al peor
+  mutate(
+    pct_acumulado = cumsum(ingresos) / sum(ingresos) * 100,
+    clase = case_when(
+      pct_acumulado <= 80 ~ "A",
+      pct_acumulado <= 95 ~ "B",
+      .default            = "C"
+    )
+  )
+
+abc_productos %>%
+  group_by(clase) %>%
+  summarise(productos = n(), ingresos = sum(ingresos),
+            .groups = "drop") %>%
+  mutate(pct_ingresos = round(ingresos / sum(ingresos) * 100, 1))
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 4
+  clase productos ingresos pct_ingresos
+  <chr>     <int>    <dbl>        <dbl>
+1 A            31  402751.         78.4
+2 B            12   83751.         16.3
+3 C             7   27415.          5.3
+\end{rsalida}
+
+Aquí \codigo{cumsum()} se aplica después de ordenar de mayor a menor, así que
+\codigo{pct\_acumulado} dice qué porcentaje de los ingresos suman los
+mejores productos hasta esa fila. El resultado es interesante porque
+\emph{no} sigue el 80/20 clásico: se necesitan 31 de los 50 productos (62\%)
+para juntar el 78.4\% de los ingresos. Las ventas de esta empresa están
+poco concentradas, así que descontinuar productos de clase C (7 productos,
+5.3\% de los ingresos) tendría poco impacto en la venta. En una empresa real
+este análisis guía decisiones de inventario: a los productos A nunca les
+debe faltar existencia.
+
+\begin{hazlotu}
+Repite el cálculo de MoM y YTD, pero con \codigo{transacciones} y la columna
+\codigo{total\_transaccion}. ¿Cuál fue el mejor mes? ¿En qué mes el
+acumulado superó el medio millón de pesos? Pista: después de calcular
+\codigo{ytd}, usa \codigo{filter(ytd > 500000) \%>\% slice\_head(n = 1)}.
+\end{hazlotu}

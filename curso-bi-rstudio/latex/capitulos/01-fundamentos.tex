@@ -1,0 +1,2297 @@
+% ============================================================================
+% MÓDULO 1 - FUNDAMENTOS DE R Y RSTUDIO
+% ============================================================================
+\chapter{Fundamentos de R y RStudio}
+\label{cap:fundamentos}
+
+\begin{objetivos}
+\begin{itemize}
+  \item Moverte con soltura por RStudio: sus cuatro paneles, los scripts, los
+        atajos de teclado y los Proyectos.
+  \item Usar R como una calculadora de negocio (IVA, descuentos, márgenes,
+        interés compuesto) y guardar resultados en variables.
+  \item Distinguir los tipos de datos (números, texto, lógicos, fechas y
+        factores) y convertir entre ellos sin caer en las trampas típicas.
+  \item Trabajar con vectores, data frames, listas y matrices para responder
+        preguntas de negocio.
+  \item Automatizar decisiones con \codigo{if}, \codigo{ifelse()} y bucles, y
+        crear tus propias funciones de BI.
+  \item Instalar y cargar paquetes, importar datos desde CSV y Excel y
+        exportar tus resultados.
+  \item Resolver un primer análisis de ventas completo, de principio a fin,
+        y saber qué hacer cuando R te muestra un error.
+\end{itemize}
+\end{objetivos}
+
+Imagina que es lunes y acabas de entrar como analista a una cadena de tiendas
+minoristas con diez sucursales en México. Tu jefa te comparte un archivo con
+las ventas de todo 2023 y te hace cuatro preguntas: \emph{¿cuánto vendimos en
+el año?, ¿cuál fue nuestro mejor y nuestro peor mes?, ¿los días con descuento
+realmente venden más? y ¿me lo puedes mandar en un Excel?} Con una hoja de
+cálculo podrías contestar, pero te tomaría una mañana entera de filtros, tablas
+dinámicas y fórmulas copiadas a mano. Y el próximo mes tendrías que repetirlo
+todo.
+
+Con R vas a responder esas cuatro preguntas con unas cuantas líneas de código
+que puedes guardar, revisar y volver a ejecutar cada mes en segundos. Eso es
+lo que hace un analista de \termino{Business Intelligence} (BI, inteligencia
+de negocios): convierte datos crudos en respuestas útiles para tomar
+decisiones, y lo hace de forma repetible.
+
+Este módulo parte de cero. No necesitas haber programado nunca. Vamos a ir
+paso a paso: primero conocerás RStudio, luego aprenderás a guardar y
+calcular datos, después a organizarlos en tablas y, al final
+(sección~\ref{sec:m1-caso}), resolverás tú mismo el encargo de tu jefa con
+datos reales. Cada ejemplo tiene el código comentado, la salida exacta que
+imprime R y una explicación de qué significa para el negocio. Te recomiendo
+que escribas cada ejemplo en tu computadora en lugar de solo leerlo: programar
+se aprende con los dedos.
+
+% ============================================================================
+\section{Tu primera sesión en RStudio}
+\label{sec:m1-rstudio}
+% ============================================================================
+
+\subsection{R y RStudio: el motor y el tablero}
+
+Antes de escribir código conviene distinguir dos programas que siempre
+aparecen juntos:
+
+\begin{itemize}
+  \item \termino{R} es el \emph{lenguaje} y el motor que hace los cálculos.
+        Puede funcionar solo, pero su ventana original es austera.
+  \item \termino{RStudio} es un \termino{IDE} (entorno de desarrollo
+        integrado): un programa que te da una interfaz cómoda para escribir,
+        ejecutar y organizar tu código de R.
+\end{itemize}
+
+Piensa en un automóvil: R es el motor y RStudio es el tablero con volante,
+velocímetro y espejos. Necesitas los dos instalados, pero en el día a día solo
+abrirás RStudio, que a su vez usa R por dentro. Si todavía no los tienes,
+sigue las instrucciones de instalación de la introducción del libro
+(\emph{Cómo usar este libro}) y vuelve aquí.
+
+\subsection{Los cuatro paneles}
+
+Al abrir RStudio verás una ventana dividida en cuatro zonas llamadas
+\termino{paneles}. La figura~\ref{fig:m01-rstudio} muestra su distribución
+habitual.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\footnotesize,
+  panel/.style={draw=gray!55, fill=white},
+  cabecera/.style={fill=gray!14, draw=gray!55},
+  pestana/.style={font=\sffamily\scriptsize, anchor=west, inner sep=1pt},
+  numero/.style={circle, fill=acento, text=white,
+                 font=\sffamily\bfseries\small, inner sep=0pt,
+                 minimum size=5.5mm},
+  cod/.style={font=\ttfamily\scriptsize, anchor=north west, align=left,
+              inner sep=0pt},
+  rotulo/.style={font=\sffamily\small\bfseries, text=primario,
+                 anchor=south west, align=left},
+  nota/.style={font=\sffamily\scriptsize, text=gristexto, anchor=north west,
+               align=left, text width=5.6cm},
+]
+% --- Ventana y barras superiores ------------------------------------------
+\draw[rounded corners=4pt, fill=gray!6, draw=gray!70] (0,0) rectangle (15,9.7);
+\fill[gray!22, rounded corners=4pt] (0,9.1) rectangle (15,9.7);
+\fill[gray!22] (0,9.1) rectangle (15,9.4);
+\fill[peligro!75] (0.35,9.4) circle (0.09);
+\fill[acento!80] (0.65,9.4) circle (0.09);
+\fill[exito!75] (0.95,9.4) circle (0.09);
+\node[font=\sffamily\scriptsize] at (7.5,9.4) {curso-bi-rstudio -- RStudio};
+\node[anchor=west, font=\sffamily\scriptsize, text=gristexto] at (0.15,8.82)
+  {File\quad Edit\quad Code\quad View\quad Plots\quad Session\quad Build%
+   \quad Debug\quad Profile\quad Tools\quad Help};
+\node[anchor=east, font=\sffamily\scriptsize, text=secundario] at (14.85,8.82)
+  {Project: curso-bi-rstudio};
+% --- Panel 1: editor de scripts --------------------------------------------
+\draw[panel] (0.15,4.55) rectangle (8.45,8.55);
+\draw[cabecera] (0.15,8.15) rectangle (8.45,8.55);
+\node[pestana] at (0.25,8.35) {\textbf{mi\_primer\_script.R}\ \ \texttt{x}};
+\node[draw=gray!55, fill=white, font=\sffamily\scriptsize, inner sep=1.5pt]
+  at (7.8,8.35) {$\rightarrow$ Run};
+\node[cod, text=gray] at (0.3,7.95) {1\\2\\3};
+\node[cod] at (0.65,7.95)
+  {{\color{rcomentario}\# Mi primer script}\\
+   ventas <- c(120, 95, 140)\\
+   mean(ventas)};
+\node[rotulo] at (0.3,5.35) {Editor de scripts (Source)};
+\node[nota] at (0.3,5.3) {Aquí escribes y guardas tu código.};
+\node[numero] at (8.1,4.95) {1};
+% --- Panel 2: consola --------------------------------------------------------
+\draw[panel] (0.15,0.15) rectangle (8.45,4.35);
+\draw[cabecera] (0.15,3.95) rectangle (8.45,4.35);
+\node[pestana] at (0.25,4.15) {\textbf{Console}\quad Terminal\quad
+  Background Jobs};
+\node[cod] at (0.3,3.75)
+  {> ventas <- c(120, 95, 140)\\
+   > mean(ventas)\\
+   {}[1] 118.3333\\
+   > \textbar};
+\node[rotulo] at (0.3,1.15) {Consola (Console)};
+\node[nota] at (0.3,1.1) {R ejecuta las órdenes y muestra los resultados.};
+\node[numero] at (8.1,0.55) {2};
+% --- Panel 3: entorno ------------------------------------------------------------
+\draw[panel] (8.6,4.55) rectangle (14.85,8.55);
+\draw[cabecera] (8.6,8.15) rectangle (14.85,8.55);
+\node[pestana] at (8.7,8.35) {\textbf{Environment}\quad History\quad
+  Connections};
+\node[cod, text=gristexto] at (8.75,7.95) {Values};
+\node[cod] at (8.75,7.55) {ventas\hspace{3.2em}num [1:3] 120 95 140};
+\node[rotulo] at (8.75,5.35) {Entorno (Environment)};
+\node[nota] at (8.75,5.3) {Los objetos que has creado y tu historial.};
+\node[numero] at (14.5,4.95) {3};
+% --- Panel 4: archivos, gráficas, ayuda ----------------------------------------
+\draw[panel] (8.6,0.15) rectangle (14.85,4.35);
+\draw[cabecera] (8.6,3.95) rectangle (14.85,4.35);
+\node[pestana] at (8.7,4.15) {\textbf{Files}\quad Plots\quad Packages\quad
+  Help\quad Viewer};
+\foreach \y/\t in {3.6/datasets, 3.2/resultados} {
+  \fill[acento!45] (8.8,\y-0.12) rectangle (9.05,\y+0.07);
+  \node[cod, anchor=west] at (9.2,\y) {\t};
+}
+\foreach \y/\t in {2.8/curso-bi-rstudio.Rproj, 2.4/mi\_primer\_script.R} {
+  \draw[gray!60, fill=white] (8.83,\y-0.13) rectangle (9.02,\y+0.1);
+  \node[cod, anchor=west] at (9.2,\y) {\t};
+}
+\node[rotulo] at (8.75,1.15) {Archivos, gráficas, paquetes y ayuda};
+\node[nota] at (8.75,1.1) {Tus carpetas, tus gráficas y la documentación.};
+\node[numero] at (14.5,0.55) {4};
+\end{tikzpicture}
+\caption{Los cuatro paneles de RStudio: (1) editor de scripts, (2) consola,
+  (3) entorno e historial y (4) archivos, gráficas, paquetes y ayuda.}
+\label{fig:m01-rstudio}
+\end{figure}
+
+\begin{enumerate}
+  \item \textbf{Editor de scripts} (arriba a la izquierda). Es como un
+        documento de Word para tu código: escribes, corriges y guardas. Si
+        no lo ves, crea un script nuevo con \menu{File > New File > R Script}.
+  \item \textbf{Consola} (abajo a la izquierda). Es donde R \emph{ejecuta}
+        las órdenes y responde. El símbolo \codigo{>} se llama
+        \termino{prompt} y significa ``estoy listo, dime qué hago''.
+  \item \textbf{Entorno} (arriba a la derecha). La pestaña
+        \menu{Environment} muestra los datos que has creado (tus
+        ``objetos''); \menu{History} guarda las órdenes que has ejecutado.
+  \item \textbf{Archivos, gráficas y ayuda} (abajo a la derecha). En
+        \menu{Files} navegas por tus carpetas, en \menu{Plots} aparecen las
+        gráficas, en \menu{Packages} ves los paquetes instalados y en
+        \menu{Help} se abre la documentación.
+\end{enumerate}
+
+\begin{consejo}
+Puedes cambiar el tema de colores, el tamaño de letra y la distribución de
+los paneles en \menu{Tools > Global Options > Appearance} y
+\menu{Pane Layout}. Muchos analistas prefieren un tema oscuro para cansar
+menos la vista. No afecta en nada a tu código.
+\end{consejo}
+
+\subsection{Consola contra script}
+
+Haz clic en la consola, escribe \codigo{2 + 2} y presiona \tecla{Enter}.
+R responde de inmediato:
+
+\begin{rcode}
+2 + 2
+\end{rcode}
+\begin{rsalida}
+[1] 4
+\end{rsalida}
+
+El \codigo{[1]} no es parte del resultado: indica que ese es el
+\emph{primer} elemento de la respuesta. Cuando R muestre respuestas largas,
+verás al inicio de cada renglón \codigo{[1]}, \codigo{[13]}, etc., para que
+sepas en qué posición vas.
+
+La consola es cómoda para pruebas rápidas, pero tiene un problema: lo que
+escribes ahí se pierde al cerrar RStudio. Es como hablar por teléfono con R.
+El \termino{script}, en cambio, es un archivo de texto con extensión
+\archivo{.R} donde escribes tus instrucciones para guardarlas y volver a
+ejecutarlas cuando quieras. Es como dejar la receta por escrito.
+
+\begin{concepto}{Regla de oro}
+Escribe tu trabajo \emph{siempre} en un script y ejecútalo desde ahí. Usa la
+consola solo para consultas rápidas (``¿cuánto vale esta variable?'',
+``¿cómo se llama esta columna?''). Un análisis que solo vive en la consola
+no se puede revisar, corregir ni repetir el próximo mes.
+\end{concepto}
+
+Para ejecutar código desde el script tienes tres opciones:
+
+\begin{itemize}
+  \item \textbf{Una línea}: coloca el cursor en cualquier parte de la línea y
+        presiona \tecla{Ctrl} + \tecla{Enter} (en Mac, \tecla{Cmd} +
+        \tecla{Return}). El cursor baja solo a la siguiente instrucción, así
+        que puedes ir presionando el atajo línea por línea.
+  \item \textbf{Una selección}: marca varias líneas con el ratón y usa el
+        mismo atajo; se ejecuta solo lo seleccionado.
+  \item \textbf{Todo el script}: \tecla{Ctrl} + \tecla{Shift} + \tecla{Enter}
+        (en Mac, \tecla{Cmd} + \tecla{Shift} + \tecla{Return}), o el botón
+        \menu{Source}.
+\end{itemize}
+
+El resultado siempre aparece en la consola, precedido de la instrucción que
+se ejecutó.
+
+\subsection{Comentarios: notas para tu yo del futuro}
+
+Todo lo que escribas después del símbolo \codigo{\#} es un
+\termino{comentario}: R lo ignora por completo. Los comentarios sirven para
+explicar \emph{qué} hace el código y, sobre todo, \emph{por qué}. En este
+libro todos los ejemplos van comentados en español.
+
+\begin{rcode}
+# Esto es un comentario: R no lo ejecuta
+120 + 95 + 140   # Ventas de tres días (también puede ir al final)
+
+# ---- Sección: cálculo de IVA -------------------------------------------
+1500 * 0.16      # IVA de una venta de $1,500
+\end{rcode}
+\begin{rsalida}
+[1] 355
+[1] 240
+\end{rsalida}
+
+La línea \codigo{\# ---- Sección: ... ----} es un truco útil: RStudio
+reconoce los comentarios que terminan en cuatro guiones o más como
+\termino{secciones} y te permite saltar entre ellas con el menú que aparece
+en la parte inferior del editor. En scripts largos es una forma muy práctica
+de organizarte.
+
+\begin{hazlotu}
+Crea un script nuevo (\tecla{Ctrl} + \tecla{Shift} + \tecla{N}), escribe un
+comentario con tu nombre y la fecha, y debajo calcula cuánto suman tus tres
+últimas compras del súper. Ejecuta la línea con \tecla{Ctrl} +
+\tecla{Enter} y observa la consola.
+\end{hazlotu}
+
+\subsection{Atajos de teclado que te ahorrarán horas}
+
+No necesitas memorizarlos hoy; vuelve a esta tabla cuando la necesites. Con
+el tiempo los usarás sin pensar.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Atajos de teclado más útiles de RStudio.}
+\label{tab:m1-atajos}
+\begin{tabularx}{\textwidth}{X l l}
+\toprule
+\textbf{Acción} & \textbf{Windows / Linux} & \textbf{Mac} \\
+\midrule
+Ejecutar línea o selección & \tecla{Ctrl}+\tecla{Enter} &
+  \tecla{Cmd}+\tecla{Return} \\
+Ejecutar todo el script & \tecla{Ctrl}+\tecla{Shift}+\tecla{Enter} &
+  \tecla{Cmd}+\tecla{Shift}+\tecla{Return} \\
+Nuevo script & \tecla{Ctrl}+\tecla{Shift}+\tecla{N} &
+  \tecla{Cmd}+\tecla{Shift}+\tecla{N} \\
+Guardar el script & \tecla{Ctrl}+\tecla{S} & \tecla{Cmd}+\tecla{S} \\
+Escribir la flecha de asignación \codigo{<-} & \tecla{Alt}+\tecla{-} &
+  \tecla{Option}+\tecla{-} \\
+Escribir el pipe \codigo{\%>\%} & \tecla{Ctrl}+\tecla{Shift}+\tecla{M} &
+  \tecla{Cmd}+\tecla{Shift}+\tecla{M} \\
+Comentar o descomentar líneas & \tecla{Ctrl}+\tecla{Shift}+\tecla{C} &
+  \tecla{Cmd}+\tecla{Shift}+\tecla{C} \\
+Autocompletar nombres & \tecla{Tab} & \tecla{Tab} \\
+Recuperar la orden anterior (en la consola) & \tecla{$\uparrow$} &
+  \tecla{$\uparrow$} \\
+Limpiar la consola & \tecla{Ctrl}+\tecla{L} & \tecla{Ctrl}+\tecla{L} \\
+Ir al editor / ir a la consola & \tecla{Ctrl}+\tecla{1} / \tecla{Ctrl}+\tecla{2}
+  & \tecla{Ctrl}+\tecla{1} / \tecla{Ctrl}+\tecla{2} \\
+Cancelar una orden que no termina & \tecla{Esc} & \tecla{Esc} \\
+Reiniciar R (sesión limpia) & \tecla{Ctrl}+\tecla{Shift}+\tecla{F10} &
+  \tecla{Cmd}+\tecla{Shift}+\tecla{0} \\
+Ayuda de la función bajo el cursor & \tecla{F1} & \tecla{F1} \\
+Ver todos los atajos & \tecla{Alt}+\tecla{Shift}+\tecla{K} &
+  \tecla{Option}+\tecla{Shift}+\tecla{K} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{advertencia}
+Si en la consola aparece un signo \codigo{+} en lugar de \codigo{>}, R te
+está diciendo ``tu instrucción no está completa, sigo esperando''. Casi
+siempre falta cerrar un paréntesis o unas comillas. Presiona \tecla{Esc}
+para cancelar, corrige la línea en el script y vuelve a ejecutarla.
+\end{advertencia}
+
+\subsection{Guardar tus scripts}
+
+Guarda con \tecla{Ctrl} + \tecla{S}. La primera vez RStudio te pedirá un
+nombre: usa nombres descriptivos, sin espacios ni acentos y con la
+extensión \archivo{.R}, por ejemplo \archivo{01\_primeros\_pasos.R} o
+\archivo{reporte\_ventas\_mensual.R}. Si el nombre de la pestaña del editor
+aparece en rojo con un asterisco, hay cambios sin guardar.
+
+\begin{consejo}
+Numerar los scripts (\archivo{01\_importar.R}, \archivo{02\_limpiar.R},
+\archivo{03\_analizar.R}) deja claro el orden en que deben ejecutarse. Tu
+colega (o tú en seis meses) lo agradecerá.
+\end{consejo}
+
+\subsection{Proyectos de RStudio y directorio de trabajo}
+
+Cuando le pides a R que abra un archivo, por ejemplo
+\archivo{datasets/ventas\_retail.csv}, ¿dónde lo busca? En su
+\termino{directorio de trabajo} (\emph{working directory}): la carpeta de tu
+computadora que R toma como ``aquí''. Puedes preguntarle cuál es con
+\codigo{getwd()} (\emph{get working directory}):
+
+\begin{rcode}
+getwd()   # ¿En qué carpeta está trabajando R?
+\end{rcode}
+
+R responde con una ruta que depende de tu computadora; en Windows se verá
+algo como \codigo{"C:/Users/Ana/Documents/curso-bi-rstudio"} y en Mac algo
+como \codigo{"/Users/ana/Documents/curso-bi-rstudio"}. Lo importante es que
+esa carpeta sea la del curso, la que contiene \archivo{datasets/}.
+
+La forma profesional de lograrlo son los \termino{Proyectos de RStudio}. Un
+proyecto es una carpeta con un archivo \archivo{.Rproj}; al abrirlo, RStudio
+fija automáticamente el directorio de trabajo en esa carpeta. Es como tener
+un cajón por cliente: todo lo del proyecto (datos, scripts, resultados) vive
+junto.
+
+Para convertir la carpeta del curso en un proyecto:
+
+\begin{enumerate}
+  \item Ve a \menu{File > New Project > Existing Directory}.
+  \item Con \menu{Browse} elige la carpeta \archivo{curso-bi-rstudio} y
+        presiona \menu{Create Project}.
+  \item RStudio se reinicia dentro del proyecto: verás su nombre arriba a la
+        derecha y el archivo \archivo{curso-bi-rstudio.Rproj} en el panel
+        \menu{Files}.
+\end{enumerate}
+
+A partir de ahora, abre siempre el curso con doble clic en el archivo
+\archivo{.Rproj} (o desde \menu{File > Open Project}). La estructura de
+carpetas con la que trabajaremos es esta:
+
+\begin{textocodigo}
+curso-bi-rstudio/
+|-- curso-bi-rstudio.Rproj      <- abre el proyecto con doble clic
+|-- datasets/                   <- datos del curso
+|   |-- generar_datasets.R
+|   |-- ventas_retail.csv
+|   |-- clientes.csv
+|   |-- ...
+|   `-- datos_empresa.xlsx
+|-- mis_scripts/                <- aquí guarda tus scripts
+`-- resultados/                 <- aquí R guardará lo que exportes
+\end{textocodigo}
+
+Si todavía no generas los datos del curso, hazlo ahora \emph{una sola vez}
+desde la consola, con el proyecto abierto:
+
+\begin{rnoejecutar}
+# Crea los archivos CSV y Excel de la carpeta datasets/ (solo una vez)
+source("datasets/generar_datasets.R")
+\end{rnoejecutar}
+
+La función \codigo{source()} ejecuta de principio a fin el script que le
+indiques. Al terminar verás un mensaje que confirma los siete archivos
+creados. Comprueba que R los encuentra:
+
+\begin{rcode}
+file.exists("datasets/ventas_retail.csv")   # ¿Existe el archivo?
+list.files("datasets")                      # ¿Qué hay en la carpeta?
+\end{rcode}
+\begin{rsalida}
+[1] TRUE
+[1] "clientes.csv"       "datos_empresa.xlsx" "empleados.csv"     
+[4] "generar_datasets.R" "productos.csv"      "tiendas.csv"       
+[7] "transacciones.csv"  "ventas_retail.csv" 
+\end{rsalida}
+
+Fíjate en que escribimos \archivo{"datasets/ventas\_retail.csv"} y no la
+dirección completa del archivo. Eso es una \termino{ruta relativa}: se
+interpreta \emph{a partir} del directorio de trabajo, como cuando dices ``la
+segunda puerta a la derecha''. Una \termino{ruta absoluta} es la dirección
+completa (\codigo{"C:/Users/Ana/Documents/curso-bi-rstudio/datasets/..."}) y
+solo funciona en la computadora de Ana.
+
+\begin{rnoejecutar}
+# Cambiar el directorio de trabajo a mano (NO recomendado)
+setwd("C:/Users/Ana/Documents/curso-bi-rstudio")        # Windows
+setwd("/Users/ana/Documents/curso-bi-rstudio")          # Mac
+\end{rnoejecutar}
+
+\begin{advertencia}
+Verás \codigo{setwd()} en muchos tutoriales, pero evítalo dentro de tus
+scripts: la ruta solo existe en tu computadora, así que el script falla en
+cuanto se lo compartes a alguien (o cuando cambias de equipo). Con un
+Proyecto de RStudio y rutas relativas, tu código funciona igual en cualquier
+computadora.
+\end{advertencia}
+
+\begin{hazlotu}
+Abre el proyecto del curso, ejecuta \codigo{getwd()} y confirma que la ruta
+termina en \archivo{curso-bi-rstudio}. Después crea la carpeta
+\archivo{mis\_scripts} desde el panel \menu{Files} (botón \menu{New Folder})
+y guarda ahí tu primer script.
+\end{hazlotu}
+
+% ============================================================================
+\section{R como calculadora de negocio}
+\label{sec:m1-calculadora}
+% ============================================================================
+
+La forma más sencilla de usar R es como una calculadora muy potente. Los
+\termino{operadores aritméticos} son los de siempre, más dos que te serán
+útiles con inventarios:
+
+\begin{table}[H]
+\centering
+\small
+\caption{Operadores aritméticos de R.}
+\label{tab:m1-operadores}
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{Operador} & \textbf{Significado} & \textbf{Ejemplo de negocio} \\
+\midrule
+\codigo{+} & Suma & Ventas de enero más ventas de febrero \\
+\codigo{-} & Resta & Ingresos menos costos \\
+\codigo{*} & Multiplicación & Precio por unidades vendidas \\
+\codigo{/} & División & Ventas entre número de tickets \\
+\codigo{\textasciicircum} & Potencia & Crecimiento compuesto $(1 + r)^n$ \\
+\codigo{\%/\%} & División entera & Cajas completas que salen de un pedido \\
+\codigo{\%\%} & Residuo (módulo) & Piezas sueltas que sobran \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{rcode}
+15000 + 18500      # Ventas de enero más febrero
+485000 - 291000    # Ingresos menos costo de lo vendido
+349 * 85           # Precio de un mouse por unidades vendidas
+103700 / 7         # Venta promedio diaria de una semana
+2^10               # Potencia: 2 elevado a la 10
+125 %/% 12         # 125 piezas en cajas de 12: cajas completas
+125 %% 12          # ... y piezas sueltas que sobran
+\end{rcode}
+\begin{rsalida}
+[1] 33500
+[1] 194000
+[1] 29665
+[1] 14814.29
+[1] 1024
+[1] 10
+[1] 5
+\end{rsalida}
+
+Con 125 piezas llenas 10 cajas de 12 y te sobran 5. Ese tipo de cálculo
+aparece a diario en almacenes y compras.
+
+\subsection{El orden de las operaciones importa}
+
+R respeta la \termino{precedencia} de operadores que aprendiste en la
+escuela: primero paréntesis, luego potencias, después multiplicaciones y
+divisiones, y al final sumas y restas. Un paréntesis mal puesto cambia por
+completo un resultado de negocio:
+
+\begin{rcode}
+# Precio de $1,000 más 16% de IVA
+1000 + 1000 * 0.16      # Correcto: primero el IVA, luego la suma
+(1000 + 1000) * 0.16    # Incorrecto: suma primero y luego multiplica
+1000 * (1 + 0.16)       # Forma compacta y correcta
+\end{rcode}
+\begin{rsalida}
+[1] 1160
+[1] 320
+[1] 1160
+\end{rsalida}
+
+\begin{consejo}
+Cuando dudes, usa paréntesis. No cuestan nada y hacen el código más fácil de
+leer: \codigo{(ingresos - costos) / ingresos} se entiende al instante.
+\end{consejo}
+
+\subsection{Funciones matemáticas}
+
+Una \termino{función} es una orden con nombre que recibe datos entre
+paréntesis y devuelve un resultado, igual que \codigo{=REDONDEAR(A1; 2)} en
+Excel. Los datos que recibe se llaman \termino{argumentos} y se separan con
+comas.
+
+\begin{rcode}
+round(37.77778, 1)     # Redondear a 1 decimal
+round(16149.15)        # Sin segundo argumento redondea a entero
+ceiling(125 / 12)      # Redondear hacia arriba: cajas necesarias
+floor(9.99)            # Redondear hacia abajo
+sqrt(144)              # Raíz cuadrada
+abs(95000 - 102000)    # Valor absoluto: error del pronóstico
+log(100)               # Logaritmo natural
+log10(1000)            # Logaritmo base 10
+exp(1)                 # El número e
+\end{rcode}
+\begin{rsalida}
+[1] 37.8
+[1] 16149
+[1] 11
+[1] 9
+[1] 12
+[1] 7000
+[1] 4.60517
+[1] 3
+[1] 2.718282
+\end{rsalida}
+
+Observa la diferencia entre \codigo{round()}, \codigo{ceiling()} y
+\codigo{floor()}. Si necesitas empacar 125 piezas en cajas de 12, no te
+sirven 10.42 cajas ni 10 cajas: necesitas 11, así que usas
+\codigo{ceiling()}. Y \codigo{abs()} te da el tamaño de un error sin
+importar si te pasaste o te quedaste corto: el pronóstico falló por 7,000
+pesos.
+
+\subsection{Ejemplos de negocio}
+
+\begin{ejemplo}{IVA y descuentos}
+Una tienda vende un producto en \$1,250 antes de impuestos. ¿Cuánto es el
+IVA del 16\% y cuánto paga el cliente? Si un ticket ya incluye IVA y suma
+\$2,320, ¿cuál era el precio sin IVA? Y si a una laptop de \$18,999 le
+aplicas 15\% de descuento, ¿en cuánto queda?
+\end{ejemplo}
+
+\begin{rcode}
+1250 * 0.16            # IVA de un producto de $1,250
+1250 * 1.16            # Total que paga el cliente
+2320 / 1.16            # Precio sin IVA de un ticket de $2,320
+2320 - 2320 / 1.16     # IVA incluido en ese ticket
+18999 * (1 - 0.15)     # Laptop con 15% de descuento
+\end{rcode}
+\begin{rsalida}
+[1] 200
+[1] 1450
+[1] 2000
+[1] 320
+[1] 16149.15
+\end{rsalida}
+
+El cliente paga \$1,450, de los cuales \$200 son IVA. El ticket de \$2,320
+tenía una base de \$2,000 y \$320 de impuesto, y la laptop con descuento
+queda en \$16,149.15. Nota que para quitar el IVA \emph{se divide} entre
+1.16; restar el 16\% del total sería un error muy común (y caro).
+
+\begin{advertencia}
+Los descuentos sucesivos no se suman. Un 20\% seguido de un 10\% adicional
+no es un 30\%: \codigo{1000 * 0.80 * 0.90} da 720, es decir, un descuento
+efectivo del 28\%. Cuando diseñes promociones, calcula siempre el precio
+final.
+\end{advertencia}
+
+\begin{ejemplo}{Interés compuesto y crecimiento}
+Inviertes \$50,000 al 10\% anual durante 3 años. ¿Cuánto tendrás? ¿Y si la
+tasa es del 12\% anual pero se capitaliza cada mes? Por otro lado, las
+ventas de tu empresa pasaron de \$1.2 millones en 2020 a \$1.8 millones en
+2023: ¿cuál fue su crecimiento anual compuesto?
+\end{ejemplo}
+
+\begin{rcode}
+50000 * (1 + 0.10)^3           # Capital después de 3 años al 10%
+50000 * (1 + 0.12 / 12)^36     # 12% anual capitalizable cada mes
+(1800000 / 1200000)^(1 / 3) - 1  # Crecimiento anual compuesto (TCAC)
+log(2) / log(1.08)             # Años para duplicar ventas creciendo 8%
+\end{rcode}
+\begin{rsalida}
+[1] 66550
+[1] 71538.44
+[1] 0.1447142
+[1] 9.006468
+\end{rsalida}
+
+La inversión llega a \$66,550 con capitalización anual y a \$71,538.44 si se
+capitaliza cada mes. Las ventas crecieron en promedio 14.47\% cada año: esa
+es la \termino{tasa de crecimiento anual compuesta} (TCAC o
+\emph{CAGR} en inglés), un indicador que verás en muchos informes
+financieros. Y con un crecimiento del 8\% anual, las ventas se duplican en
+unos 9 años.
+
+\begin{ejemplo}{Margen de un producto}
+Un producto se vende en \$450 y cuesta \$280. ¿Cuánto ganas por unidad,
+cuál es el margen sobre el precio y cuál es el \emph{markup} (ganancia
+sobre el costo)? ¿Y cuál es la cantidad económica de pedido si vendes
+12,000 unidades al año, cada pedido cuesta \$500 y mantener una unidad en
+inventario cuesta \$12 al año?
+\end{ejemplo}
+
+\begin{rcode}
+450 - 280                        # Ganancia por unidad
+(450 - 280) / 450 * 100          # Margen sobre el precio (%)
+(450 - 280) / 280 * 100          # Markup sobre el costo (%)
+sqrt(2 * 12000 * 500 / 12)       # Cantidad económica de pedido (EOQ)
+\end{rcode}
+\begin{rsalida}
+[1] 170
+[1] 37.77778
+[1] 60.71429
+[1] 1000
+\end{rsalida}
+
+Ganas \$170 por unidad: un margen de 37.8\% sobre el precio o un markup de
+60.7\% sobre el costo. Son dos formas distintas de expresar la misma
+ganancia, y confundirlas es un error clásico en las juntas de precios. La
+fórmula de la \termino{cantidad económica de pedido} (EOQ) dice que lo más
+barato es pedir 1,000 unidades cada vez.
+
+\begin{hazlotu}
+Un cliente compra 3 artículos de \$349, \$1,299 y \$89 (precios sin IVA).
+Calcula en R el subtotal, el IVA y el total. Después aplica un cupón del
+10\% sobre el subtotal \emph{antes} del IVA y compara. Pista: usa
+paréntesis.
+\end{hazlotu}
+
+% ============================================================================
+\section{Variables: guarda tus resultados con nombre}
+\label{sec:m1-variables}
+% ============================================================================
+
+Hasta ahora R calcula y olvida. Para reutilizar un valor necesitas guardarlo
+en una \termino{variable} (en R también se le llama \termino{objeto}). La
+mejor analogía es una celda de Excel a la que le pones nombre: en lugar de
+recordar que las ventas de enero están en \codigo{B2}, las llamas
+\codigo{ventas\_enero}.
+
+\subsection{Asignación con \texorpdfstring{\codigo{<-}}{<-}}
+
+Para guardar un valor se usa la flecha \codigo{<-}, que se lee ``recibe'':
+
+\begin{rcode}
+ventas_enero <- 15000      # ventas_enero "recibe" 15000
+ventas_febrero <- 18500
+ventas_marzo <- 22000
+\end{rcode}
+
+Al ejecutar estas líneas, la consola no muestra nada (asignar no imprime),
+pero en el panel \menu{Environment} aparecen las tres variables con su valor.
+Para ver el contenido, escribe su nombre o usa \codigo{print()}:
+
+\begin{rcode}
+ventas_enero                 # Escribir el nombre muestra el valor
+print(ventas_febrero)        # print() hace lo mismo de forma explícita
+total_trimestre <- ventas_enero + ventas_febrero + ventas_marzo
+total_trimestre
+promedio_mensual <- total_trimestre / 3
+promedio_mensual
+\end{rcode}
+\begin{rsalida}
+[1] 15000
+[1] 18500
+[1] 55500
+[1] 18500
+\end{rsalida}
+
+Ahora las variables funcionan como las celdas de una hoja de cálculo: si
+mañana corriges \codigo{ventas\_marzo}, basta volver a ejecutar las líneas
+de abajo para que el total y el promedio se actualicen.
+
+\begin{consejo}
+El atajo \tecla{Alt} + \tecla{-} (en Mac, \tecla{Option} + \tecla{-})
+escribe \codigo{<-} con espacios incluidos. También funciona \codigo{=} para
+asignar, pero la comunidad de R usa \codigo{<-} y así lo verás en todos los
+manuales. Si quieres asignar e imprimir a la vez, rodea la línea con
+paréntesis: \codigo{(meta <- 50000)}.
+\end{consejo}
+
+\subsection{Reglas para nombrar variables}
+
+Un buen nombre explica qué hay dentro. R impone algunas reglas y la
+comunidad añade algunas convenciones:
+
+\begin{itemize}
+  \item Deben empezar con una letra (o un punto) y pueden contener letras,
+        números, puntos y guiones bajos: \codigo{ventas\_2023} es válido,
+        \codigo{2023\_ventas} no.
+  \item No pueden tener espacios ni guiones medios: \codigo{ventas enero} y
+        \codigo{ventas-enero} provocan errores (el guion se interpreta como
+        una resta).
+  \item R distingue mayúsculas de minúsculas: \codigo{Ventas} y
+        \codigo{ventas} son dos variables distintas.
+  \item No uses palabras reservadas (\codigo{if}, \codigo{for},
+        \codigo{TRUE}, \codigo{function}\ldots) ni nombres de funciones
+        existentes (\codigo{c}, \codigo{mean}, \codigo{sum}, \codigo{data}).
+  \item Evita acentos y la ñ en los nombres de variables
+        (\codigo{anio} en lugar de \codigo{año}): funcionan, pero pueden dar
+        problemas al abrir el script en otra computadora.
+\end{itemize}
+
+En este libro usamos \termino{snake\_case}: palabras en minúsculas unidas
+con guion bajo, como \codigo{ventas\_netas\_mensuales}. Es el estilo más
+común en R y el que recomienda la guía de estilo del \emph{tidyverse}.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Nombres de variables: buenos y malos.}
+\label{tab:m1-nombres}
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{Nombre} & \textbf{¿Sirve?} & \textbf{Comentario} \\
+\midrule
+\codigo{ventas\_netas\_2023} & \ding{51} Recomendado & Descriptivo y en
+  snake\_case \\
+\codigo{margen\_pct} & \ding{51} Recomendado & Abreviatura clara \\
+\codigo{VentasNetas} & Funciona & Estilo camelCase, poco usado en R \\
+\codigo{x}, \codigo{dato2} & Funciona & No dice qué contiene \\
+\codigo{ventas netas} & \ding{55} Error & Tiene un espacio \\
+\codigo{2023\_ventas} & \ding{55} Error & Empieza con número \\
+\codigo{ventas-netas} & \ding{55} Error & R lo lee como ``ventas menos
+  netas'' \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Sobrescribir, listar y borrar variables}
+
+Si asignas un nuevo valor a una variable existente, el valor anterior se
+reemplaza sin aviso. Esto es útil para ir acumulando:
+
+\begin{rcode}
+caja <- 5000             # Fondo de caja al abrir la tienda
+caja <- caja + 1850      # Primera venta del día
+caja <- caja + 920       # Segunda venta
+caja <- caja - 300       # Pago a un proveedor en efectivo
+caja
+\end{rcode}
+\begin{rsalida}
+[1] 7470
+\end{rsalida}
+
+La línea \codigo{caja <- caja + 1850} se lee: ``toma el valor actual de
+\codigo{caja}, súmale 1,850 y guarda el resultado otra vez en
+\codigo{caja}''. Al final del día hay \$7,470 en caja.
+
+Para saber qué variables existen usa \codigo{ls()} y para borrar una,
+\codigo{rm()}:
+
+\begin{rcode}
+ls()                      # Lista los objetos del entorno
+rm(caja)                  # Borra la variable caja
+exists("caja")            # ¿Todavía existe?
+\end{rcode}
+\begin{rsalida}
+[1] "caja"             "promedio_mensual" "total_trimestre" 
+[4] "ventas_enero"     "ventas_febrero"   "ventas_marzo"    
+[1] FALSE
+\end{rsalida}
+
+\begin{rnoejecutar}
+rm(list = ls())   # Borra TODOS los objetos del entorno (¡cuidado!)
+\end{rnoejecutar}
+
+\begin{consejo}
+En lugar de borrar todo con \codigo{rm(list = ls())}, es mejor reiniciar R
+(\menu{Session > Restart R}) y volver a ejecutar tu script desde el
+principio. Así compruebas que tu análisis funciona ``desde cero'' y no
+depende de algo que creaste a mano en la consola. Configura también
+\menu{Tools > Global Options > General} para que RStudio \emph{no} guarde ni
+restaure el archivo \archivo{.RData} al cerrar: tu script es la fuente de
+verdad, no la memoria de la sesión.
+\end{consejo}
+
+\subsection{Mini caso: los KPIs de una tienda}
+
+Un \termino{KPI} (\emph{Key Performance Indicator}, indicador clave de
+desempeño) es un número que resume qué tan bien va el negocio. Vamos a
+calcular los KPIs básicos de una sucursal.
+
+\begin{ejemplo}{Tablero de la Sucursal Centro}
+En marzo la Sucursal Centro vendió \$485,000. El costo de la mercancía
+vendida fue de \$291,000 y los gastos de operación (renta, nómina, luz)
+sumaron \$98,500. La meta del mes era de \$520,000. Calcula la utilidad
+bruta, la utilidad de operación, los márgenes y el porcentaje de
+cumplimiento de la meta.
+\end{ejemplo}
+
+\begin{rcode}
+# ---- Datos de entrada ----------------------------------------------------
+ingresos <- 485000
+costo_ventas <- 291000
+gastos_operacion <- 98500
+meta_ventas <- 520000
+
+# ---- KPIs ----------------------------------------------------------------
+utilidad_bruta <- ingresos - costo_ventas
+utilidad_operacion <- utilidad_bruta - gastos_operacion
+margen_bruto_pct <- utilidad_bruta / ingresos * 100
+margen_operacion_pct <- utilidad_operacion / ingresos * 100
+cumplimiento_pct <- ingresos / meta_ventas * 100
+faltante_meta <- meta_ventas - ingresos
+
+# ---- Resultados ----------------------------------------------------------
+utilidad_bruta
+utilidad_operacion
+round(margen_bruto_pct, 1)
+round(margen_operacion_pct, 1)
+round(cumplimiento_pct, 1)
+faltante_meta
+\end{rcode}
+\begin{rsalida}
+[1] 194000
+[1] 95500
+[1] 40
+[1] 19.7
+[1] 93.3
+[1] 35000
+\end{rsalida}
+
+\textbf{¿Qué nos dice esto?} La sucursal genera \$194,000 de utilidad bruta
+(40\% de margen) y, después de pagar sus gastos, le quedan \$95,500 de
+utilidad de operación: por cada 100 pesos vendidos gana 19.7. Sin embargo,
+solo cumplió el 93.3\% de la meta y le faltaron \$35,000. Si el próximo mes
+cambian las cifras, solo actualizas las cuatro líneas de ``Datos de
+entrada'' y vuelves a ejecutar todo: ese es el poder de un script.
+
+\begin{hazlotu}
+Crea variables con los datos de una tienda imaginaria (ingresos, costo de
+ventas, gastos y meta) y calcula los mismos seis KPIs. Después cambia solo
+los ingresos a un valor que supere la meta y vuelve a ejecutar: ¿qué pasa
+con \codigo{faltante\_meta}? ¿Cómo lo interpretarías?
+\end{hazlotu}
+
+% ============================================================================
+\section{Tipos de datos}
+\label{sec:m1-tipos}
+% ============================================================================
+
+En Excel una celda puede contener un número, un texto, una fecha o un
+VERDADERO/FALSO, y Excel decide qué operaciones permite. En R pasa lo mismo:
+cada valor tiene un \termino{tipo de dato}, y el tipo determina qué puedes
+hacer con él. Sumar dos precios tiene sentido; sumar dos nombres de
+sucursal, no. La mayoría de los errores de un principiante vienen de un
+tipo equivocado, así que vale la pena conocerlos bien.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Tipos de datos básicos de R.}
+\label{tab:m1-tipos}
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{Tipo (\codigo{class})} & \textbf{Ejemplo} & \textbf{Uso en negocio} \\
+\midrule
+\codigo{numeric} & \codigo{349.90}, \codigo{12} & Precios, montos,
+  cantidades, porcentajes \\
+\codigo{integer} & \codigo{42L} & Conteos (tickets, clientes); la \codigo{L}
+  indica entero \\
+\codigo{character} & \codigo{"Sucursal Centro"} & Nombres, ciudades,
+  códigos de producto \\
+\codigo{logical} & \codigo{TRUE}, \codigo{FALSE} & ¿Es premium? ¿Cumplió la
+  meta? ¿Tiene descuento? \\
+\codigo{Date} & \codigo{as.Date("2023-03-15")} & Fechas de venta, de
+  registro, de vencimiento \\
+\codigo{factor} & \codigo{factor(c("CH", "M"))} & Categorías con valores
+  fijos: tallas, regiones, niveles \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Números, texto y lógicos}
+
+La función \codigo{class()} te dice de qué tipo es un objeto:
+
+\begin{rcode}
+precio <- 349.90                 # numeric: número con decimales
+unidades <- 12                   # también numeric, aunque sea entero
+tickets <- 42L                   # integer: la L fuerza un entero
+sucursal <- "Sucursal Centro"    # character: texto entre comillas
+es_premium <- TRUE               # logical: verdadero o falso
+
+class(precio)
+class(unidades)
+class(tickets)
+class(sucursal)
+class(es_premium)
+\end{rcode}
+\begin{rsalida}
+[1] "numeric"
+[1] "numeric"
+[1] "integer"
+[1] "character"
+[1] "logical"
+\end{rsalida}
+
+Tres detalles importantes:
+
+\begin{itemize}
+  \item El texto va \emph{siempre} entre comillas (dobles o simples). Sin
+        comillas, R cree que \codigo{Centro} es el nombre de una variable y
+        la busca.
+  \item \codigo{TRUE} y \codigo{FALSE} van en mayúsculas y sin comillas.
+        \codigo{"TRUE"} (con comillas) es un texto, no un lógico.
+  \item En la práctica casi nunca necesitas escribir la \codigo{L}: R
+        trabaja con \codigo{numeric} y lo convierte cuando hace falta.
+\end{itemize}
+
+Existe también \codigo{typeof()}, que muestra cómo guarda R el dato por
+dentro. La diferencia se entiende con las fechas, como verás en un momento.
+
+\begin{rcode}
+typeof(precio)      # "double": número de doble precisión
+typeof(tickets)
+\end{rcode}
+\begin{rsalida}
+[1] "double"
+[1] "integer"
+\end{rsalida}
+
+Los valores lógicos aparecen cada vez que haces una
+\termino{comparación}. Los operadores de comparación son \codigo{==}
+(igual a; ¡con dos signos!), \codigo{!=} (distinto de), \codigo{>},
+\codigo{<}, \codigo{>=} y \codigo{<=}:
+
+\begin{rcode}
+ventas_hoy <- 15600
+meta_diaria <- 14000
+ventas_hoy >= meta_diaria          # ¿Cumplimos la meta de hoy?
+sucursal == "Sucursal Norte"       # ¿Es la sucursal Norte?
+TRUE + TRUE + FALSE                # TRUE vale 1 y FALSE vale 0
+\end{rcode}
+\begin{rsalida}
+[1] TRUE
+[1] FALSE
+[1] 2
+\end{rsalida}
+
+Que \codigo{TRUE} valga 1 y \codigo{FALSE} valga 0 parece una curiosidad,
+pero es un truco muy poderoso: más adelante contarás ``cuántos días se
+cumplió la meta'' simplemente sumando comparaciones.
+
+\begin{advertencia}
+\codigo{=} y \codigo{==} no son lo mismo. \codigo{x = 5} \emph{asigna} el
+valor 5 a \codigo{x}; \codigo{x == 5} \emph{pregunta} si \codigo{x} vale 5 y
+responde \codigo{TRUE} o \codigo{FALSE}. Confundirlos es uno de los errores
+más frecuentes.
+\end{advertencia}
+
+\subsection{Comprobar y convertir tipos}
+
+Las funciones \codigo{is.*()} preguntan si un objeto es de cierto tipo y las
+funciones \codigo{as.*()} lo convierten a otro:
+
+\begin{rcode}
+is.numeric(precio)             # ¿Es número?
+is.character(precio)           # ¿Es texto?
+as.character(2023)             # Número -> texto
+as.numeric("349.90")           # Texto -> número
+as.integer(3.9)                # ¡Cuidado! Trunca, no redondea
+as.logical(c("TRUE", "FALSE", "T", "sí"))
+\end{rcode}
+\begin{rsalida}
+[1] TRUE
+[1] FALSE
+[1] "2023"
+[1] 349.9
+[1] 3
+[1]  TRUE FALSE  TRUE    NA
+\end{rsalida}
+
+Fíjate en dos cosas: \codigo{as.integer(3.9)} devuelve 3, porque
+\emph{corta} los decimales en lugar de redondear; y \codigo{as.logical()}
+no entiende \codigo{"sí"}, así que devuelve \codigo{NA}. \codigo{NA}
+significa ``no disponible'' (\emph{Not Available}): es la forma en que R
+marca un dato faltante o que no pudo interpretar. Lo estudiarás con calma
+en la sección~\ref{sec:m1-vectores}.
+
+\subsection{Tres trampas típicas}
+
+\subsubsection{Trampa 1: números con comas o signo de pesos}
+
+Cuando los datos vienen de un sistema o de un Excel mal exportado, los
+montos a veces llegan como texto con separador de miles o con signo de
+pesos. R no sabe interpretarlos:
+
+\begin{rcode}
+as.numeric("1,234")            # La coma de miles confunde a R
+\end{rcode}
+\begin{rsalida}
+[1] NA
+Warning message:
+NAs introduced by coercion 
+\end{rsalida}
+
+R devuelve \codigo{NA} y una \termino{advertencia} (\emph{warning}):
+``NAs introducidos por coerción''. Una advertencia no detiene el programa,
+pero te avisa que algo salió raro. Si tu R está en español verás el mensaje
+traducido; en este libro los mostramos en inglés, que es como los
+encontrarás en los foros de ayuda. La solución es quitar primero los
+caracteres que estorban con \codigo{gsub()} (que estudiarás en la
+sección~\ref{sec:m1-texto}):
+
+\begin{rcode}
+as.numeric(gsub(",", "", "1,234"))         # Quita la coma y convierte
+monto_texto <- "$12,850.50"
+as.numeric(gsub("[$,]", "", monto_texto))  # Quita $ y comas
+\end{rcode}
+\begin{rsalida}
+[1] 1234
+[1] 12850.5
+\end{rsalida}
+
+Los corchetes en \codigo{"[\$,]"} significan ``cualquiera de estos
+caracteres'': R borra todos los signos \codigo{\$} y todas las comas.
+
+\subsubsection{Trampa 2: sumar un número guardado como texto}
+
+Si un número está guardado como texto (entre comillas), R se niega a hacer
+aritmética con él:
+
+\begin{rnoejecutar}
+precio_texto <- "100"
+precio_texto + 1
+\end{rnoejecutar}
+\begin{rsalida}
+Error in precio_texto + 1 : non-numeric argument to binary operator
+\end{rsalida}
+
+El mensaje dice ``argumento no numérico en un operador binario'': uno de
+los dos lados de la suma no es un número. La solución es convertirlo:
+\codigo{as.numeric(precio\_texto) + 1}. Cuando veas este error, revisa con
+\codigo{class()} el tipo de tus variables.
+
+\subsubsection{Trampa 3: factores que parecen números}
+
+Un \termino{factor} es el tipo que usa R para \emph{categorías}: variables
+que solo pueden tomar unos cuantos valores conocidos, como tallas, regiones
+o niveles de cliente. Internamente guarda cada categoría como un número
+(1, 2, 3\ldots) y una lista de etiquetas llamadas \termino{niveles}
+(\emph{levels}).
+
+\begin{rcode}
+tallas <- c("M", "G", "CH", "M", "M", "G", "CH", "EG")
+tallas_f <- factor(tallas)            # Niveles en orden alfabético
+tallas_f
+levels(tallas_f)
+table(tallas_f)                       # Conteo por categoría
+\end{rcode}
+\begin{rsalida}
+[1] M  G  CH M  M  G  CH EG
+Levels: CH EG G M
+[1] "CH" "EG" "G"  "M" 
+tallas_f
+CH EG  G  M 
+ 2  1  2  3 
+\end{rsalida}
+
+Los niveles quedaron en orden alfabético (CH, EG, G, M), que no es el orden
+lógico de las tallas. Para un reporte conviene fijarlo con el argumento
+\codigo{levels}:
+
+\begin{rcode}
+tallas_f <- factor(tallas, levels = c("CH", "M", "G", "EG"))
+table(tallas_f)                       # Ahora en el orden correcto
+\end{rcode}
+\begin{rsalida}
+tallas_f
+CH  M  G EG 
+ 2  3  2  1 
+\end{rsalida}
+
+Ahora la trampa. Supón que una columna de precios quedó guardada como factor
+(pasaba mucho con versiones antiguas de R al importar un CSV). Si la
+conviertes directo a número, obtienes los \emph{códigos internos} de los
+niveles, no los precios:
+
+\begin{rcode}
+precios_f <- factor(c("150", "80", "150", "200"))
+as.numeric(precios_f)                 # ¡MAL! Devuelve los códigos
+as.numeric(as.character(precios_f))   # BIEN: primero a texto
+\end{rcode}
+\begin{rsalida}
+[1] 1 3 1 2
+[1] 150  80 150 200
+\end{rsalida}
+
+El primer resultado (1 3 1 2) no tiene nada que ver con los precios: son las
+posiciones de cada valor en la lista de niveles \codigo{"150"},
+\codigo{"200"}, \codigo{"80"}. La regla es sencilla: para convertir un
+factor a número, pásalo primero a texto con \codigo{as.character()}.
+
+\subsection{Fechas}
+
+Las fechas merecen su propio tipo, \codigo{Date}, porque con ellas se hacen
+operaciones especiales: sumar días, calcular antigüedades, extraer el mes o
+el día de la semana. La función \codigo{as.Date()} convierte texto en fecha.
+Por defecto espera el formato internacional \codigo{"año-mes-día"}:
+
+\begin{rcode}
+fecha_pedido <- as.Date("2023-03-15")     # Formato ISO: AAAA-MM-DD
+fecha_pedido
+class(fecha_pedido)
+typeof(fecha_pedido)                      # Por dentro es un número
+as.numeric(fecha_pedido)                  # Días desde el 1-ene-1970
+\end{rcode}
+\begin{rsalida}
+[1] "2023-03-15"
+[1] "Date"
+[1] "double"
+[1] 19431
+\end{rsalida}
+
+Aquí se ve la diferencia entre \codigo{class()} y \codigo{typeof()}: para ti
+y para las funciones de R es una fecha (\codigo{Date}), pero por dentro R la
+guarda como el número de días transcurridos desde el 1 de enero de 1970.
+Gracias a eso puede restar fechas o sumarles días.
+
+Si tu fecha viene en el formato mexicano \codigo{día/mes/año}, díselo a R
+con el argumento \codigo{format}:
+
+\begin{rcode}
+fecha_factura <- as.Date("28/02/2023", format = "%d/%m/%Y")
+fecha_factura
+vencimiento <- fecha_factura + 30          # Crédito a 30 días
+vencimiento
+fecha_pago <- as.Date("2023-04-10")
+fecha_pago - vencimiento                   # ¿Cuántos días de atraso?
+as.numeric(fecha_pago - vencimiento)       # Solo el número
+\end{rcode}
+\begin{rsalida}
+[1] "2023-02-28"
+[1] "2023-03-30"
+Time difference of 11 days
+[1] 11
+\end{rsalida}
+
+La factura del 28 de febrero vencía el 30 de marzo y se pagó el 10 de
+abril: 11 días de atraso. La resta de fechas da un objeto especial llamado
+\codigo{difftime} (``diferencia de tiempo''); con \codigo{as.numeric()} te
+quedas solo con el número para usarlo en otros cálculos.
+
+La fecha de hoy se obtiene con \codigo{Sys.Date()}. Su resultado, claro,
+depende del día en que la ejecutes:
+
+\begin{rcode}
+hoy <- Sys.Date()                  # Fecha de hoy según tu computadora
+dias_desde_pedido <- as.numeric(hoy - fecha_pedido)
+\end{rcode}
+
+Para mostrar una fecha en otro formato se usa \codigo{format()} con los
+códigos de la tabla~\ref{tab:m1-formatos-fecha}:
+
+\begin{rcode}
+format(fecha_pedido, "%d/%m/%Y")           # Formato mexicano
+format(fecha_pedido, "%A %d de %B de %Y")  # Formato largo
+format(fecha_pedido, "%Y-%m")              # Año-mes para agrupar
+weekdays(fecha_pedido)                     # Día de la semana
+months(fecha_pedido)                       # Nombre del mes
+\end{rcode}
+\begin{rsalida}
+[1] "15/03/2023"
+[1] "miércoles 15 de marzo de 2023"
+[1] "2023-03"
+[1] "miércoles"
+[1] "marzo"
+\end{rsalida}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Códigos de formato de fechas más usados.}
+\label{tab:m1-formatos-fecha}
+\begin{tabular}{l l l}
+\toprule
+\textbf{Código} & \textbf{Significado} & \textbf{Ejemplo (15 de marzo de 2023)} \\
+\midrule
+\codigo{\%d} & Día con dos dígitos & 15 \\
+\codigo{\%m} & Mes con dos dígitos & 03 \\
+\codigo{\%Y} & Año con cuatro dígitos & 2023 \\
+\codigo{\%y} & Año con dos dígitos & 23 \\
+\codigo{\%B} & Nombre del mes & marzo \\
+\codigo{\%b} & Mes abreviado & mar \\
+\codigo{\%A} & Día de la semana & miércoles \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{advertencia}
+Los nombres de días y meses salen en el idioma de tu computadora. Si tu
+sistema está en inglés verás \codigo{"Wednesday"} y \codigo{"March"} en
+lugar de \codigo{"miércoles"} y \codigo{"marzo"}. Tus cálculos no cambian;
+solo las etiquetas.
+\end{advertencia}
+
+\begin{ejemplo}{Frecuencia de compra de un cliente}
+Un cliente mayorista hizo cinco pedidos en el primer trimestre. ¿Cada
+cuántos días compra en promedio? Si mantiene su ritmo, ¿cuándo esperamos
+su siguiente pedido? Esta es la base de las alertas de ``cliente en
+riesgo'': si pasa mucho más tiempo del habitual sin comprar, alguien de
+ventas debería llamarle.
+\end{ejemplo}
+
+\begin{rcode}
+pedidos <- as.Date(c("2023-01-05", "2023-01-19", "2023-02-09",
+                     "2023-02-23", "2023-03-18"))
+diff(pedidos)                          # Días entre pedidos consecutivos
+dias_promedio <- as.numeric(mean(diff(pedidos)))
+dias_promedio
+proximo_pedido <- max(pedidos) + dias_promedio
+proximo_pedido
+format(proximo_pedido, "%A %d/%m/%Y")
+\end{rcode}
+\begin{rsalida}
+Time differences in days
+[1] 14 21 14 23
+[1] 18
+[1] "2023-04-05"
+[1] "miércoles 05/04/2023"
+\end{rsalida}
+
+El cliente compra cada 18 días en promedio, así que esperamos su siguiente
+pedido alrededor del miércoles 5 de abril. La función \codigo{diff()}
+calcula la diferencia entre cada elemento y el anterior; la usarás mucho
+con ventas diarias o mensuales.
+
+\begin{hazlotu}
+Escribe tu fecha de nacimiento con \codigo{as.Date()} y calcula cuántos
+días has vivido restándola de \codigo{Sys.Date()}. ¿Qué día de la semana
+naciste? Pista: \codigo{format(fecha, "\%A")}.
+\end{hazlotu}
+
+% ============================================================================
+\section{Vectores: muchos datos a la vez}
+\label{sec:m1-vectores}
+% ============================================================================
+
+Rara vez analizas un solo número. Normalmente tienes las ventas de cada día,
+los precios de cada producto o las edades de cada cliente. Para eso R usa
+\termino{vectores}: colecciones ordenadas de valores \emph{del mismo tipo}.
+Un vector es como una columna de Excel: una serie de celdas una tras otra.
+Y es la pieza con la que se construye todo lo demás en R.
+
+\subsection{Crear vectores}
+
+La función \codigo{c()} (de \emph{combinar}) une valores en un vector:
+
+\begin{rcode}
+ventas_semana <- c(12500, 9800, 11200, 13400, 18900, 22300, 15600)
+dias <- c("lunes", "martes", "miércoles", "jueves", "viernes",
+          "sábado", "domingo")
+ventas_semana
+dias
+length(ventas_semana)      # ¿Cuántos elementos tiene?
+\end{rcode}
+\begin{rsalida}
+[1] 12500  9800 11200 13400 18900 22300 15600
+[1] "lunes"     "martes"    "miércoles" "jueves"    "viernes"  
+[6] "sábado"    "domingo"  
+[1] 7
+\end{rsalida}
+
+Como un vector solo admite un tipo, si mezclas números y texto R convierte
+\emph{todo} a texto sin avisarte:
+
+\begin{rcode}
+c(1500, "2300", 980)       # Un solo texto "contamina" el vector
+\end{rcode}
+\begin{rsalida}
+[1] "1500" "2300" "980" 
+\end{rsalida}
+
+Los números ahora aparecen entre comillas: ya no puedes sumarlos. Cuando
+una columna numérica de un archivo trae un solo valor raro (por ejemplo,
+\codigo{"N/D"}), R suele leer la columna completa como texto. Ahora sabes
+por qué.
+
+\subsection{Secuencias y repeticiones}
+
+Escribir valores uno por uno es tedioso. Para patrones regulares existen
+atajos:
+
+\begin{rcode}
+1:12                                   # Del 1 al 12 (números de mes)
+seq(0, 100000, by = 25000)             # De 0 a 100 mil, de 25 en 25 mil
+seq(10, 100, length.out = 4)           # 4 valores equiespaciados
+rep("Norte", times = 3)                # Repetir un valor
+rep(c("Q1", "Q2"), times = 2)          # Repetir el vector completo
+rep(c("Q1", "Q2"), each = 2)           # Repetir cada elemento
+seq(as.Date("2023-01-01"), by = "month", length.out = 4)  # Fechas
+\end{rcode}
+\begin{rsalida}
+ [1]  1  2  3  4  5  6  7  8  9 10 11 12
+[1]      0  25000  50000  75000 100000
+[1]  10  40  70 100
+[1] "Norte" "Norte" "Norte"
+[1] "Q1" "Q2" "Q1" "Q2"
+[1] "Q1" "Q1" "Q2" "Q2"
+[1] "2023-01-01" "2023-02-01" "2023-03-01" "2023-04-01"
+\end{rsalida}
+
+La última línea es muy útil para construir calendarios: el primer día de
+cada mes, cada lunes, cada quincena.
+
+\subsection{Operaciones vectorizadas}
+
+Aquí empieza la magia de R. Las operaciones se aplican a \emph{todos} los
+elementos del vector a la vez, sin que tengas que arrastrar una fórmula
+como en Excel. A esto se le llama \termino{vectorización}.
+
+\begin{ejemplo}{Aplicar un descuento a todo el catálogo}
+El área comercial decide aplicar un 15\% de descuento a siete productos y
+necesita los precios nuevos, los precios con IVA y el ingreso esperado si
+se venden las unidades pronosticadas.
+\end{ejemplo}
+
+\begin{rcode}
+precios <- c(18999, 349, 1299, 4599, 899, 2499, 159)
+precios * 0.85                    # 15% de descuento a los 7 de golpe
+round(precios * 0.85 * 1.16, 2)   # Precio con descuento e IVA
+unidades <- c(3, 40, 12, 5, 25, 8, 60)
+ingresos <- precios * 0.85 * unidades   # Elemento por elemento
+ingresos
+sum(ingresos)                     # Ingreso total esperado
+\end{rcode}
+\begin{rsalida}
+[1] 16149.15   296.65  1104.15  3909.15   764.15  2124.15   135.15
+[1] 18733.01   344.11  1280.81  4534.61   886.41  2464.01   156.77
+[1] 48447.45 11866.00 13249.80 19545.75 19103.75 16993.20  8109.00
+[1] 137315
+\end{rsalida}
+
+Cuando operas dos vectores del mismo largo, R empareja los elementos por
+posición: el primer precio con la primera cantidad, el segundo con la
+segunda, etc. El ingreso esperado de los siete productos es de \$137,315.
+
+¿Y si los vectores tienen distinto largo? R \emph{recicla} el más corto:
+lo repite hasta completar el largo del otro. Esto se llama
+\termino{reciclaje}:
+
+\begin{rcode}
+c(1000, 2000, 3000, 4000) * c(1, 0.5)   # 1, 0.5, 1, 0.5
+c(1000, 2000, 3000) * c(1, 0.5)         # No es múltiplo: advertencia
+\end{rcode}
+\begin{rsalida}
+[1] 1000 1000 3000 2000
+[1] 1000 1000 3000
+Warning message:
+In c(1000, 2000, 3000) * c(1, 0.5) :
+  longer object length is not a multiple of shorter object length
+\end{rsalida}
+
+El caso más común de reciclaje es multiplicar por un solo número
+(\codigo{precios * 0.85}): el 0.85 se recicla para cada precio. Si R te
+advierte que el largo del vector más largo no es múltiplo del más corto,
+casi siempre es porque te faltó o te sobró un dato: revísalo.
+
+\subsection{Funciones de resumen}
+
+Para describir un vector con pocos números existen las funciones de
+resumen. Primero pondremos nombre a cada elemento con \codigo{names()}, así
+los resultados serán más fáciles de leer:
+
+\begin{rcode}
+names(ventas_semana) <- dias      # Cada venta con su día
+ventas_semana
+sum(ventas_semana)                # Total de la semana
+mean(ventas_semana)               # Promedio diario
+median(ventas_semana)             # Valor central
+sd(ventas_semana)                 # Desviación estándar
+min(ventas_semana)
+max(ventas_semana)
+range(ventas_semana)              # Mínimo y máximo juntos
+\end{rcode}
+\begin{rsalida}
+    lunes    martes miércoles    jueves   viernes    sábado   domingo 
+    12500      9800     11200     13400     18900     22300     15600 
+[1] 103700
+[1] 14814.29
+[1] 13400
+[1] 4451.752
+[1] 9800
+[1] 22300
+[1]  9800 22300
+\end{rsalida}
+
+La semana sumó \$103,700, con un promedio de \$14,814.29 por día. La
+\termino{mediana} (\$13,400) es el valor que queda justo a la mitad al
+ordenar los datos: la mitad de los días vendió menos y la otra mitad más.
+Está por debajo del promedio porque el viernes y el sábado ``jalan'' el
+promedio hacia arriba. La \termino{desviación estándar} (\$4,451.75) mide qué
+tanto se alejan los días del promedio: cuanto más grande, más irregulares
+son las ventas.
+
+\begin{rcode}
+quantile(ventas_semana)                    # Cuartiles
+quantile(ventas_semana, probs = 0.9)       # Percentil 90
+cumsum(ventas_semana)                      # Acumulado de la semana
+diff(ventas_semana)                        # Cambio respecto al día previo
+summary(ventas_semana)                     # Resumen en una línea
+\end{rcode}
+\begin{rsalida}
+   0%   25%   50%   75%  100% 
+ 9800 11850 13400 17250 22300 
+  90% 
+20260 
+    lunes    martes miércoles    jueves   viernes    sábado   domingo 
+    12500     22300     33500     46900     65800     88100    103700 
+   martes miércoles    jueves   viernes    sábado   domingo 
+    -2700      1400      2200      5500      3400     -6700 
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   9800   11850   13400   14814   17250   22300 
+\end{rsalida}
+
+Los \termino{cuartiles} dividen los datos ordenados en cuatro partes
+iguales: el 25\% de los días vendió menos de \$11,850 y el 75\% menos de
+\$17,250. El \termino{acumulado} (\codigo{cumsum()}) responde preguntas como
+``¿en qué día superamos los \$50,000 de la semana?'' (el jueves ya
+llevábamos \$46,900 y el viernes \$65,800). Y \codigo{diff()} muestra que la
+mayor subida fue del jueves al viernes (+\$5,500) y la mayor caída del
+sábado al domingo (\$6,700 menos). \codigo{summary()} resume casi todo en
+una línea.
+
+\subsection{Indexación: sacar elementos de un vector}
+
+Para obtener elementos concretos se usan corchetes \codigo{[ ]}. Es lo que
+en BI llamarías ``filtrar''. Hay tres formas de indicar qué quieres.
+
+\subsubsection{Por posición}
+
+\begin{rcode}
+ventas_semana[1]              # El primer elemento (R empieza en 1)
+ventas_semana[c(5, 6)]        # Posiciones 5 y 6
+ventas_semana[1:5]            # De la 1 a la 5: días entre semana
+ventas_semana[-7]             # Todos menos el séptimo
+\end{rcode}
+\begin{rsalida}
+lunes 
+12500 
+viernes  sábado 
+  18900   22300 
+    lunes    martes miércoles    jueves   viernes 
+    12500      9800     11200     13400     18900 
+    lunes    martes miércoles    jueves   viernes    sábado 
+    12500      9800     11200     13400     18900     22300 
+\end{rsalida}
+
+\subsubsection{Por nombre}
+
+\begin{rcode}
+ventas_semana["sábado"]
+ventas_semana[c("sábado", "domingo")]
+\end{rcode}
+\begin{rsalida}
+sábado 
+ 22300 
+ sábado domingo 
+  22300   15600 
+\end{rsalida}
+
+\subsubsection{Por condición lógica}
+
+Esta es la forma más usada en análisis de datos. Primero escribes una
+comparación, que produce un vector de \codigo{TRUE}/\codigo{FALSE}, y
+luego la usas dentro de los corchetes: R se queda solo con los elementos
+marcados como \codigo{TRUE}.
+
+\begin{rcode}
+meta_diaria <- 14000
+ventas_semana > meta_diaria                  # Vector lógico
+ventas_semana[ventas_semana > meta_diaria]   # Solo los días que cumplen
+\end{rcode}
+\begin{rsalida}
+    lunes    martes miércoles    jueves   viernes    sábado   domingo 
+    FALSE     FALSE     FALSE     FALSE      TRUE      TRUE      TRUE 
+viernes  sábado domingo 
+  18900   22300   15600 
+\end{rsalida}
+
+Para saber \emph{en qué posiciones} se cumple una condición usa
+\codigo{which()}, y para localizar el máximo o el mínimo,
+\codigo{which.max()} y \codigo{which.min()}:
+
+\begin{rcode}
+which(ventas_semana > meta_diaria)   # Posiciones que cumplen
+which.max(ventas_semana)             # Posición del mejor día
+names(which.max(ventas_semana))      # Solo el nombre del mejor día
+names(which.min(ventas_semana))      # Nombre del peor día
+\end{rcode}
+\begin{rsalida}
+viernes  sábado domingo 
+      5       6       7 
+sábado 
+     6 
+[1] "sábado"
+[1] "martes"
+\end{rsalida}
+
+\subsection{Operadores lógicos}
+
+Para combinar condiciones se usan los \termino{operadores lógicos}:
+
+\begin{itemize}
+  \item \codigo{\&} (``y''): verdadero solo si \emph{ambas} condiciones lo
+        son.
+  \item \codigo{|} (``o''): verdadero si \emph{al menos una} lo es.
+  \item \codigo{!} (``no''): invierte el resultado.
+  \item \codigo{\%in\%} (``está en''): verdadero si el valor pertenece a
+        una lista.
+\end{itemize}
+
+\begin{rcode}
+fin_de_semana <- names(ventas_semana) %in% c("sábado", "domingo")
+fin_de_semana
+ventas_semana[fin_de_semana]                      # Sábado y domingo
+ventas_semana[!fin_de_semana & ventas_semana > 12000]  # Entre semana
+ventas_semana[ventas_semana < 10000 | ventas_semana > 20000]  # Extremos
+\end{rcode}
+\begin{rsalida}
+[1] FALSE FALSE FALSE FALSE FALSE  TRUE  TRUE
+ sábado domingo 
+  22300   15600 
+  lunes  jueves viernes 
+  12500   13400   18900 
+martes sábado 
+  9800  22300 
+\end{rsalida}
+
+La tercera línea se lee: ``días que \emph{no} son fin de semana \emph{y}
+vendieron más de \$12,000''. La cuarta encuentra los días atípicos: los
+muy bajos \emph{o} los muy altos.
+
+\subsection{Contar con \texorpdfstring{\codigo{sum()}}{sum()} y \texorpdfstring{\codigo{mean()}}{mean()} de una condición}
+
+Recuerda que \codigo{TRUE} vale 1 y \codigo{FALSE} vale 0. Por lo tanto,
+sumar un vector lógico \emph{cuenta} cuántos elementos cumplen la
+condición, y promediarlo da la \emph{proporción}:
+
+\begin{rcode}
+sum(ventas_semana > meta_diaria)       # ¿Cuántos días cumplieron?
+mean(ventas_semana > meta_diaria)      # ¿Qué proporción de días?
+\end{rcode}
+\begin{rsalida}
+[1] 3
+[1] 0.4285714
+\end{rsalida}
+
+Tres de siete días cumplieron la meta: el 42.9\% de la semana. Este patrón,
+\codigo{sum(condición)} y \codigo{mean(condición)}, lo usarás
+constantemente: ``¿cuántos clientes son premium?'', ``¿qué porcentaje de
+pedidos llegó tarde?''.
+
+\subsection{Datos faltantes: \texorpdfstring{\codigo{NA}}{NA}}
+
+En la vida real faltan datos: el sistema de caja se cayó un día, un cliente
+no dio su edad, un producto no tiene costo capturado. R los marca con
+\codigo{NA}. Lo importante es que \codigo{NA} es ``contagioso'': cualquier
+cálculo que lo incluya da \codigo{NA}, porque R no puede saber el resultado
+si le falta un dato.
+
+\begin{rcode}
+ventas_tienda <- c(8200, 7650, NA, 9100, 10400, NA, 8800)
+mean(ventas_tienda)                   # NA: falta información
+mean(ventas_tienda, na.rm = TRUE)     # Ignora los NA
+sum(ventas_tienda, na.rm = TRUE)
+is.na(ventas_tienda)                  # ¿Dónde hay NA?
+sum(is.na(ventas_tienda))             # ¿Cuántos NA hay?
+which(is.na(ventas_tienda))           # ¿En qué posiciones?
+\end{rcode}
+\begin{rsalida}
+[1] NA
+[1] 8830
+[1] 44150
+[1] FALSE FALSE  TRUE FALSE FALSE  TRUE FALSE
+[1] 2
+[1] 3 6
+\end{rsalida}
+
+El argumento \codigo{na.rm = TRUE} (\emph{NA remove}) le dice a la función
+que ignore los faltantes. El promedio de los cinco días con datos es
+\$8,830. Fíjate en que es muy distinto a rellenar los faltantes con cero:
+eso bajaría el promedio a \$6,307 y haría creer que la tienda vendió peor.
+
+\begin{advertencia}
+No reemplaces \codigo{NA} por 0 sin pensarlo. Un cero dice ``no vendimos
+nada''; un \codigo{NA} dice ``no sabemos cuánto vendimos''. Antes de decidir,
+averigua \emph{por qué} falta el dato.
+\end{advertencia}
+
+\subsection{Ejemplo integrador: la semana de una tienda}
+
+\begin{ejemplo}{Reporte semanal de ventas}
+El gerente quiere saber: ¿cuál fue el mejor día?, ¿qué días superaron la
+meta de \$14,000?, ¿cómo cambió la venta de un día a otro en porcentaje? y
+¿cuáles fueron los tres mejores días?
+\end{ejemplo}
+
+\begin{rcode}
+# Mejor día y su venta
+names(which.max(ventas_semana))
+max(ventas_semana)
+
+# Días que superaron la meta
+names(ventas_semana)[ventas_semana > meta_diaria]
+
+# Crecimiento porcentual respecto al día anterior
+crecimiento_pct <- diff(ventas_semana) / head(ventas_semana, -1) * 100
+round(crecimiento_pct, 1)
+
+# Los tres mejores días (ordenados de mayor a menor)
+sort(ventas_semana, decreasing = TRUE)[1:3]
+\end{rcode}
+\begin{rsalida}
+[1] "sábado"
+[1] 22300
+[1] "viernes" "sábado"  "domingo"
+   martes miércoles    jueves   viernes    sábado   domingo 
+    -21.6      14.3      19.6      41.0      18.0     -30.0 
+ sábado viernes domingo 
+  22300   18900   15600 
+\end{rsalida}
+
+\textbf{¿Qué nos dice esto?} El sábado fue el mejor día (\$22,300) y solo
+viernes, sábado y domingo superaron la meta: la tienda depende del fin de
+semana. El crecimiento muestra un arranque débil (el martes cayó 21.6\%
+respecto al lunes), una subida constante hasta el sábado y una caída del
+30\% el domingo. Una decisión razonable sería reforzar promociones de
+lunes a jueves en lugar de gastar más en el fin de semana, que ya funciona
+solo.
+
+En el código aparecen dos funciones nuevas: \codigo{head(x, -1)} devuelve
+todos los elementos menos el último (para dividir cada diferencia entre el
+día \emph{anterior}) y \codigo{sort()} ordena los valores; con
+\codigo{decreasing = TRUE} los pone de mayor a menor, y \codigo{[1:3]} se
+queda con los tres primeros.
+
+\begin{hazlotu}
+Crea un vector con las ventas de los 12 meses de un negocio que conozcas (o
+inventa cifras) con los nombres \codigo{"ene"}, \codigo{"feb"}\ldots\
+\codigo{"dic"}. Calcula el total anual, el mejor mes con
+\codigo{names(which.max())}, cuántos meses superaron el promedio y el
+crecimiento porcentual de cada mes respecto al anterior.
+\end{hazlotu}
+
+% ============================================================================
+\section{Trabajar con texto}
+\label{sec:m1-texto}
+% ============================================================================
+
+En BI el texto está en todas partes: nombres de clientes, ciudades, códigos
+de producto, y también los mensajes que tú produces (``La sucursal Norte
+vendió \$468,900''). R trae funciones para unir, formatear y limpiar texto.
+En programación, a un texto se le llama \termino{cadena} (\emph{string}).
+
+\subsection{Unir textos: \texorpdfstring{\codigo{paste()}}{paste()} y \texorpdfstring{\codigo{paste0()}}{paste0()}}
+
+\begin{rcode}
+paste("Sucursal", "Norte")               # Une con un espacio
+paste("Q", 1:4, sep = "")                # sep = "" no deja espacio
+paste0("SKU-", 1:3)                      # paste0() = paste(sep = "")
+paste("ventas", c("enero", "febrero"), "2023", sep = "_")
+paste(c("CDMX", "Monterrey", "Puebla"), collapse = ", ")
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\codigo{paste()} también es vectorizada: con \codigo{1:4} produce cuatro
+textos a la vez, ideal para generar etiquetas de trimestres, códigos o
+nombres de archivo. El argumento \codigo{sep} define qué va \emph{entre} las
+piezas y \codigo{collapse} junta todos los elementos de un vector en un
+solo texto.
+
+\subsection{Mensajes con formato: \texorpdfstring{\codigo{sprintf()}}{sprintf()}}
+
+\codigo{sprintf()} funciona como una plantilla con huecos. Cada hueco
+empieza con \codigo{\%} e indica qué tipo de valor va ahí: \codigo{\%s}
+para texto, \codigo{\%d} para enteros y \codigo{\%.2f} para números con 2
+decimales. Para escribir el propio signo de porcentaje se usa
+\codigo{\%\%}.
+
+\begin{rcode}
+ventas_norte <- 468900.5
+cumplimiento <- 97.6875
+sprintf("La sucursal Norte vendió $%.2f", ventas_norte)
+sprintf("Cumplimiento de meta: %.1f%%", cumplimiento)
+sprintf("%s: %d tickets", c("Centro", "Norte"), c(1520L, 1204L))
+sprintf("SKU-%04d", c(7, 42, 315))       # Rellena con ceros a 4 dígitos
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+El último ejemplo es muy práctico para construir códigos de producto o de
+cliente con longitud fija (\codigo{SKU-0007}). Nota que
+\codigo{sprintf()} no pone separador de miles; para eso está
+\codigo{format()}.
+
+\subsection{Números legibles: \texorpdfstring{\codigo{format()}}{format()}}
+
+\begin{rcode}
+monto <- 1234567.891
+format(monto, big.mark = ",")                  # Separador de miles
+format(monto, big.mark = ",", nsmall = 2)      # Con 2 decimales
+montos <- c(513916.6, 1407.99, 54056.19)
+format(montos, big.mark = ",", nsmall = 2)     # Rellena con espacios
+format(montos, big.mark = ",", nsmall = 2, trim = TRUE)
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+El argumento \codigo{big.mark} pone la coma de miles y \codigo{nsmall}
+fija el mínimo de decimales. Con un vector, \codigo{format()} rellena con
+espacios para que todos midan lo mismo (útil para alinear columnas en la
+consola); con \codigo{trim = TRUE} evitas ese relleno.
+
+\subsection{Formatear montos como moneda}
+
+Un reporte ejecutivo debe mostrar \codigo{\$1,234,567.89}, no
+\codigo{1234567.891}. Con R base puedes armarlo combinando
+\codigo{round()}, \codigo{format()} y \codigo{paste0()}:
+
+\begin{rcode}
+paste0("$", format(round(monto, 2), big.mark = ",", nsmall = 2))
+paste0("$", format(round(montos, 2), big.mark = ",", nsmall = 2,
+                   trim = TRUE))
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Funciona, pero es largo. El \paquete{scales} es un \termino{paquete}: un
+complemento de R que agrega funciones nuevas (los estudiarás en la
+sección~\ref{sec:m1-paquetes}). La notación \codigo{scales::dollar()}
+significa ``usa la función \codigo{dollar()} del paquete
+\paquete{scales}'':
+
+\begin{rcode}
+scales::dollar(monto)                        # Redondea a pesos
+scales::dollar(monto, accuracy = 0.01)       # Con centavos
+scales::dollar(montos)
+scales::dollar(15000, suffix = " MXN")       # Agrega un sufijo
+scales::percent(0.9327, accuracy = 0.1)      # Proporción -> porcentaje
+scales::comma(1234567)                       # Solo separador de miles
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Observa que \codigo{dollar()} decide solo si muestra centavos: cuando hay
+montos grandes, redondea a pesos para que la tabla sea fácil de leer; si
+quieres centavos siempre, usa \codigo{accuracy = 0.01}. Y
+\codigo{percent()} multiplica por 100 y agrega el signo: recibe una
+\emph{proporción} (0.9327), no un porcentaje (93.27). Usarás mucho estas
+funciones en las gráficas del Módulo~\ref{cap:visualizacion}.
+
+\begin{consejo}
+Si al ejecutar \codigo{scales::dollar()} R responde que no existe el
+paquete, todavía no lo tienes instalado. En la
+sección~\ref{sec:m1-paquetes} verás cómo instalarlo con
+\codigo{install.packages("scales")}.
+\end{consejo}
+
+\subsection{Mayúsculas, longitud, extraer y reemplazar}
+
+\begin{rcode}
+producto <- "  Laptop HP Pavilion 15  "
+toupper(producto)                  # Todo a mayúsculas
+tolower("SUCURSAL CENTRO")         # Todo a minúsculas
+trimws(producto)                   # Quita espacios al inicio y al final
+nchar(trimws(producto))            # Número de caracteres
+
+sku <- "ELEC-2023-0153"            # Categoría-año-consecutivo
+substr(sku, 1, 4)                  # Caracteres del 1 al 4
+substr(sku, 6, 9)                  # Caracteres del 6 al 9
+gsub("-", "", sku)                 # Reemplaza "-" por nada
+gsub("Sucursal ", "", c("Sucursal Centro", "Sucursal Norte"))
+grepl("Premium", c("Sucursal Premium", "Sucursal Outlet"))
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\begin{itemize}
+  \item \codigo{substr(texto, inicio, fin)} extrae un pedazo por posición:
+        perfecto para códigos con estructura fija como los SKU.
+  \item \codigo{gsub(buscar, reemplazar, texto)} sustituye \emph{todas}
+        las apariciones de un patrón (\codigo{sub()} solo la primera).
+  \item \codigo{grepl(patrón, texto)} responde \codigo{TRUE} o
+        \codigo{FALSE}: ¿el texto contiene el patrón? Sirve para filtrar,
+        por ejemplo, todos los productos que contienen ``Premium''.
+\end{itemize}
+
+\begin{ejemplo}{Limpiar nombres de ciudades}
+El sistema de registro de clientes permite escribir la ciudad a mano. Al
+contar clientes por ciudad aparecen ``CDMX'', `` cdmx'' y ``Cdmx '' como si
+fueran ciudades distintas. Es un problema clásico de \termino{calidad de
+datos}: el reporte sale mal aunque el cálculo sea correcto.
+\end{ejemplo}
+
+\begin{rcode}
+ciudades <- c("CDMX", " cdmx", "Cdmx ", "Monterrey", "monterrey ",
+              "Puebla")
+table(ciudades)                              # Seis "ciudades" distintas
+ciudades_limpias <- toupper(trimws(ciudades))
+table(ciudades_limpias)                      # Tres ciudades reales
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Con dos funciones anidadas, \codigo{trimws()} para quitar espacios y
+\codigo{toupper()} para unificar mayúsculas, el conteo queda bien: 3
+clientes en CDMX, 2 en Monterrey y 1 en Puebla. R ejecuta primero la
+función de adentro y le pasa el resultado a la de afuera.
+
+\begin{hazlotu}
+Tienes los códigos \codigo{c("ROPA-2023-0012", "HOGA-2022-0450",
+"ROPA-2023-0131")}. Extrae la categoría (los 4 primeros caracteres) y el
+año de cada uno, y construye un mensaje con \codigo{sprintf()} como
+\codigo{"Producto 12 de la categoría ROPA (2023)"}. Pista:
+\codigo{as.numeric(substr(x, 11, 14))} te da el consecutivo como número.
+\end{hazlotu}
+
+% ============================================================================
+\section{Data frames y tibbles: tus hojas de cálculo en R}
+\label{sec:m1-dataframes}
+% ============================================================================
+
+Un \termino{data frame} es la estructura más importante para BI: una tabla
+con filas y columnas, igual que una hoja de Excel. Cada \emph{columna} es un
+vector (todos sus valores del mismo tipo) y todas las columnas tienen el
+mismo largo. Cada \emph{fila} es una observación: un producto, una venta,
+un cliente.
+
+\subsection{Crear un data frame}
+
+\begin{ejemplo}{Catálogo de productos}
+Vas a analizar ocho productos de tres categorías. Para cada uno conoces su
+nombre, categoría, precio de venta, costo y unidades vendidas en el mes.
+Quieres saber cuáles generan más ingreso, cuáles tienen mejor margen y
+qué categoría deja más utilidad.
+\end{ejemplo}
+
+\begin{rcode}
+productos <- data.frame(
+  nombre = c("Laptop Pro 14", "Mouse inalámbrico", "Monitor 27",
+             "Silla ergonómica", "Escritorio", "Playera básica",
+             "Chamarra", "Tenis running"),
+  categoria = c("Electrónica", "Electrónica", "Electrónica", "Hogar",
+                "Hogar", "Ropa", "Ropa", "Ropa"),
+  precio = c(18999, 349, 5499, 3899, 4299, 199, 1299, 1899),
+  costo = c(14250, 120, 4100, 2300, 2950, 85, 690, 1050),
+  unidades = c(12, 85, 20, 15, 9, 240, 38, 44)
+)
+productos
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Cada argumento de \codigo{data.frame()} es una columna: primero el nombre
+de la columna, luego \codigo{=} y el vector con sus valores. Los números de
+la izquierda (1 a 8) son los nombres de las filas.
+
+\subsection{Explorar un data frame}
+
+Cuando recibes una tabla nueva, lo primero es conocerla: ¿cuántas filas y
+columnas tiene?, ¿cómo se llaman las columnas?, ¿de qué tipo es cada una?
+
+\begin{rcode}
+head(productos, 3)        # Primeras 3 filas (por defecto, 6)
+nrow(productos)           # Número de filas
+ncol(productos)           # Número de columnas
+dim(productos)            # Filas y columnas
+names(productos)          # Nombres de las columnas
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\begin{rcode}
+str(productos)            # Estructura: tipo de cada columna
+summary(productos[, c("precio", "costo", "unidades")])
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\codigo{str()} (de \emph{structure}) es probablemente la función que más
+usarás al empezar un análisis: te dice que hay 8 observaciones
+(\emph{obs.}) y 5 variables, el tipo de cada una (\codigo{chr} = texto,
+\codigo{num} = número) y sus primeros valores. \codigo{summary()} da el
+mínimo, los cuartiles, la media y el máximo de cada columna numérica: el
+precio promedio es de \$4,555 pero la mediana es de \$2,899, porque la
+laptop sube el promedio.
+
+\begin{rnoejecutar}
+View(productos)     # Abre la tabla en una pestaña, como en Excel
+\end{rnoejecutar}
+
+\codigo{View()} (con \emph{V} mayúscula) abre el data frame en una pestaña
+del editor donde puedes ordenar y filtrar con el ratón. Lo mismo ocurre si
+haces clic en el nombre de la tabla dentro del panel \menu{Environment}.
+Es útil para mirar, pero recuerda que lo que hagas con el ratón no queda
+registrado: los filtros reales se escriben en código.
+
+\subsection{Acceder a columnas, filas y celdas}
+
+El signo \codigo{\$} extrae una columna completa como vector. Los corchetes
+aceptan dos posiciones separadas por coma: \codigo{[filas, columnas]}. Si
+dejas una posición vacía significa ``todas''.
+
+\begin{rcode}
+productos$precio                        # Una columna (vector)
+mean(productos$precio)                  # ... y con ella calculas
+productos[2, ]                          # Fila 2, todas las columnas
+productos[2, "precio"]                  # Una celda: fila 2, col. precio
+productos[1:3, c("nombre", "precio")]   # Filas 1 a 3, dos columnas
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\subsection{Filtrar filas}
+
+Filtrar un data frame es igual que filtrar un vector: escribes una
+condición y la pones en la posición de las \emph{filas}, antes de la coma.
+
+\begin{rcode}
+# Productos con precio mayor a $3,000
+productos[productos$precio > 3000, ]
+
+# Ropa con más de 40 unidades vendidas (dos condiciones con &)
+productos[productos$categoria == "Ropa" & productos$unidades > 40, ]
+
+# Hogar o Ropa, mostrando solo nombre y precio
+productos[productos$categoria %in% c("Hogar", "Ropa"),
+          c("nombre", "precio")]
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\begin{advertencia}
+No olvides la coma: \codigo{productos[productos\$precio > 3000, ]}. Sin
+ella, R interpreta la condición como una selección de \emph{columnas} y
+responde con el error \codigo{undefined columns selected}. La coma separa
+``qué filas'' de ``qué columnas''.
+\end{advertencia}
+
+Una alternativa más legible es \codigo{subset()}, donde puedes escribir
+los nombres de las columnas sin repetir \codigo{productos\$}:
+
+\begin{rcode}
+subset(productos, precio < 1000, select = c(nombre, precio, unidades))
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+En el Módulo~\ref{cap:manipulacion} aprenderás \codigo{filter()} del
+paquete \paquete{dplyr}, que lleva esta idea todavía más lejos.
+
+\subsection{Ordenar}
+
+La función \codigo{order()} devuelve las \emph{posiciones} de las filas en
+el orden deseado; al ponerla en la posición de las filas, reordenas la
+tabla:
+
+\begin{rcode}
+# De menor a mayor precio
+productos[order(productos$precio), c("nombre", "precio")]
+
+# Los 3 productos más caros (de mayor a menor)
+caros <- productos[order(productos$precio, decreasing = TRUE), ]
+caros[1:3, c("nombre", "categoria", "precio")]
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\subsection{Crear columnas calculadas}
+
+Para agregar una columna basta asignarle un vector con \codigo{\$}. Como las
+operaciones son vectorizadas, el cálculo se hace para todas las filas a la
+vez:
+
+\begin{rcode}
+productos$ingreso <- productos$precio * productos$unidades
+productos$utilidad <- (productos$precio - productos$costo) *
+  productos$unidades
+productos$margen_pct <- round((productos$precio - productos$costo) /
+                                productos$precio * 100, 1)
+productos[, c("nombre", "ingreso", "utilidad", "margen_pct")]
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\textbf{¿Qué nos dice esto?} La laptop es el producto que más ingreso
+(\$227,988) y más utilidad (\$56,988) genera, pero con el margen más bajo
+(25\%). En cambio, el mouse y la playera, que cuestan poco, dejan márgenes
+de 65.6\% y 57.3\%. Un producto puede ser muy importante en ventas y poco
+rentable por unidad: por eso en BI siempre se miran juntas varias
+métricas.
+
+\subsection{Resumir por grupos}
+
+La pregunta más frecuente en BI es ``¿cuánto por cada\ldots?'': ventas por
+tienda, clientes por ciudad, utilidad por categoría. En Excel harías una
+tabla dinámica. En R base tienes tres herramientas:
+
+\begin{rcode}
+table(productos$categoria)                       # Conteo por grupo
+tapply(productos$ingreso, productos$categoria, sum)   # Suma por grupo
+aggregate(ingreso ~ categoria, data = productos, FUN = sum)
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\begin{itemize}
+  \item \codigo{table()} cuenta cuántas filas hay de cada categoría.
+  \item \codigo{tapply(valores, grupos, función)} aplica la función a los
+        valores de cada grupo y devuelve un vector con nombres.
+  \item \codigo{aggregate()} hace lo mismo pero devuelve un data frame,
+        ideal para seguir trabajando o exportarlo. La expresión
+        \codigo{ingreso \textasciitilde{} categoria} es una
+        \termino{fórmula} y se lee ``ingreso según categoría''.
+\end{itemize}
+
+\codigo{aggregate()} puede resumir varias columnas a la vez con
+\codigo{cbind()}. Con eso armamos una pequeña tabla dinámica de
+rentabilidad:
+
+\begin{rcode}
+resumen_categoria <- aggregate(cbind(ingreso, utilidad) ~ categoria,
+                               data = productos, FUN = sum)
+resumen_categoria$margen_pct <- round(resumen_categoria$utilidad /
+                                        resumen_categoria$ingreso * 100, 1)
+resumen_categoria[order(resumen_categoria$margen_pct,
+                        decreasing = TRUE), ]
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+\textbf{¿Qué nos dice esto?} Electrónica vende más del doble que Ropa
+(\$367,633 contra \$180,678), pero Ropa convierte casi la mitad de cada peso
+vendido en utilidad (48.6\%) mientras Electrónica solo el 28.4\%. Si el
+equipo comercial tiene presupuesto para una campaña, impulsar Ropa deja
+más utilidad por cada peso vendido.
+
+\subsection{Data frame o tibble}
+
+El \termino{tibble} es una versión moderna del data frame que usa el
+\emph{tidyverse}, el conjunto de paquetes que estudiarás a partir del
+Módulo~\ref{cap:manipulacion}. Se crea con \codigo{tibble::tibble()} y se
+comporta casi igual, con algunas mejoras:
+
+\begin{rcode}
+productos_tb <- tibble::tibble(
+  nombre = c("Laptop Pro 14", "Mouse inalámbrico", "Monitor 27"),
+  precio = c(18999, 349, 5499),
+  unidades = c(12, 85, 20),
+  ingreso = precio * unidades     # Usa columnas recién creadas
+)
+productos_tb
+tibble::as_tibble(productos)      # Convertir un data frame a tibble
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Las diferencias más visibles son:
+
+\begin{itemize}
+  \item Al imprimirlo te dice su tamaño (\codigo{8 x 8}) y el tipo de cada
+        columna debajo del nombre: \codigo{<chr>} texto, \codigo{<dbl>}
+        número decimal, \codigo{<int>} entero, \codigo{<lgl>} lógico,
+        \codigo{<date>} fecha.
+  \item Solo muestra las primeras 10 filas y las columnas que caben en la
+        pantalla; las demás las lista al final. Con tablas de un millón de
+        filas, eso evita que la consola se inunde.
+  \item Muestra los números con 3 cifras significativas para ahorrar
+        espacio (los decimales se atenúan en pantalla), pero el valor
+        guardado no cambia.
+  \item Dentro de \codigo{tibble()} una columna puede usar otra recién
+        creada, como hicimos con \codigo{ingreso}.
+  \item Nunca convierte texto en factor y no tiene nombres de fila.
+\end{itemize}
+
+Todo lo que aprendiste en esta sección (\codigo{\$}, corchetes,
+\codigo{str()}, \codigo{aggregate()}\ldots) funciona igual con tibbles.
+Cuando leas archivos con \paquete{readr} o \paquete{readxl} obtendrás
+tibbles.
+
+\begin{hazlotu}
+Agrega al data frame \codigo{productos} una columna
+\codigo{precio\_con\_iva} (precio por 1.16, redondeado a 2 decimales).
+Después muestra solo los productos de Electrónica ordenados de mayor a
+menor margen y calcula con \codigo{aggregate()} las unidades totales por
+categoría.
+\end{hazlotu}
+
+% ============================================================================
+\section{Listas y matrices}
+\label{sec:m1-listas-matrices}
+% ============================================================================
+
+Los vectores y los data frames cubren el 90\% de lo que harás en BI, pero
+hay dos estructuras más que conviene conocer porque aparecen a menudo. La
+figura~\ref{fig:m01-estructuras} resume las cuatro.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\footnotesize,
+  celda/.style={draw=gray!60, minimum width=9mm, minimum height=5mm,
+                inner sep=0pt, font=\ttfamily\scriptsize},
+  titulo/.style={font=\sffamily\small\bfseries, text=primario},
+  expl/.style={font=\sffamily\scriptsize, text=gristexto, align=center,
+               text width=6.6cm},
+]
+% ---- Vector --------------------------------------------------------------
+\node[titulo] at (3.4,6.6) {Vector};
+\foreach \v [count=\i] in {12500, 9800, 11200, 13400, 18900} {
+  \node[celda, fill=secundario!12] at (0.9+\i*0.95-0.45,5.95) {\v};
+}
+\node[expl] at (3.4,5.2) {Una fila de valores, todos del mismo tipo.\\
+  \texttt{c(12500, 9800, ...)}};
+% ---- Matriz --------------------------------------------------------------
+\node[titulo] at (11.2,6.6) {Matriz};
+\foreach \fila [count=\r] in {{150,200,180,220},{430,390,510,480},
+                              {210,240,190,260}} {
+  \foreach \v [count=\c] in \fila {
+    \node[celda, fill=morado!10] at (9.3+\c*0.95-0.45,6.45-\r*0.5) {\v};
+  }
+}
+\node[expl] at (11.2,4.4) {Tabla de un solo tipo (normalmente números).\\
+  \texttt{matrix(..., nrow = 3)}};
+% ---- Data frame -----------------------------------------------------------
+\node[titulo] at (3.4,3.4) {Data frame / tibble};
+\node[celda, fill=gray!20, minimum width=2.4cm] at (1.5,2.75)
+  {\textbf{nombre} <chr>};
+\node[celda, fill=gray!20, minimum width=1.7cm] at (3.55,2.75)
+  {\textbf{precio} <dbl>};
+\node[celda, fill=gray!20, minimum width=1.7cm] at (5.25,2.75)
+  {\textbf{premium} <lgl>};
+\foreach \n/\p/\l [count=\r] in {Laptop/18999/TRUE, Mouse/349/FALSE,
+                                  Silla/3899/TRUE} {
+  \node[celda, fill=acento!10, minimum width=2.4cm] at (1.5,2.75-\r*0.5) {\n};
+  \node[celda, fill=secundario!12, minimum width=1.7cm] at (3.55,2.75-\r*0.5)
+    {\p};
+  \node[celda, fill=exito!12, minimum width=1.7cm] at (5.25,2.75-\r*0.5) {\l};
+}
+\node[expl] at (3.4,0.55) {Columnas de distinto tipo, todas del mismo
+  largo.\\ Es la ``hoja de Excel'' de R.};
+% ---- Lista ---------------------------------------------------------------
+\node[titulo] at (11.2,3.4) {Lista};
+\draw[rounded corners=3pt, draw=gray!60, fill=gray!4] (8.4,1.05) rectangle
+  (14.0,3.05);
+\node[celda, fill=acento!10, minimum width=2.6cm, anchor=west] at (8.6,2.7)
+  {nombre: "María"};
+\node[celda, fill=exito!12, minimum width=2.2cm, anchor=west] at (11.55,2.7)
+  {premium: TRUE};
+\node[anchor=west, font=\ttfamily\scriptsize] at (8.6,2.1) {compras:};
+\foreach \v [count=\i] in {1250, 830, 2410} {
+  \node[celda, fill=secundario!12, minimum width=8mm] at (9.9+\i*0.85,2.1)
+    {\v};
+}
+\node[anchor=west, font=\ttfamily\scriptsize] at (8.6,1.5) {historial:};
+\foreach \c in {0,1,2} {
+  \foreach \r in {0,1} {
+    \node[draw=gray!60, fill=morado!10, minimum width=4mm,
+          minimum height=2.5mm, inner sep=0pt] at (10.75+\c*0.42,1.62-\r*0.27) {};
+  }
+}
+\node[anchor=west, font=\sffamily\scriptsize, text=gristexto] at (12.1,1.5)
+  {(una tabla)};
+\node[expl] at (11.2,0.55) {Una ``carpeta'' que guarda objetos de cualquier
+  tipo\\ y tamaño, cada uno con su nombre.};
+\end{tikzpicture}
+\caption{Las cuatro estructuras de datos básicas de R.}
+\label{fig:m01-estructuras}
+\end{figure}
+
+\subsection{Matrices: tablas de un solo tipo}
+
+Una \termino{matriz} es una tabla rectangular donde \emph{todos} los
+valores son del mismo tipo, casi siempre números. Es como una tabla
+dinámica ya resumida: productos en las filas, meses en las columnas.
+
+\begin{ejemplo}{Ventas en unidades por producto y mes}
+Tienes las unidades vendidas de tres productos en los primeros cuatro meses
+del año. Quieres el total por producto, el total por mes y un pronóstico
+para el siguiente cuatrimestre con un crecimiento del 10\%.
+\end{ejemplo}
+
+\begin{rcode}
+ventas_mat <- matrix(
+  c(150, 200, 180, 220,     # Laptop
+    430, 390, 510, 480,     # Mouse
+    210, 240, 190, 260),    # Monitor
+  nrow = 3, byrow = TRUE,   # 3 filas, llenando renglón por renglón
+  dimnames = list(c("Laptop", "Mouse", "Monitor"),     # Filas
+                  c("ene", "feb", "mar", "abr"))       # Columnas
+)
+ventas_mat
+ventas_mat["Mouse", "mar"]      # Una celda: [fila, columna]
+ventas_mat[, "abr"]             # Una columna completa
+rowSums(ventas_mat)             # Total por producto
+colSums(ventas_mat)             # Total por mes
+round(rowMeans(ventas_mat), 1)  # Promedio mensual por producto
+ventas_mat * 1.10               # Pronóstico: +10% en todas las celdas
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+El mouse es el producto de mayor volumen (1,810 unidades en cuatro meses)
+y abril fue el mes más fuerte (960 unidades). Las funciones
+\codigo{rowSums()} y \codigo{colSums()} son los ``totales de fila'' y
+``totales de columna'' de una tabla dinámica. Y como las matrices también
+son vectorizadas, \codigo{ventas\_mat * 1.10} aplica el crecimiento a las
+doce celdas de golpe.
+
+\subsection{Listas: una carpeta con objetos de cualquier tipo}
+
+Una \termino{lista} es la estructura más flexible: guarda objetos de
+distinto tipo y tamaño, cada uno con su nombre. Piensa en el expediente de
+un cliente: una carpeta con su nombre (texto), su fecha de alta (fecha), si
+es premium (lógico) y el historial de sus compras (un vector de montos).
+
+\begin{rcode}
+cliente <- list(
+  id = 1045,
+  nombre = "María González",
+  ciudad = "Guadalajara",
+  premium = TRUE,
+  fecha_alta = as.Date("2021-06-14"),
+  compras = c(1250.00, 830.50, 2410.00, 675.25)
+)
+str(cliente)                   # Estructura de la lista
+cliente$nombre                 # Un elemento por nombre
+cliente[["compras"]]           # Otra forma: doble corchete
+sum(cliente$compras)           # Total comprado
+mean(cliente$compras)          # Ticket promedio
+cliente$canal <- "Tienda en línea"   # Agregar un elemento nuevo
+names(cliente)
+\end{rcode}
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+María ha comprado \$5,165.75 en cuatro visitas, con un ticket promedio de
+\$1,291.44. Con \codigo{\$} o con \codigo{[[ ]]} sacas un elemento tal cual
+(aquí, el vector de compras) y puedes operar con él.
+
+\begin{concepto}{¿Por qué importan las listas?}
+Un data frame es, en realidad, una lista de vectores del mismo largo: por
+eso \codigo{productos\$precio} funciona igual que \codigo{cliente\$nombre}.
+Además, muchas funciones de R devuelven listas: los resultados de un modelo
+estadístico, la respuesta de una API web o la configuración de un reporte.
+En el Módulo~\ref{cap:ml} extraerás información de listas así.
+\end{concepto}
+
+\begin{hazlotu}
+Crea una lista \codigo{tienda} con el nombre de una sucursal, su ciudad,
+su fecha de apertura, su número de empleados y un vector con sus ventas de
+los últimos seis meses. Calcula la venta promedio y cuántos años lleva
+abierta la tienda. Después crea una matriz de 2 sucursales $\times$ 3 meses
+y obtén el total por sucursal con \codigo{rowSums()}.
+\end{hazlotu}
+
+% --- CONTINUARÁ ---

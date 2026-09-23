@@ -1,0 +1,1439 @@
+% ============================================================================
+% MÓDULO 4. ANÁLISIS EXPLORATORIO Y ESTADÍSTICA PARA NEGOCIOS
+% ============================================================================
+\chapter{Análisis exploratorio y estadística para negocios}
+\label{cap:eda}
+
+\begin{objetivos}
+\begin{itemize}
+  \item Aplicar un proceso ordenado de \termino{análisis exploratorio de datos}
+        (EDA) con una lista de verificación que puedes reutilizar en cualquier
+        proyecto.
+  \item Calcular e interpretar medidas de tendencia central, dispersión,
+        percentiles y forma de una distribución, y saber cuándo el promedio
+        engaña.
+  \item Detectar datos atípicos con reglas objetivas y decidir qué hacer con
+        ellos sin borrarlos a ciegas.
+  \item Construir KPIs de desempeño (crecimiento, acumulados, promedios
+        móviles, índices y avance contra meta) y un análisis de Pareto/ABC.
+  \item Medir relaciones con correlaciones y distinguir correlación de
+        causalidad.
+  \item Usar las distribuciones normal, binomial y de Poisson para responder
+        preguntas de probabilidad del día a día.
+  \item Estimar con intervalos de confianza, aplicar pruebas de hipótesis
+        (t, proporciones, ANOVA, chi-cuadrada) y ajustar regresiones lineales,
+        explicando los resultados en lenguaje de negocio.
+\end{itemize}
+\end{objetivos}
+
+Imagina que trabajas como analista en una cadena de tiendas con diez
+sucursales en México. Es lunes y la directora comercial te escribe:
+\emph{``Antes de aprobar el presupuesto de fin de año necesito entender qué
+está pasando con las ventas: ¿cuánto gasta un cliente típico?, ¿hay tiendas
+que funcionen mejor que otras?, ¿nuestros clientes premium realmente gastan
+más?, ¿qué productos sostienen el negocio? Y si invertimos más en publicidad,
+¿cuánto deberíamos esperar vender?''}.
+
+Con lo que aprendiste en los Módulos~\ref{cap:manipulacion}
+y~\ref{cap:visualizacion} ya puedes filtrar, agrupar, unir tablas y graficar.
+Pero la directora no quiere tablas sueltas: quiere \emph{respuestas}. Para
+darlas necesitas dos cosas. La primera es un \textbf{método} para recorrer los
+datos sin perderte: eso es el análisis exploratorio. La segunda es la
+\textbf{estadística}, que te permite distinguir un patrón real de una simple
+casualidad y decir con honestidad cuánta confianza tienes en cada número.
+
+En este módulo aprenderás ambas cosas con los datos del curso. No necesitas
+saber matemáticas avanzadas: cada fórmula aparece explicada en palabras, se
+calcula en R paso a paso y termina con la pregunta que más importa en una
+empresa: \emph{¿y esto qué significa para el negocio?}
+
+% ----------------------------------------------------------------------------
+\section{¿Qué es el análisis exploratorio (EDA)?}
+\label{sec:m4-eda}
+
+\begin{concepto}{Análisis exploratorio de datos (EDA)}
+El \termino{análisis exploratorio de datos} (EDA, por sus siglas en inglés,
+\emph{Exploratory Data Analysis}) es el proceso de conocer un conjunto de
+datos \emph{antes} de sacar conclusiones: revisar su estructura, su calidad,
+cómo se reparten los valores, cómo se relacionan las variables y qué
+preguntas vale la pena investigar. El término lo popularizó el estadístico
+John Tukey en 1977 con una idea sencilla: primero mira los datos, después
+decide qué prueba aplicar.
+\end{concepto}
+
+Piensa en el EDA como la consulta de un médico: antes de recetar, toma la
+presión, pregunta síntomas y pide análisis. Si te saltas ese paso, puedes
+recetar el medicamento equivocado. En BI pasa lo mismo: un dashboard
+construido sin EDA puede mostrar con mucha elegancia un número que está mal.
+
+La figura~\ref{fig:m4-proceso} resume el proceso que seguiremos en todo el
+módulo. No es una receta rígida: a menudo un hallazgo en el paso 5 te obliga a
+volver al paso 2.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  paso/.style={draw=primario, fill=primario!6, rounded corners=3pt,
+               minimum width=2.3cm, minimum height=1cm, align=center,
+               font=\sffamily\footnotesize},
+  flecha/.style={-{Stealth[length=2.5mm]}, thick, color=gristexto}]
+  \node[paso] (p1) {1. Estructura};
+  \node[paso, right=0.45cm of p1] (p2) {2. Calidad};
+  \node[paso, right=0.45cm of p2] (p3) {3. Univariado};
+  \node[paso, right=0.45cm of p3] (p4) {4. Bivariado};
+  \node[paso, below=0.9cm of p4] (p5) {5. Segmentos};
+  \node[paso, left=0.45cm of p5] (p6) {6. Atípicos};
+  \node[paso, left=0.45cm of p6, fill=acento!10, draw=acento] (p7)
+       {7. Hipótesis};
+  \node[paso, left=0.45cm of p7, fill=exito!10, draw=exito] (p8)
+       {Pregunta de\\negocio};
+  \draw[flecha] (p1) -- (p2);
+  \draw[flecha] (p2) -- (p3);
+  \draw[flecha] (p3) -- (p4);
+  \draw[flecha] (p4) -- (p5);
+  \draw[flecha] (p5) -- (p6);
+  \draw[flecha] (p6) -- (p7);
+  \draw[flecha] (p7) -- (p8);
+  \draw[flecha, dashed] (p8) -- (p1);
+\end{tikzpicture}
+\caption{Proceso de análisis exploratorio. La flecha punteada indica que cada
+hipótesis genera nuevas preguntas y el ciclo se repite.}
+\label{fig:m4-proceso}
+\end{figure}
+
+La tabla~\ref{tab:m4-checklist} convierte el proceso en una lista de
+verificación. Te recomiendo copiarla en tus proyectos: evita que se te olvide
+revisar algo importante.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Lista de verificación (\emph{checklist}) del análisis exploratorio.}
+\label{tab:m4-checklist}
+\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\toprule
+\textbf{Paso} & \textbf{Pregunta que respondes} & \textbf{Funciones de R} \\
+\midrule
+1. Estructura & ¿Cuántas filas y columnas hay? ¿Qué tipo tiene cada
+  columna? ¿Qué representa cada fila? & \codigo{dim()}, \codigo{glimpse()} \\
+2. Calidad & ¿Hay valores faltantes, duplicados, negativos imposibles o
+  categorías mal escritas? & \codigo{skim()}, \codigo{summary()},
+  \codigo{count()} \\
+3. Univariado & ¿Cómo se reparte cada variable? ¿Cuál es su valor típico y
+  cuánto varía? & \codigo{mean()}, \codigo{quantile()},
+  \codigo{geom\_histogram()} \\
+4. Bivariado & ¿Qué variables se mueven juntas? & \codigo{cor()},
+  \codigo{geom\_point()} \\
+5. Segmentos & ¿Cambian los resultados por tienda, categoría o tipo de
+  cliente? & \codigo{group\_by()} + \codigo{summarise()} \\
+6. Atípicos & ¿Hay valores extremos? ¿Son errores o casos valiosos? &
+  \codigo{IQR()}, \codigo{geom\_boxplot()} \\
+7. Hipótesis & ¿Qué diferencias parecen reales y cuáles pueden ser azar? &
+  \codigo{t.test()}, \codigo{lm()} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Preparar el entorno}
+
+En este módulo usaremos dos paquetes nuevos: \paquete{skimr}, que resume un
+data frame completo con una sola función, y \paquete{corrplot}, que dibuja
+matrices de correlación. Instálalos una sola vez:
+
+\begin{rnoejecutar}
+install.packages(c("skimr", "corrplot"))
+\end{rnoejecutar}
+
+Ahora carga los paquetes y los datos. Recuerda que el directorio de trabajo
+debe ser la carpeta del curso (la que contiene \archivo{datasets/}).
+
+\begin{rcode}
+# Paquetes del módulo
+library(tidyverse)   # dplyr, ggplot2, readr, tidyr... (Módulos 2 y 3)
+library(skimr)       # resúmenes rápidos de un data frame
+library(corrplot)    # matrices de correlación
+library(scales)      # formatos de negocio: dollar(), percent(), comma()
+
+# Datos del curso
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+clientes  <- read_csv("datasets/clientes.csv", show_col_types = FALSE)
+productos <- read_csv("datasets/productos.csv", show_col_types = FALSE)
+tiendas   <- read_csv("datasets/tiendas.csv", show_col_types = FALSE)
+\end{rcode}
+
+También definimos los colores corporativos y el tema gráfico que construiste
+en el Módulo~\ref{cap:visualizacion}, para que todas las gráficas del módulo
+tengan el mismo estilo:
+
+\begin{rcode}
+# Colores corporativos
+color_principal <- "#2a78d6"   # una sola serie
+color_resalte   <- "#eb6834"   # para destacar un elemento
+color_gris      <- "#b5b3ad"   # el resto, cuando se resalta uno
+paleta_libro <- c("#2a78d6", "#eb6834", "#1baf7a", "#eda100",
+                  "#e87ba4", "#008300", "#4a3aa7", "#e34948")
+
+# Tema corporativo (misma forma que en el Módulo 3)
+tema_libro <- function(base_size = 11) {
+  theme_minimal(base_size = base_size) +
+    theme(
+      plot.title       = element_text(face = "bold", color = "#0b0b0b"),
+      plot.subtitle    = element_text(color = "#52514e"),
+      plot.caption     = element_text(color = "#52514e", size = rel(0.8)),
+      axis.title       = element_text(color = "#52514e"),
+      axis.text        = element_text(color = "#52514e"),
+      panel.grid.minor = element_blank(),
+      panel.grid.major = element_line(color = "#e6e5e1", linewidth = 0.3),
+      legend.position  = "top",
+      legend.title     = element_text(color = "#52514e")
+    )
+}
+\end{rcode}
+
+\subsection{Pasos 1 y 2: estructura y calidad}
+
+Empieza siempre por lo básico: ¿qué tamaño tiene la tabla y qué contiene cada
+columna?
+
+\begin{rcode}
+dim(transacciones)        # filas y columnas
+glimpse(transacciones)    # tipo y primeros valores de cada columna
+\end{rcode}
+\begin{rsalida}
+[1] 1000   14
+Rows: 1,000
+Columns: 14
+$ transaccion_id    <dbl> 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,~
+$ fecha             <date> 2023-01-13, 2023-01-09, 2023-02-20, 2023-~
+$ hora              <time> 13:15:00, 10:45:00, 10:30:00, 10:45:00, 1~
+$ cliente_id        <dbl> 155, 155, 75, 51, 173, 135, 90, 168, 13, 9~
+$ producto_id       <dbl> 3, 47, 6, 17, 28, 46, 30, 48, 21, 12, 49, ~
+$ cantidad          <dbl> 4, 4, 3, 4, 1, 2, 4, 2, 2, 5, 2, 3, 4, 2, ~
+$ precio_venta      <dbl> 303.97, 58.07, 275.46, 105.28, 205.47, 534~
+$ metodo_pago       <chr> "Tarjeta Crédito", "Tarjeta Débito", "Tarj~
+$ tienda_id         <dbl> 10, 2, 7, 6, 7, 7, 8, 8, 5, 2, 7, 6, 8, 2,~
+$ vendedor_id       <dbl> 4, 22, 14, 5, 14, 22, 23, 5, 3, 14, 5, 9, ~
+$ total_transaccion <dbl> 1215.88, 232.28, 826.38, 421.12, 205.47, 1~
+$ mes               <chr> "2023-01", "2023-01", "2023-02", "2023-05"~
+$ trimestre         <chr> "Q1", "Q1", "Q1", "Q2", "Q1", "Q1", "Q2", ~
+$ dia_semana        <chr> "viernes", "lunes", "lunes", "viernes", "m~
+\end{rsalida}
+
+Cada fila es una \emph{transacción} (una línea de venta): un cliente compró
+cierta \codigo{cantidad} de un producto a un \codigo{precio\_venta} en una
+tienda. La columna \codigo{total\_transaccion} es cantidad $\times$ precio.
+Fíjate en que \codigo{read\_csv()} reconoció \codigo{fecha} como fecha
+(\codigo{<date>}) y \codigo{hora} como hora (\codigo{<time>}); los
+identificadores (\codigo{cliente\_id}, \codigo{tienda\_id}\ldots) son
+números, pero en realidad son \emph{etiquetas}: promediarlos no tiene
+sentido.
+
+La función \codigo{summary()} da un primer resumen numérico. Aplícala solo a
+las columnas de medida para que la salida sea legible:
+
+\begin{rcode}
+transacciones %>%
+  select(cantidad, precio_venta, total_transaccion) %>%
+  summary()
+\end{rcode}
+\begin{rsalida}
+    cantidad      precio_venta    total_transaccion
+ Min.   :1.000   Min.   : 20.14   Min.   :  22.65
+ 1st Qu.:2.000   1st Qu.:164.11   1st Qu.: 341.11
+ Median :3.000   Median :324.92   Median : 713.49
+ Mean   :2.969   Mean   :318.31   Mean   : 959.99
+ 3rd Qu.:4.000   3rd Qu.:468.00   3rd Qu.:1478.62
+ Max.   :5.000   Max.   :598.81   Max.   :2992.35
+\end{rsalida}
+
+Para cada columna obtienes el mínimo (\codigo{Min.}), el primer cuartil
+(\codigo{1st Qu.}), la mediana (\codigo{Median}), la media (\codigo{Mean}), el
+tercer cuartil (\codigo{3rd Qu.}) y el máximo (\codigo{Max.}). Ya aparece una
+pista importante: en \codigo{total\_transaccion} la media (959.99) es bastante
+mayor que la mediana (713.49). En la sección~\ref{sec:m4-forma} verás que eso
+indica una distribución con ``cola'' hacia los valores altos.
+
+El paquete \paquete{skimr} va más allá: con \codigo{skim()} obtienes en una
+sola llamada el número de faltantes (\codigo{n\_missing}), el porcentaje de
+datos completos (\codigo{complete\_rate}), la media, la desviación estándar y
+los percentiles de cada columna, agrupados por tipo de dato. En la consola de
+RStudio, \codigo{skim()} dibuja además un mini histograma con caracteres
+especiales; para un reporte impreso como este libro usamos su variante
+\codigo{skim\_without\_charts()}, que muestra exactamente lo mismo sin ese
+dibujo.
+
+\begin{rcode}
+skim_without_charts(transacciones)
+\end{rcode}
+\begin{rsalida}
+-- Data Summary ------------------------
+                           Values
+Name                       transacciones
+Number of rows             1000
+Number of columns          14
+_______________________
+Column type frequency:
+  character                4
+  Date                     1
+  difftime                 1
+  numeric                  8
+________________________
+Group variables            None
+
+-- Variable type: character ------------------------------------------
+  skim_variable n_missing complete_rate min max empty n_unique
+1 metodo_pago           0             1   8  15     0        4
+2 mes                   0             1   7   7     0       12
+3 trimestre             0             1   2   2     0        4
+4 dia_semana            0             1   5   9     0        7
+  whitespace
+1          0
+2          0
+3          0
+4          0
+
+-- Variable type: Date -----------------------------------------------
+  skim_variable n_missing complete_rate min        max
+1 fecha                 0             1 2023-01-01 2023-12-31
+  median     n_unique
+1 2023-06-23      345
+
+-- Variable type: difftime -------------------------------------------
+  skim_variable n_missing complete_rate min        max
+1 hora                  0             1 28800 secs 74700 secs
+  median     n_unique
+1 51300 secs       52
+
+-- Variable type: numeric --------------------------------------------
+  skim_variable     n_missing complete_rate   mean     sd   p0  p25
+1 transaccion_id            0             1 500.   289.    1   251.
+2 cliente_id                0             1  97.8   57.5   1    49
+3 producto_id               0             1  25.3   14.4   1    13
+4 cantidad                  0             1   2.97   1.45  1     2
+5 precio_venta              0             1 318.   172.   20.1 164.
+6 tienda_id                 0             1   5.61   2.88  1     3
+7 vendedor_id               0             1  13.2    7.21  1     7
+8 total_transaccion         0             1 960.   760.   22.6 341.
+   p50    p75  p100
+1 500.  750.  1000
+2  97   150    200
+3  25    37.2   50
+4   3     4      5
+5 325.  468.   599.
+6   6     8     10
+7  13    19     25
+8 713. 1479.  2992.
+\end{rsalida}
+
+\begin{ejemplo}{Leer un \texttt{skim()} como analista}
+¿Qué te dice esta salida en 30 segundos?
+\begin{itemize}
+  \item \textbf{Calidad}: \codigo{n\_missing} es 0 en todas las columnas y
+        \codigo{complete\_rate} es 1: no hay faltantes. En datos reales casi
+        nunca pasa; cuando veas un \codigo{complete\_rate} de 0.85, sabes que
+        15\% de esa columna está vacía.
+  \item \textbf{Categorías}: \codigo{metodo\_pago} tiene 4 valores distintos
+        (\codigo{n\_unique}) y \codigo{mes}, 12. Si \codigo{metodo\_pago}
+        tuviera 7 valores, sospecharías de errores de captura como
+        ``tarjeta credito'' y ``Tarjeta Crédito''.
+  \item \textbf{Cobertura}: las fechas van del 1 de enero al 31 de diciembre de
+        2023, pero solo hay 345 fechas distintas: hubo días sin ninguna venta
+        registrada.
+  \item \textbf{Rangos}: \codigo{cantidad} va de 1 a 5 y el ticket
+        (\codigo{total\_transaccion}) de 22.6 a 2,992; no hay negativos ni
+        ceros imposibles.
+\end{itemize}
+\end{ejemplo}
+
+\begin{hazlotu}
+Aplica \codigo{skim\_without\_charts()} a \codigo{clientes} y a
+\codigo{productos}. ¿Cuántos segmentos de edad hay? ¿Hay algún producto con
+\codigo{margen\_pct} negativo? (Pista: mira el valor \codigo{p0}, que es el
+mínimo.)
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Estadística descriptiva}
+\label{sec:m4-descriptiva}
+
+La \termino{estadística descriptiva} resume muchos datos en pocos números.
+Responde dos preguntas: ¿cuál es el valor \emph{típico}? (tendencia central)
+y ¿qué tanto se alejan los datos de ese valor típico? (dispersión). Para no
+repetir \codigo{transacciones\$total\_transaccion} en cada línea, guardamos
+esa columna en un vector llamado \codigo{ticket}:
+
+\begin{rcode}
+ticket <- transacciones$total_transaccion   # 1,000 tickets de venta
+length(ticket)
+\end{rcode}
+\begin{rsalida}
+[1] 1000
+\end{rsalida}
+
+\subsection{Medidas de tendencia central: media, mediana y moda}
+
+La \termino{media} (o promedio) suma todos los valores y divide entre cuántos
+son. Si llamamos $x_1, x_2, \ldots, x_n$ a los $n$ tickets:
+\[
+  \bar{x} \;=\; \frac{x_1 + x_2 + \cdots + x_n}{n}
+          \;=\; \frac{1}{n}\sum_{i=1}^{n} x_i
+\]
+El símbolo $\sum$ (sigma) solo significa ``suma todo''. La \termino{mediana}
+es el valor que queda justo a la mitad cuando ordenas los datos de menor a
+mayor: la mitad de los tickets está por debajo y la otra mitad por encima. La
+\termino{moda} es el valor que más se repite; es útil sobre todo para
+variables categóricas (método de pago, día de la semana).
+
+\begin{rcode}
+media_ticket   <- mean(ticket)     # promedio
+mediana_ticket <- median(ticket)   # valor central
+media_ticket
+mediana_ticket
+sum(ticket) / length(ticket)       # la media "a mano": mismo resultado
+\end{rcode}
+\begin{rsalida}
+[1] 959.9927
+[1] 713.485
+[1] 959.9927
+\end{rsalida}
+
+R no trae una función para la moda (la función \codigo{mode()} de R hace otra
+cosa: dice el tipo de un objeto). La construimos nosotros con lo que
+aprendiste en el Módulo~\ref{cap:fundamentos}:
+
+\begin{rcode}
+# Moda: el valor que más veces aparece en un vector
+moda <- function(x) {
+  frecuencias <- table(x)                      # cuenta cada valor
+  names(frecuencias)[which.max(frecuencias)]   # el más frecuente
+}
+
+moda(transacciones$metodo_pago)   # método de pago más usado
+moda(transacciones$dia_semana)    # día con más transacciones
+moda(transacciones$cantidad)      # unidades más comunes por ticket
+\end{rcode}
+\begin{rsalida}
+[1] "Tarjeta Crédito"
+[1] "viernes"
+[1] "1"
+\end{rsalida}
+
+\codigo{table()} cuenta cuántas veces aparece cada valor y
+\codigo{which.max()} devuelve la posición del mayor conteo. La moda siempre
+sale como texto (por eso \codigo{"1"} aparece entre comillas); si la
+necesitas como número usa \codigo{as.numeric(moda(x))}. Si hay empate,
+\codigo{which.max()} devuelve el primero en orden alfabético, así que
+conviene revisar la tabla completa:
+
+\begin{rcode}
+table(transacciones$cantidad)
+\end{rcode}
+\begin{rsalida}
+  1   2   3   4   5
+219 196 190 187 208
+\end{rsalida}
+
+\begin{negocio}{La moda en la operación}
+La moda responde preguntas operativas muy concretas: ¿cuál es la talla que más
+se vende? (para surtir más), ¿cuál es el método de pago más usado? (para
+negociar comisiones con el banco), ¿a qué hora llegan más clientes? (para
+programar turnos). Aquí, la tarjeta de crédito es el método más frecuente y
+lo más común es que un ticket lleve 1 sola unidad.
+\end{negocio}
+
+\subsection{Medidas de dispersión}
+
+Dos tiendas pueden tener el mismo ticket promedio y comportarse de forma muy
+distinta: en una todos gastan alrededor de 900 pesos y en la otra unos gastan
+50 y otros 3,000. La \termino{dispersión} mide esa diferencia.
+
+\begin{itemize}
+  \item \termino{Rango}: máximo menos mínimo. Fácil, pero depende solo de dos
+        datos (los más extremos).
+  \item \termino{Varianza} ($s^2$): el promedio de las distancias al
+        cuadrado respecto a la media. Elevamos al cuadrado para que las
+        distancias negativas no cancelen a las positivas:
+        \[ s^2 = \frac{1}{n-1}\sum_{i=1}^{n}(x_i - \bar{x})^2 \]
+        Se divide entre $n-1$ y no entre $n$ por un ajuste técnico que
+        corrige un pequeño sesgo cuando trabajas con muestras; con muchos
+        datos la diferencia es mínima.
+  \item \termino{Desviación estándar} ($s$): la raíz cuadrada de la
+        varianza. Regresa a las unidades originales (pesos), por eso es la
+        medida de dispersión más usada. Se interpreta como ``cuánto se aleja,
+        típicamente, un dato del promedio''.
+  \item \termino{Rango intercuartílico} (IQR): distancia entre el percentil
+        75 y el 25. Mide la amplitud del 50\% central de los datos y no le
+        afectan los extremos.
+  \item \termino{Coeficiente de variación} (CV): la desviación estándar
+        dividida entre la media, $CV = s/\bar{x}$. Como no tiene unidades,
+        sirve para comparar la variabilidad de cosas distintas (tickets en
+        pesos contra unidades vendidas).
+\end{itemize}
+
+\begin{rcode}
+range(ticket)                  # mínimo y máximo
+diff(range(ticket))            # rango = máximo - mínimo
+var(ticket)                    # varianza (pesos al cuadrado)
+sd(ticket)                     # desviación estándar (pesos)
+IQR(ticket)                    # rango intercuartílico
+sd(ticket) / mean(ticket)      # coeficiente de variación
+
+# La varianza "a mano", para que veas que no hay magia:
+sum((ticket - mean(ticket))^2) / (length(ticket) - 1)
+\end{rcode}
+\begin{rsalida}
+[1]   22.65 2992.35
+[1] 2969.7
+[1] 578152.5
+[1] 760.3634
+[1] 1137.513
+[1] 0.7920512
+[1] 578152.5
+\end{rsalida}
+
+¿Qué nos dice esto? Un ticket típico se aleja unos \$760 del promedio de
+\$960. El coeficiente de variación es 0.79: la desviación estándar equivale al
+79\% de la media, lo que indica tickets \emph{muy} heterogéneos. Como regla
+práctica, un CV menor a 0.15 indica datos bastante homogéneos, entre 0.15 y
+0.30 variabilidad moderada y por encima de 0.30 alta variabilidad. La
+varianza (578,152.5) está en ``pesos al cuadrado'', una unidad sin sentido de
+negocio; por eso casi siempre reportarás la desviación estándar.
+
+\begin{hazlotu}
+Calcula el coeficiente de variación de \codigo{cantidad} y de
+\codigo{precio\_venta}. ¿Cuál de las dos varía más en términos relativos?
+\end{hazlotu}
+
+\subsection{Percentiles y cuantiles}
+
+El \termino{percentil} $p$ es el valor que deja por debajo al $p\%$ de los
+datos. La mediana es el percentil 50; el primer y tercer
+\termino{cuartil} son los percentiles 25 y 75. En R se calculan con
+\codigo{quantile()}, indicando las proporciones que quieres:
+
+\begin{rcode}
+quantile(ticket, probs = c(0.10, 0.25, 0.50, 0.75, 0.90, 0.95))
+\end{rcode}
+\begin{rsalida}
+      10%       25%       50%       75%       90%       95%
+ 159.1200  341.1125  713.4850 1478.6250 2113.6140 2501.2725
+\end{rsalida}
+
+Los percentiles se leen así: el 10\% de los tickets es menor a \$159.12; la
+mitad, menor a \$713.49; y solo el 5\% supera \$2,501.27. Son perfectos para
+fijar umbrales de negocio: si quieres un programa de beneficios para el 10\%
+de compras más grandes, el corte está en \$2,113.61 (percentil 90).
+
+\begin{ejemplo}{Umbral para un programa de lealtad}
+La gerencia de mercadotecnia quiere regalar un cupón a los tickets que estén
+en el 20\% más alto. ¿A partir de qué monto se entrega el cupón y cuántos
+tickets del año lo habrían recibido?
+\end{ejemplo}
+
+\begin{rcode}
+umbral_cupon <- quantile(ticket, probs = 0.80)   # percentil 80
+umbral_cupon
+sum(ticket > umbral_cupon)   # tickets que superan el umbral
+\end{rcode}
+\begin{rsalida}
+     80%
+1641.174
+[1] 200
+\end{rsalida}
+
+El cupón se entregaría en compras mayores a \$1,641.17 y, con los datos de
+2023, lo habrían recibido 200 tickets (el 20\% de 1,000, como era de
+esperarse). Si cada cupón cuesta 50 pesos, el costo del programa sería de
+unos 10,000 pesos al año.
+
+\subsection{Cuándo la media engaña}
+\label{sec:m4-media-engana}
+
+La media tiene un defecto: \textbf{es muy sensible a los valores extremos}.
+Un solo dato gigante la arrastra hacia arriba; la mediana, en cambio, apenas
+se mueve. Veámoslo con dos ejemplos pequeños creados con \codigo{tibble()}.
+
+\begin{ejemplo}{Un distribuidor con un cliente gigante}
+Un distribuidor mayorista tiene 10 clientes. Nueve compran entre 20 y 30 mil
+pesos al mes; el décimo es una cadena nacional que compra 900 mil. El
+director pregunta: ``¿cuánto compra un cliente típico?''.
+\end{ejemplo}
+
+\begin{rcode}
+compras_b2b <- tibble(
+  cliente = paste("Cliente", 1:10),
+  compra_mensual = c(22000, 25000, 21000, 28000, 30000,
+                     24000, 26000, 23000, 27000, 900000)
+)
+
+compras_b2b %>%
+  summarise(media   = mean(compra_mensual),
+            mediana = median(compra_mensual))
+\end{rcode}
+\begin{rsalida}
+# A tibble: 1 x 2
+   media mediana
+   <dbl>   <dbl>
+1 112600   25500
+\end{rsalida}
+
+Si respondes ``un cliente típico compra 112,600 pesos'' estarás describiendo
+a un cliente que no existe: nueve de diez compran menos de 31 mil. La mediana
+(25,500) sí describe al cliente típico. La media sigue siendo útil para otra
+pregunta: si multiplicas 112,600 por 10 clientes, obtienes exactamente las
+ventas totales. \textbf{La media sirve para totales; la mediana, para
+describir al caso típico.}
+
+El segundo ejemplo es clásico en recursos humanos:
+
+\begin{rcode}
+salarios <- c(rep(15000, 9), 250000)   # 9 empleados y un director
+mean(salarios)
+median(salarios)
+\end{rcode}
+\begin{rsalida}
+[1] 38500
+[1] 15000
+\end{rsalida}
+
+Anunciar que ``el salario promedio en la empresa es de 38,500 pesos'' es
+técnicamente cierto, pero engañoso: nueve de cada diez personas ganan 15,000.
+Por eso las estadísticas oficiales de ingresos suelen reportar la mediana.
+
+\begin{consejo}
+Reporta siempre la media \emph{y} la mediana. Si son parecidas, los datos son
+bastante simétricos y cualquiera sirve. Si la media es claramente mayor que la
+mediana, hay valores altos que la arrastran: usa la mediana para describir el
+caso típico y la media solo para calcular totales.
+\end{consejo}
+
+\subsection{Resumen estadístico por grupo}
+
+En el Módulo~\ref{cap:manipulacion} aprendiste \codigo{group\_by()} +
+\codigo{summarise()}. Ahora lo combinamos con todas las medidas anteriores
+para comparar segmentos. Pregunta de negocio: \emph{¿el comportamiento del
+ticket cambia según el método de pago?}
+
+\begin{rcode}
+resumen_pago <- transacciones %>%
+  group_by(metodo_pago) %>%
+  summarise(
+    n        = n(),                                 # cuántos tickets
+    ventas   = round(sum(total_transaccion)),       # total vendido
+    media    = mean(total_transaccion),             # ticket promedio
+    mediana  = median(total_transaccion),           # ticket típico
+    desv_est = sd(total_transaccion),               # dispersión
+    cv       = sd(total_transaccion) / mean(total_transaccion),
+    .groups = "drop"
+  ) %>%
+  mutate(pct_ventas = ventas / sum(ventas)) %>%     # % de las ventas
+  arrange(desc(ventas))
+
+resumen_pago
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 8
+  metodo_pago         n ventas media mediana desv_est    cv pct_ventas
+  <chr>           <int>  <dbl> <dbl>   <dbl>    <dbl> <dbl>      <dbl>
+1 Tarjeta Crédito   350 351171 1003.    780.     782. 0.779     0.366
+2 Efectivo          315 303735  964.    710.     757. 0.785     0.316
+3 Tarjeta Débito    233 220855  948.    732.     738. 0.779     0.230
+4 Transferencia     102  84232  826.    608.     741. 0.897     0.0877
+\end{rsalida}
+
+Lectura de negocio: la tarjeta de crédito concentra la mayor parte de las
+ventas (36.6\%) y tiene el ticket promedio más alto (\$1,003); la
+transferencia es el método menos usado y el de ticket más bajo (\$826). Los
+cuatro métodos tienen un CV alto (de 0.78 a 0.90): en todos conviven tickets
+muy pequeños y muy grandes. ¿La diferencia entre \$1,003 y \$826 es real o es azar? No lo
+sabemos todavía: en la sección~\ref{sec:m4-hipotesis} aprenderás a
+responderlo con una prueba de hipótesis.
+
+\begin{hazlotu}
+Repite el resumen agrupando por \codigo{tienda\_id}. ¿Qué tienda tiene la
+mediana de ticket más alta? ¿Coincide con la que tiene la media más alta?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Forma de la distribución}
+\label{sec:m4-forma}
+
+Los números resumen ayudan, pero nada sustituye a \emph{ver} los datos. La
+\termino{distribución} de una variable describe qué valores toma y con qué
+frecuencia. Su herramienta básica es el \termino{histograma}: divide el eje en
+intervalos y cuenta cuántos datos caen en cada uno. Encima podemos dibujar una
+\termino{curva de densidad}, una versión suavizada del histograma que deja
+ver la forma general sin el ``ruido'' de las barras.
+
+\begin{ejemplo}{¿Cómo se reparte el ticket de compra?}
+La directora quiere saber si ``el ticket típico'' es un buen resumen o si hay
+grupos de clientes con compras muy distintas. Dibujamos el histograma del
+ticket con su curva de densidad y marcamos la media y la mediana.
+\end{ejemplo}
+
+\begin{rcode}
+p_hist <- ggplot(transacciones, aes(x = total_transaccion)) +
+  # barras: cuántos tickets caen en cada intervalo de 150 pesos
+  geom_histogram(binwidth = 150, boundary = 0,
+                 fill = color_principal, color = "white", alpha = 0.85) +
+  # densidad reescalada (x 150) para que quede en la escala de las barras
+  geom_density(aes(y = after_stat(count) * 150),
+               color = "#0b0b0b", linewidth = 0.8) +
+  # media (línea continua) y mediana (línea punteada)
+  geom_vline(xintercept = media_ticket, color = color_resalte,
+             linewidth = 0.8) +
+  geom_vline(xintercept = mediana_ticket, color = color_resalte,
+             linewidth = 0.8, linetype = "dashed") +
+  annotate("text", x = media_ticket + 50, y = 140, hjust = 0,
+           label = paste("Media:", dollar(media_ticket)),
+           color = color_resalte, size = 3.5) +
+  annotate("text", x = mediana_ticket - 50, y = 140, hjust = 1,
+           label = paste("Mediana:", dollar(mediana_ticket)),
+           color = color_resalte, size = 3.5) +
+  scale_x_continuous(labels = dollar) +
+  labs(title = "Distribución del ticket por transacción",
+       subtitle = "Muchos tickets pequeños y una cola larga a la derecha",
+       x = "Total de la transacción", y = "Número de transacciones") +
+  tema_libro()
+
+p_hist
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m04-histograma-ticket}
+\caption{Histograma y curva de densidad del ticket. La media queda a la
+derecha de la mediana porque los tickets grandes la ``jalan''.}
+\label{fig:m04-histograma-ticket}
+\end{figure}
+
+La figura~\ref{fig:m04-histograma-ticket} confirma lo que sugerían los
+números: la mayoría de los tickets se concentra por debajo de 600 pesos y, a
+partir de ahí, las barras bajan poco a poco formando una \termino{cola}
+larga hacia la derecha. A esa forma se le llama \termino{asimetría
+positiva} (o sesgo a la derecha). Observa que la media queda a la derecha de
+la mediana: los pocos tickets grandes la arrastran.
+
+\begin{consejo}
+El ancho de las barras (\codigo{binwidth}) cambia mucho la impresión que da un
+histograma. Prueba siempre dos o tres anchos distintos antes de sacar
+conclusiones; con barras muy anchas se esconden patrones y con barras muy
+angostas todo parece ruido.
+\end{consejo}
+
+\subsection{Medir la asimetría}
+
+Podemos resumir la forma con un número: el \termino{coeficiente de
+asimetría}. La idea es promediar las distancias a la media \emph{elevadas al
+cubo}. Al elevar al cubo se conserva el signo (las distancias negativas
+siguen siendo negativas) y los valores lejanos pesan muchísimo; si la cola
+derecha es más larga, dominan los cubos positivos. Para que no dependa de las
+unidades, se divide entre $s^3$:
+\[
+  \text{asimetría} \;=\;
+  \frac{\frac{1}{n}\sum_{i=1}^{n}(x_i - \bar{x})^3}{s^3}
+\]
+
+\begin{rcode}
+# Coeficiente de asimetría (versión sencilla)
+asimetria <- function(x) {
+  mean((x - mean(x))^3) / sd(x)^3
+}
+
+asimetria(ticket)                        # ticket de compra
+asimetria(transacciones$precio_venta)    # precio unitario
+asimetria(compras_b2b$compra_mensual)    # distribuidor con cliente gigante
+\end{rcode}
+\begin{rsalida}
+[1] 0.8711898
+[1] -0.08471191
+[1] 2.276413
+\end{rsalida}
+
+La tabla~\ref{tab:m4-asimetria} te ayuda a interpretarlo. El ticket tiene una
+asimetría de 0.87 (positiva y moderada); el precio unitario está muy cerca de
+cero (los precios se reparten de forma pareja entre 20 y 600 pesos); y el
+ejemplo del distribuidor, con un cliente gigante, tiene una asimetría fuerte
+de 2.28.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Cómo interpretar el coeficiente de asimetría.}
+\label{tab:m4-asimetria}
+\begin{tabularx}{\textwidth}{@{}l X X@{}}
+\toprule
+\textbf{Valor} & \textbf{Forma} & \textbf{Ejemplo de negocio} \\
+\midrule
+Entre $-0.5$ y $0.5$ & Aproximadamente simétrica; media $\approx$ mediana &
+  Estatura de clientes, tiempos de entrega estables \\
+Entre $0.5$ y $1$ & Asimetría positiva moderada & Ticket de compra de
+  este módulo \\
+Mayor a $1$ & Asimetría positiva fuerte (cola derecha larga) & Ingresos de
+  clientes, ventas por producto en catálogos grandes \\
+Menor a $-0.5$ & Asimetría negativa (cola izquierda) & Calificaciones de
+  satisfacción cuando casi todos ponen 9 o 10 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{negocio}{El ticket con cola larga}
+Una distribución con cola larga a la derecha es la norma en el comercio: hay
+muchas compras chicas y pocas muy grandes. Esto tiene tres consecuencias
+prácticas:
+\begin{enumerate}
+  \item \textbf{Metas}: si fijas la meta del ticket con la media, la mayoría
+        de los vendedores quedarán por debajo aunque trabajen bien; la mediana
+        es una referencia más justa para el ``vendedor típico''.
+  \item \textbf{Estrategia}: la cola derecha son los clientes que más valen.
+        Identificarlos (percentil 90 o 95) permite diseñar atención
+        preferente.
+  \item \textbf{Oportunidad}: el gran bloque de tickets bajos es el terreno
+        para estrategias de venta cruzada (``¿le agrego\ldots?'') que suban el
+        ticket típico.
+\end{enumerate}
+\end{negocio}
+
+\begin{hazlotu}
+Dibuja el histograma de \codigo{precio\_venta} con \codigo{binwidth = 50} y
+calcula su asimetría. ¿Se parece a la forma del ticket? ¿Por qué crees que el
+ticket (cantidad $\times$ precio) tiene cola y el precio no?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Datos atípicos (outliers)}
+\label{sec:m4-atipicos}
+
+Un \termino{dato atípico} (en inglés, \emph{outlier}) es un valor que se
+aleja mucho del resto. Puede ser un \textbf{error} (alguien tecleó 29,923.50
+en vez de 2,992.35), un \textbf{caso legítimo pero excepcional} (una empresa
+que compró 50 laptops) o una \textbf{señal de fraude}. El trabajo del analista
+no es borrarlo: es \emph{detectarlo, investigarlo y decidir}.
+
+\subsection{Regla de 1.5 $\times$ IQR}
+
+La regla más usada la propuso también John Tukey y es la que dibujan los
+diagramas de caja (\emph{boxplots}). Se consideran atípicos los valores que
+caen fuera de estas ``cercas'':
+\[
+  \text{límite inferior} = Q_1 - 1.5 \times IQR
+  \qquad\qquad
+  \text{límite superior} = Q_3 + 1.5 \times IQR
+\]
+donde $Q_1$ y $Q_3$ son los percentiles 25 y 75, e $IQR = Q_3 - Q_1$. Como
+usa percentiles, la regla no se deja engañar por los propios atípicos.
+
+\begin{rcode}
+q1  <- quantile(ticket, 0.25)
+q3  <- quantile(ticket, 0.75)
+iqr <- q3 - q1
+limite_inferior <- unname(q1 - 1.5 * iqr)   # unname() quita el "25%"
+limite_superior <- unname(q3 + 1.5 * iqr)
+c(limite_inferior, limite_superior)
+
+# ¿Cuántos tickets quedan fuera de las cercas?
+sum(ticket < limite_inferior | ticket > limite_superior)
+\end{rcode}
+\begin{rsalida}
+[1] -1365.156  3184.894
+[1] 0
+\end{rsalida}
+
+Ningún ticket es atípico según esta regla: el límite superior (\$3,184.89)
+está por encima del ticket máximo (\$2,992.35). Tiene sentido: una transacción
+tiene como máximo 5 unidades de un producto de hasta 600 pesos. El límite
+inferior es negativo, lo cual simplemente significa que por abajo no hay
+forma de ser atípico. \textbf{``No hay atípicos'' también es un resultado
+valioso}: significa que puedes usar los tickets con tranquilidad.
+
+\subsection{Puntuación z}
+
+La segunda regla usa la \termino{puntuación z} (\emph{z-score}): cuántas
+desviaciones estándar se aleja cada dato de la media.
+\[
+  z_i = \frac{x_i - \bar{x}}{s}
+\]
+Un $z = 2$ significa ``dos desviaciones estándar por encima del promedio''.
+Se suele marcar como atípico todo dato con $|z| > 3$.
+
+\begin{rcode}
+z_ticket <- (ticket - mean(ticket)) / sd(ticket)
+range(z_ticket)              # el z más bajo y el más alto
+sum(abs(z_ticket) > 3)       # tickets con |z| > 3
+\end{rcode}
+\begin{rsalida}
+[1] -1.232756  2.672876
+[1] 0
+\end{rsalida}
+
+El ticket más alto está a 2.67 desviaciones estándar de la media: tampoco hay
+atípicos por esta regla. Para reutilizar la regla del IQR la convertimos en
+función:
+
+\begin{rcode}
+# Devuelve TRUE para los valores fuera de las cercas de Tukey
+marcar_atipicos <- function(x) {
+  q1 <- quantile(x, 0.25, na.rm = TRUE)
+  q3 <- quantile(x, 0.75, na.rm = TRUE)
+  rango_iq <- q3 - q1
+  x < q1 - 1.5 * rango_iq | x > q3 + 1.5 * rango_iq
+}
+\end{rcode}
+
+\subsection{Cuando los atípicos son errores}
+
+Para ver las reglas en acción con errores de verdad, \textbf{simulamos} una
+situación frecuente: al exportar del punto de venta se colaron tres registros
+problemáticos. Agregamos a una copia de los tickets una venta con el punto
+decimal recorrido (29,923.50), una devolución capturada como venta negativa
+($-450$) y un ticket en cero.
+
+\begin{rcode}
+# Copia de los tickets + 3 registros con problemas (simulados)
+tickets_revision <- transacciones %>%
+  select(transaccion_id, total_transaccion) %>%
+  bind_rows(tibble(transaccion_id    = c(1001, 1002, 1003),
+                   total_transaccion = c(29923.50, -450, 0)))
+
+tickets_revision %>%
+  mutate(
+    atipico_iqr = marcar_atipicos(total_transaccion),
+    z = (total_transaccion - mean(total_transaccion)) /
+          sd(total_transaccion),
+    atipico_z = abs(z) > 3
+  ) %>%
+  filter(atipico_iqr | atipico_z | total_transaccion <= 0)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 5
+  transaccion_id total_transaccion atipico_iqr      z atipico_z
+           <dbl>             <dbl> <lgl>        <dbl> <lgl>
+1           1001            29924. TRUE        24.3   TRUE
+2           1002             -450  FALSE       -1.21  FALSE
+3           1003                0  FALSE       -0.829 FALSE
+\end{rsalida}
+
+Tres lecciones importantes:
+\begin{enumerate}
+  \item Ambas reglas detectan el error de captura (29,923.50): su $z$ es
+        24.3, absurdamente lejos.
+  \item \textbf{Ninguna regla estadística detecta el $-450$ ni el 0}, porque
+        están cerca del centro de los datos. Para eso necesitas
+        \termino{reglas de negocio}: ``un ticket de venta debe ser mayor a
+        cero''. La estadística no sustituye al conocimiento del negocio.
+  \item Un solo error contamina las medidas sensibles:
+\end{enumerate}
+
+\begin{rcode}
+sd(transacciones$total_transaccion)       # sin los registros erróneos
+sd(tickets_revision$total_transaccion)    # con los registros erróneos
+\end{rcode}
+\begin{rsalida}
+[1] 760.3634
+[1] 1189.887
+\end{rsalida}
+
+La desviación estándar pasó de 760 a 1,190 (un 56\% más), sobre todo por
+\emph{un} solo dato erróneo entre 1,003. Por eso la puntuación $z$ es menos confiable que la regla del
+IQR cuando hay atípicos fuertes: el propio atípico infla la $s$ con la que se
+le mide.
+
+\subsection{Cuando los atípicos son tus mejores clientes}
+
+Ahora un caso real. Pregunta de negocio: \emph{¿hay clientes con un gasto
+anual fuera de lo normal?} Calculamos el gasto de cada cliente en 2023 y
+aplicamos las dos reglas.
+
+\begin{rcode}
+gasto_clientes <- transacciones %>%
+  group_by(cliente_id) %>%
+  summarise(compras = n(),
+            gasto   = sum(total_transaccion),
+            .groups = "drop") %>%
+  mutate(atipico = marcar_atipicos(gasto),
+         z       = (gasto - mean(gasto)) / sd(gasto))
+
+gasto_clientes %>%
+  filter(atipico) %>%
+  arrange(desc(gasto))
+\end{rcode}
+\begin{rsalida}
+# A tibble: 8 x 5
+  cliente_id compras  gasto atipico     z
+       <dbl>   <int>  <dbl> <lgl>   <dbl>
+1          5      13 14680. TRUE     3.65
+2         90       9 12504. TRUE     2.85
+3        183       9 11848. TRUE     2.60
+4        168      12 11676. TRUE     2.54
+5         55      13 11356. TRUE     2.42
+6        125      10 11240. TRUE     2.38
+7        162      10 11176. TRUE     2.35
+8         31       7 10980. TRUE     2.28
+\end{rsalida}
+
+La regla del IQR marca 8 clientes con gasto anual superior a unos 10,800
+pesos; la regla de $|z| > 3$ solo marcaría al cliente 5. Ninguno parece un
+error: todos compraron entre 7 y 13 veces en el año. \textbf{Son tus mejores
+clientes}, no basura estadística. Borrarlos del análisis sería un error grave:
+son justo los que un programa de lealtad debe cuidar.
+
+\begin{rcode}
+set.seed(123)   # geom_jitter() mueve los puntos al azar
+p_caja <- ggplot(gasto_clientes, aes(x = gasto, y = "")) +
+  geom_boxplot(width = 0.5, outlier.shape = NA, fill = "grey96") +
+  geom_jitter(aes(color = atipico), height = 0.15,
+              size = 1.8, alpha = 0.8) +
+  scale_color_manual(values = c(`FALSE` = color_gris,
+                                `TRUE` = color_resalte),
+                     labels = c("Dentro de las cercas",
+                                "Atípico (regla 1.5 × IQR)"),
+                     name = NULL) +
+  scale_x_continuous(labels = dollar) +
+  labs(title = "Gasto anual por cliente en 2023",
+       subtitle = "8 clientes superan el límite superior de la caja",
+       x = "Gasto total del cliente", y = NULL) +
+  tema_libro()
+
+p_caja
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m04-boxplot-clientes}
+\caption{Diagrama de caja del gasto anual por cliente. Cada punto es un
+cliente; en naranja, los que la regla del IQR marca como atípicos.}
+\label{fig:m04-boxplot-clientes}
+\end{figure}
+
+En la figura~\ref{fig:m04-boxplot-clientes} la caja va del percentil 25 al 75,
+la línea interior es la mediana y los ``bigotes'' llegan hasta el último dato
+dentro de las cercas. Usamos \codigo{outlier.shape = NA} para que
+\codigo{geom\_boxplot()} no dibuje sus propios puntos atípicos, porque ya los
+dibujamos todos con \codigo{geom\_jitter()}.
+
+\subsection{¿Qué hacer con un atípico?}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Qué hacer con un dato atípico según su origen.}
+\label{tab:m4-atipicos}
+\begin{tabularx}{\textwidth}{@{}l X X@{}}
+\toprule
+\textbf{Situación} & \textbf{Acción} & \textbf{Ejemplo} \\
+\midrule
+Error de captura evidente & Corregir en la fuente si es posible; si no,
+  excluir y documentarlo & 29,923.50 en lugar de 2,992.35 \\
+Viola una regla de negocio & Separar y reportar al área responsable &
+  Tickets negativos o en cero \\
+Caso legítimo excepcional & Conservar; analizar aparte o usar medidas
+  robustas (mediana, IQR) & Compra corporativa de 50 laptops \\
+Cliente o producto de alto valor & Conservar y estudiar: suele ser una
+  oportunidad & Los 8 clientes del ejemplo anterior \\
+Posible fraude & Escalar a auditoría antes de tocarlo & Muchas devoluciones
+  del mismo vendedor \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{advertencia}
+Nunca borres atípicos ``porque estorban'' para que la gráfica se vea bonita
+o el promedio salga mejor. Si decides excluir datos, deja constancia en tu
+script (un comentario y un \codigo{filter()} explícito) y menciónalo en el
+reporte: ``se excluyeron 3 registros con errores de captura''.
+\end{advertencia}
+
+\begin{hazlotu}
+Carga \archivo{ventas\_retail.csv} y aplica \codigo{marcar\_atipicos()} a la
+columna \codigo{total}. ¿Cuántas ventas quedan fuera de las cercas? Míralas
+con \codigo{filter()}: ¿son errores o ventas grandes legítimas?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{KPIs y métricas de desempeño}
+\label{sec:m4-kpis}
+
+Un \termino{KPI} (\emph{Key Performance Indicator}, indicador clave de
+desempeño) es una métrica que la empresa sigue de forma periódica para saber
+si va bien o mal. Las ventas del mes son un dato; las ventas del mes
+\emph{comparadas} contra el mes anterior, contra la meta o contra el mismo
+mes del año pasado son un KPI. La tabla~\ref{tab:m4-kpis} resume los cálculos
+más comunes.
+
+\begin{table}[H]
+\centering
+\small
+\caption{KPIs de desempeño más usados y su cálculo en R.}
+\label{tab:m4-kpis}
+\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\toprule
+\textbf{KPI} & \textbf{Qué responde} & \textbf{Cálculo en R} \\
+\midrule
+Crecimiento MoM & ¿Cuánto crecimos contra el mes anterior?
+  (\emph{Month over Month}) & \codigo{ventas / lag(ventas) - 1} \\
+Acumulado (YTD) & ¿Cuánto llevamos vendido en el año?
+  (\emph{Year to Date}) & \codigo{cumsum(ventas)} \\
+Promedio móvil & ¿Cuál es la tendencia sin el ruido de cada mes? &
+  \codigo{(v + lag(v) + lag(v, 2)) / 3} \\
+Índice base 100 & ¿Cuánto cambiamos respecto a un punto de partida? &
+  \codigo{ventas / first(ventas) * 100} \\
+Variación vs meta & ¿Estamos arriba o abajo de lo planeado? &
+  \codigo{ventas / meta - 1} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{ejemplo}{Tablero mensual de ventas}
+La meta comercial de 2023 era vender \$80,000 al mes. Construye una tabla
+con las ventas mensuales, su crecimiento contra el mes anterior, el
+acumulado del año, el promedio móvil de 3 meses, el índice con enero = 100 y
+la variación contra la meta.
+\end{ejemplo}
+
+\begin{rcode}
+meta_mensual <- 80000   # meta de ventas por mes
+
+kpi_mensual <- transacciones %>%
+  group_by(mes) %>%
+  summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
+  arrange(mes) %>%                                  # orden cronológico
+  mutate(
+    crec_mom   = ventas / lag(ventas) - 1,          # vs mes anterior
+    acumulado  = cumsum(ventas),                    # acumulado del año
+    prom_movil = (ventas + lag(ventas) + lag(ventas, 2)) / 3,
+    indice_100 = ventas / first(ventas) * 100,      # enero = 100
+    vs_meta    = ventas / meta_mensual - 1          # sobre/bajo la meta
+  )
+
+kpi_mensual
+\end{rcode}
+\begin{rsalida}
+# A tibble: 12 x 7
+   mes     ventas crec_mom acumulado prom_movil indice_100  vs_meta
+   <chr>    <dbl>    <dbl>     <dbl>      <dbl>      <dbl>    <dbl>
+ 1 2023-01 82560.  NA         82560.        NA       100    0.0320
+ 2 2023-02 65899.  -0.202    148459         NA        79.8 -0.176
+ 3 2023-03 90931.   0.380    239390.     79797.      110.   0.137
+ 4 2023-04 57038.  -0.373    296427.     71289.       69.1 -0.287
+ 5 2023-05 93910.   0.646    390338.     80626.      114.   0.174
+ 6 2023-06 88509.  -0.0575   478847.     79819.      107.   0.106
+ 7 2023-07 86456.  -0.0232   565303.     89625.      105.   0.0807
+ 8 2023-08 78929.  -0.0871   644232.     84632.       95.6 -0.0134
+ 9 2023-09 68856.  -0.128    713088.     78080.       83.4 -0.139
+10 2023-10 70004.   0.0167   783092.     72596.       84.8 -0.125
+11 2023-11 80507.   0.150    863599.     73122.       97.5  0.00634
+12 2023-12 96394.   0.197    959993.     82302.      117.   0.205
+\end{rsalida}
+
+Cómo se lee cada columna, tomando marzo (\codigo{2023-03}) como ejemplo:
+\begin{itemize}
+  \item \codigo{crec\_mom} = 0.380: marzo vendió 38\% más que febrero.
+  \item \codigo{acumulado} = 239,390: entre enero y marzo se vendieron
+        \$239,390.
+  \item \codigo{prom\_movil} = 79,797: el promedio de enero, febrero y marzo.
+        Los dos primeros meses quedan en \codigo{NA} porque todavía no hay
+        tres meses para promediar. La función \codigo{lag()} ``trae'' el
+        valor de la fila anterior, y \codigo{lag(ventas, 2)} el de dos filas
+        antes.
+  \item \codigo{indice\_100} = 110: marzo vendió 10\% más que enero.
+  \item \codigo{vs\_meta} = 0.137: marzo superó la meta en 13.7\%.
+\end{itemize}
+
+Para presentarla a la dirección conviene darle formato de negocio con las
+funciones de \paquete{scales}:
+
+\begin{rcode}
+kpi_mensual %>%
+  transmute(
+    mes,
+    ventas     = dollar(ventas, accuracy = 1),
+    crec_mom   = percent(crec_mom, accuracy = 0.1),
+    acumulado  = dollar(acumulado, accuracy = 1),
+    vs_meta    = percent(vs_meta, accuracy = 0.1)
+  )
+\end{rcode}
+\begin{rsalida}
+# A tibble: 12 x 5
+   mes     ventas  crec_mom acumulado vs_meta
+   <chr>   <chr>   <chr>    <chr>     <chr>
+ 1 2023-01 $82,560 <NA>     $82,560   3.2%
+ 2 2023-02 $65,899 -20.2%   $148,459  -17.6%
+ 3 2023-03 $90,931 38.0%    $239,390  13.7%
+ 4 2023-04 $57,038 -37.3%   $296,427  -28.7%
+ 5 2023-05 $93,910 64.6%    $390,338  17.4%
+ 6 2023-06 $88,509 -5.8%    $478,847  10.6%
+ 7 2023-07 $86,456 -2.3%    $565,303  8.1%
+ 8 2023-08 $78,929 -8.7%    $644,232  -1.3%
+ 9 2023-09 $68,856 -12.8%   $713,088  -13.9%
+10 2023-10 $70,004 1.7%     $783,092  -12.5%
+11 2023-11 $80,507 15.0%    $863,599  0.6%
+12 2023-12 $96,394 19.7%    $959,993  20.5%
+\end{rsalida}
+
+¿Qué nos dice el tablero? Los resultados mes a mes brincan mucho ($-20.2\%$,
+$+38.0\%$, $-37.3\%$, $+64.6\%$\ldots). Abril (\$57,038) fue el peor mes,
+28.7\% por debajo de la meta, y diciembre el mejor, 20.5\% por encima.
+Contemos cuántos meses cumplieron la meta y cuánto faltó o sobró en el año:
+
+\begin{rcode}
+meses_arriba <- sum(kpi_mensual$vs_meta >= 0)   # meses que cumplieron
+meses_arriba
+sum(kpi_mensual$ventas) - meta_mensual * 12     # diferencia anual
+\end{rcode}
+\begin{rsalida}
+[1] 7
+[1] -7.31
+\end{rsalida}
+
+La meta mensual se cumplió en 7 de los 12 meses y el año cerró con \$959,993:
+apenas \$7.31 por debajo de la meta anual de \$960,000. En el total anual la
+empresa está en la meta, pero con un camino muy irregular. Para ver la
+tendencia sin tanto ruido graficamos las ventas junto con su promedio móvil.
+
+\begin{rcode}
+# Formato largo: una fila por mes y por serie (Módulo 2, pivot_longer)
+kpi_largo <- kpi_mensual %>%
+  mutate(fecha_mes = as.Date(paste0(mes, "-01"))) %>%
+  select(fecha_mes,
+         `Ventas del mes` = ventas,
+         `Promedio móvil 3 meses` = prom_movil) %>%
+  pivot_longer(-fecha_mes, names_to = "serie", values_to = "valor")
+
+p_kpi <- ggplot(kpi_largo, aes(x = fecha_mes, y = valor, color = serie)) +
+  geom_hline(yintercept = meta_mensual, linetype = "dashed",
+             color = "#52514e", linewidth = 0.5) +
+  annotate("text", x = as.Date("2023-01-01"), y = meta_mensual + 2500,
+           label = "Meta: $80,000", hjust = 0, size = 3.3,
+           color = "#52514e") +
+  geom_line(linewidth = 0.8, na.rm = TRUE) +
+  geom_point(size = 1.8, na.rm = TRUE) +
+  scale_color_manual(
+    values = c("Ventas del mes" = color_principal,
+               "Promedio móvil 3 meses" = color_resalte),
+    breaks = c("Ventas del mes", "Promedio móvil 3 meses"),
+    name = NULL) +
+  scale_y_continuous(labels = dollar) +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +
+  labs(title = "Ventas mensuales 2023 contra la meta",
+       subtitle = "El promedio móvil suaviza los brincos de cada mes",
+       x = NULL, y = "Ventas") +
+  tema_libro()
+
+p_kpi
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m04-kpi-evolucion}
+\caption{Ventas mensuales, promedio móvil de 3 meses y meta mensual.}
+\label{fig:m04-kpi-evolucion}
+\end{figure}
+
+La figura~\ref{fig:m04-kpi-evolucion} cuenta la historia completa: las ventas
+mensuales (azul) suben y bajan con fuerza, mientras que el promedio móvil
+(naranja) muestra la tendencia de fondo: rondó la meta en primavera (con el
+bache de abril), la superó en julio y agosto, cayó por debajo durante el
+otoño y se recuperó en diciembre.
+
+\begin{negocio}{Por qué los directivos piden promedios móviles}
+Un mes malo aislado puede deberse a días festivos, a un problema de
+inventario o simplemente al azar. Reaccionar a cada brinco (``abril cayó
+37\%: ¡recorten gastos!'') lleva a decisiones erráticas. El promedio móvil
+filtra ese ruido: si \emph{también} baja durante varios meses, entonces sí
+hay una tendencia que atender. En empresas con estacionalidad fuerte se
+complementa con el crecimiento contra el mismo mes del año anterior
+(\emph{YoY}, \emph{Year over Year}).
+\end{negocio}
+
+\begin{consejo}
+Para promedios móviles de muchos periodos (por ejemplo, 12 meses), escribir
+\codigo{lag()} doce veces es incómodo. El paquete \paquete{zoo} (que se
+instala junto con \paquete{forecast}) tiene
+\codigo{zoo::rollmean(ventas, k = 12, fill = NA, align = "right")}, que hace
+exactamente el mismo cálculo.
+\end{consejo}
+
+\begin{hazlotu}
+Calcula los mismos KPIs por \codigo{trimestre} (crecimiento contra el
+trimestre anterior, acumulado e índice base 100). ¿Qué trimestre fue el
+mejor? ¿Cuál fue el crecimiento del cuarto trimestre contra el tercero?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Análisis de Pareto y clasificación ABC}
+\label{sec:m4-pareto}
+
+El \termino{principio de Pareto}, o regla 80/20, dice que en muchos negocios
+una minoría de elementos genera la mayoría de los resultados: el 20\% de los
+productos genera el 80\% de las ventas, el 20\% de los clientes aporta el
+80\% de los ingresos. Los porcentajes exactos varían; lo importante es la
+idea de \emph{concentración}. El \termino{análisis ABC} aprovecha esa idea
+para clasificar productos:
+
+\begin{itemize}
+  \item \textbf{Clase A}: los productos que, sumados de mayor a menor,
+        acumulan el primer 80\% de los ingresos. Son vitales.
+  \item \textbf{Clase B}: los que acumulan del 80\% al 95\%. Importantes.
+  \item \textbf{Clase C}: el 5\% restante. Muchos productos que aportan poco.
+\end{itemize}
+
+\begin{ejemplo}{¿Qué productos sostienen el negocio?}
+La directora quiere saber si hay un grupo pequeño de productos ``estrella''
+del que dependa la empresa, para asegurarse de que nunca falten en
+inventario.
+\end{ejemplo}
+
+\begin{rcode}
+pareto <- transacciones %>%
+  group_by(producto_id) %>%
+  summarise(ingresos = sum(total_transaccion), .groups = "drop") %>%
+  arrange(desc(ingresos)) %>%                        # de mayor a menor
+  mutate(
+    pct_ingresos  = ingresos / sum(ingresos),        # peso de cada uno
+    pct_acumulado = cumsum(pct_ingresos),            # % acumulado
+    pct_productos = row_number() / n(),              # % del catálogo
+    clase = case_when(
+      pct_acumulado <= 0.80 ~ "A",
+      pct_acumulado <= 0.95 ~ "B",
+      TRUE                  ~ "C"
+    )
+  ) %>%
+  left_join(productos %>%
+              select(producto_id, categoria, estado_stock, activo),
+            by = "producto_id")
+
+pareto %>%
+  select(producto_id, ingresos, pct_ingresos, pct_acumulado, clase) %>%
+  head(10)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 10 x 5
+   producto_id ingresos pct_ingresos pct_acumulado clase
+         <dbl>    <dbl>        <dbl>         <dbl> <chr>
+ 1           6   34028.       0.0354        0.0354 A
+ 2          19   28368.       0.0296        0.0650 A
+ 3          31   25430.       0.0265        0.0915 A
+ 4          47   24527.       0.0255        0.117  A
+ 5          46   24470.       0.0255        0.143  A
+ 6          32   24333.       0.0253        0.168  A
+ 7          14   24023.       0.0250        0.193  A
+ 8          24   23593.       0.0246        0.217  A
+ 9          29   22809.       0.0238        0.241  A
+10          21   22083.       0.0230        0.264  A
+\end{rsalida}
+
+El producto más vendido (el 6) aporta apenas el 3.5\% de los ingresos, y los
+10 primeros productos (el 20\% del catálogo) suman el 26.4\%. Muy lejos de
+un 80/20. Veamos el resumen por clase:
+
+\begin{rcode}
+pareto %>%
+  group_by(clase) %>%
+  summarise(productos     = n(),
+            pct_catalogo  = n() / nrow(pareto),
+            ingresos      = sum(ingresos),
+            pct_ingresos  = sum(pct_ingresos),
+            .groups = "drop")
+\end{rcode}
+\begin{rsalida}
+# A tibble: 3 x 5
+  clase productos pct_catalogo ingresos pct_ingresos
+  <chr>     <int>        <dbl>    <dbl>        <dbl>
+1 A            36         0.72  764155.       0.796
+2 B             9         0.18  137845.       0.144
+3 C             5         0.1    57992.       0.0604
+\end{rsalida}
+
+\begin{rcode}
+p_pareto <- ggplot(pareto, aes(x = pct_productos, y = pct_acumulado)) +
+  # diagonal: lo que pasaría si todos los productos vendieran lo mismo
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed",
+              color = color_gris) +
+  geom_hline(yintercept = 0.80, color = "#52514e", linewidth = 0.4) +
+  geom_line(color = "#52514e", linewidth = 0.6) +
+  geom_point(aes(color = clase), size = 2) +
+  # punto de referencia de la regla 80/20
+  annotate("point", x = 0.2, y = 0.8, shape = 4, size = 4, stroke = 1.2) +
+  annotate("text", x = 0.22, y = 0.86, hjust = 0, size = 3.3,
+           label = "Regla 80/20 (referencia)") +
+  scale_color_manual(values = paleta_libro[1:3], name = "Clase") +
+  scale_x_continuous(labels = percent) +
+  scale_y_continuous(labels = percent, limits = c(0, 1)) +
+  labs(title = "Curva de Pareto de ingresos por producto",
+       subtitle = "Ingresos muy repartidos: no hay pocos productos estrella",
+       x = "% de productos (de mayor a menor ingreso)",
+       y = "% acumulado de ingresos") +
+  tema_libro()
+
+p_pareto
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m04-pareto}
+\caption{Curva de Pareto. Cuanto más se despega la curva de la diagonal
+punteada, más concentrados están los ingresos.}
+\label{fig:m04-pareto}
+\end{figure}
+
+\begin{ejemplo}{Interpretar la curva de Pareto}
+En la figura~\ref{fig:m04-pareto}, el eje horizontal es el porcentaje del
+catálogo (ordenado de mayor a menor ingreso) y el vertical, el porcentaje
+acumulado de ingresos. Si la empresa siguiera la regla 80/20, la curva
+pasaría por la cruz. Nuestra curva está muy pegada a la diagonal: los 36
+productos de la clase A (el 72\% del catálogo) apenas juntan el 79.6\% de los
+ingresos. \textbf{Este es un hallazgo en sí mismo}: la empresa no depende de
+unos cuantos productos estrella; sus ingresos están muy repartidos.
+\end{ejemplo}
+
+¿Qué implica para el inventario? Cruzamos la clase con el estado del stock:
+
+\begin{rcode}
+pareto %>% count(clase, estado_stock)
+
+# Productos A con stock bajo: prioridad de reabastecimiento
+pareto %>%
+  filter(clase == "A", estado_stock != "Stock OK") %>%
+  select(producto_id, categoria, ingresos, estado_stock)
+\end{rcode}
+\begin{rsalida}
+# A tibble: 4 x 3
+  clase estado_stock     n
+  <chr> <chr>        <int>
+1 A     Stock Bajo       4
+2 A     Stock OK        32
+3 B     Stock OK         9
+4 C     Stock OK         5
+# A tibble: 4 x 4
+  producto_id categoria  ingresos estado_stock
+        <dbl> <chr>         <dbl> <chr>
+1           6 Juguetes     34028. Stock Bajo
+2          33 Alimentos    21240. Stock Bajo
+3           3 Automotriz   19908. Stock Bajo
+4          39 Alimentos    18337. Stock Bajo
+\end{rsalida}
+
+\begin{negocio}{Políticas de inventario ABC}
+\begin{itemize}
+  \item \textbf{Clase A} (36 productos): revisión semanal de inventario,
+        stock de seguridad alto y nunca permitir faltantes. Los 4 productos A
+        con stock bajo (6, 33, 3 y 39) deben reabastecerse de inmediato;
+        entre ellos está el producto 6, ¡el más vendido del año!
+  \item \textbf{Clase B} (9 productos): revisión quincenal y stock de
+        seguridad moderado.
+  \item \textbf{Clase C} (5 productos): stock mínimo, pedidos bajo demanda y
+        candidatos a revisión (¿se descontinúan?, ¿se promueven?).
+\end{itemize}
+Como nuestro catálogo es tan parejo, sacar productos C ahorraría poco espacio
+pero tampoco perdería muchas ventas: 5 productos que suman el 6.0\% de los
+ingresos. En catálogos reales, con miles de productos, la clase C suele
+tener cientos de artículos que ocupan bodega y casi no se venden: ahí el ABC
+libera mucho dinero.
+\end{negocio}
+
+\begin{hazlotu}
+Haz el mismo análisis de Pareto con los \emph{clientes} en lugar de los
+productos. ¿Qué porcentaje de clientes genera el 80\% de los ingresos? ¿Los
+ingresos están más o menos concentrados que en los productos?
+\end{hazlotu}

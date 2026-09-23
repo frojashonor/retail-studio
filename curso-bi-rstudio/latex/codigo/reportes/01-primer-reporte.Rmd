@@ -1,0 +1,61 @@
+---
+title: "Mi primer reporte de ventas"
+author: "Tu nombre"
+date: "`r format(Sys.Date(), '%d/%m/%Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# Opciones para todos los bloques: mostrar código, ocultar mensajes
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      fig.width = 7, fig.height = 3.5)
+```
+
+## Introducción
+
+Este es mi **primer reporte automático**. Analiza las ventas de 2023 de la
+cadena *TechRetail México*. Cada vez que presiono **Knit**, R vuelve a leer
+los datos y actualiza todos los números, tablas y gráficas.
+
+## Cargar los datos
+
+```{r cargar-datos}
+library(dplyr)
+library(readr)
+library(ggplot2)
+
+# El .Rmd se ejecuta en SU carpeta. Buscamos datasets/ ahí mismo
+# o en la carpeta superior (si el .Rmd está en curso/reportes/).
+carpeta <- if (dir.exists("datasets")) "datasets" else "../datasets"
+ventas <- read_csv(file.path(carpeta, "ventas_retail.csv"),
+                   show_col_types = FALSE)
+```
+
+El archivo tiene `r nrow(ventas)` ventas y el total vendido en el año
+fue de **$`r format(round(sum(ventas$total)), big.mark = ",")`**.
+
+## Ventas por trimestre
+
+```{r tabla-trimestres}
+ventas %>%
+  group_by(trimestre) %>%
+  summarise(ventas = round(sum(total)), n_ventas = n()) %>%
+  knitr::kable(col.names = c("Trimestre", "Ventas ($)", "Núm. de ventas"),
+               format.args = list(big.mark = ","))
+```
+
+## Tendencia mensual
+
+```{r grafica-mensual, fig.cap = "Ventas totales por mes, 2023"}
+ventas %>%
+  group_by(mes) %>%
+  summarise(ventas = sum(total)) %>%
+  ggplot(aes(x = mes, y = ventas, group = 1)) +
+  geom_line(color = "#2a78d6", linewidth = 0.8) +
+  geom_point(color = "#2a78d6") +
+  scale_y_continuous(labels = scales::dollar) +
+  labs(x = NULL, y = "Ventas") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```

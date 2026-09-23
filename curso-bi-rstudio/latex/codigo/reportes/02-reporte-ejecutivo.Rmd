@@ -1,0 +1,352 @@
+---
+title: "Reporte ejecutivo de ventas"
+subtitle: "Tienda `r params$tienda` | Periodo `r params$mes`"
+author: "Área de Business Intelligence - TechRetail México"
+date: "Generado el `r format(Sys.Date(), '%d/%m/%Y')`"
+lang: es-MX
+geometry: margin=2cm
+header-includes:
+  - \AtBeginDocument{\renewcommand{\tablename}{Tabla}}
+params:
+  tienda:
+    label: "Tienda (1 a 10)"
+    value: 1
+    input: select
+    choices: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  mes:
+    label: "Mes del reporte (AAAA-MM)"
+    value: "2023-12"
+    input: text
+  ruta_datos:
+    label: "Carpeta de datos"
+    value: "datasets"
+    input: text
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+  pdf_document:
+    fig_caption: true
+    extra_dependencies: ["float"]
+  word_document:
+    fig_caption: true
+---
+
+```{r configuracion, include=FALSE}
+# ---- Opciones globales: un reporte ejecutivo NO muestra código ----
+es_word <- knitr::pandoc_to("docx")   # TRUE si la salida es Word
+knitr::opts_chunk$set(
+  echo = FALSE, message = FALSE, warning = FALSE,
+  fig.width = 7, fig.height = 3.4, out.width = "90%",
+  fig.pos = "H",                      # PDF: la figura va donde está
+  fig.align = if (es_word) "default" else "center"
+)
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(scales)
+library(knitr)
+
+# Colores corporativos
+color_principal <- "#2a78d6"
+color_resalte   <- "#eb6834"
+color_gris      <- "#b5b3ad"
+tema_reporte <- theme_minimal(base_size = 11) +
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(face = "bold"))
+
+# Nombres de los meses en español (no dependen del idioma de la PC)
+meses_es <- c("enero", "febrero", "marzo", "abril", "mayo", "junio",
+              "julio", "agosto", "septiembre", "octubre", "noviembre",
+              "diciembre")
+nombre_mes <- function(m) {
+  paste(meses_es[as.integer(substr(m, 6, 7))], "de", substr(m, 1, 4))
+}
+# Formatos de negocio ("s/d" = sin dato cuando el valor es NA)
+dinero  <- function(x) ifelse(is.na(x), "s/d", dollar(x, accuracy = 1))
+dinero2 <- function(x) ifelse(is.na(x), "s/d", dollar(x, accuracy = 0.01))
+pct     <- function(x) ifelse(is.na(x), "s/d", percent(x, accuracy = 0.1))
+```
+
+```{r datos}
+# ---- 1. Encontrar la carpeta de datos ----
+# Al hacer Knit, el directorio de trabajo es la carpeta del .Rmd.
+# Probamos la ruta del parámetro y, si no existe, la carpeta superior.
+candidatas <- c(params$ruta_datos, file.path("..", params$ruta_datos))
+carpeta_datos <- candidatas[dir.exists(candidatas)][1]
+if (is.na(carpeta_datos)) {
+  stop("No encontré la carpeta de datos '", params$ruta_datos,
+       "'. Directorio actual: ", getwd(),
+       ". Usa knit_root_dir en render() o el parámetro ruta_datos.")
+}
+
+# ---- 2. Leer y unir los datos ----
+transacciones <- read_csv(file.path(carpeta_datos, "transacciones.csv"),
+                          show_col_types = FALSE)
+tiendas <- read_csv(file.path(carpeta_datos, "tiendas.csv"),
+                    show_col_types = FALSE)
+productos <- read_csv(file.path(carpeta_datos, "productos.csv"),
+                      show_col_types = FALSE)
+
+ventas <- transacciones %>%
+  left_join(productos %>%
+              select(producto_id, nombre_producto, categoria,
+                     precio_catalogo, costo),
+            by = "producto_id")
+
+# ---- 3. Validar los parámetros ----
+id_tienda  <- as.integer(params$tienda)
+mes_actual <- params$mes
+info_tienda <- tiendas %>% filter(tienda_id == id_tienda)
+if (nrow(info_tienda) == 0) stop("La tienda ", id_tienda, " no existe.")
+if (!mes_actual %in% ventas$mes) stop("No hay datos del mes ", mes_actual)
+
+# Mes anterior: el día 1 del mes menos un día cae en el mes previo
+mes_previo <- format(as.Date(paste0(mes_actual, "-01")) - 1, "%Y-%m")
+
+# ---- 4. Filtrar ----
+ventas_tienda <- ventas %>% filter(tienda_id == id_tienda)
+ventas_mes    <- ventas_tienda %>% filter(mes == mes_actual)
+ventas_previo <- ventas_tienda %>% filter(mes == mes_previo)
+if (nrow(ventas_mes) == 0) {
+  stop("La tienda ", id_tienda, " no tiene ventas en ", mes_actual)
+}
+```
+
+```{r kpis}
+# ---- KPIs del mes y del mes anterior ----
+calcular_kpis <- function(datos) {
+  tibble(
+    ventas        = sum(datos$total_transaccion),
+    transacciones = nrow(datos),
+    unidades      = sum(datos$cantidad),
+    ticket        = if (nrow(datos) > 0) ventas / transacciones
+                    else NA_real_
+  )
+}
+kpi     <- calcular_kpis(ventas_mes)
+kpi_ant <- calcular_kpis(ventas_previo)
+hay_previo <- kpi_ant$transacciones > 0
+
+variacion <- function(actual, anterior) {
+  if (is.na(anterior) || anterior == 0) NA_real_ else actual / anterior - 1
+}
+var_ventas <- variacion(kpi$ventas, kpi_ant$ventas)
+
+# ---- Posición de la tienda frente a las demás en el mes ----
+ranking <- ventas %>%
+  filter(mes == mes_actual) %>%
+  group_by(tienda_id) %>%
+  summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
+  left_join(tiendas %>% select(tienda_id, nombre_tienda),
+            by = "tienda_id") %>%
+  arrange(desc(ventas)) %>%
+  mutate(posicion = row_number())
+posicion   <- ranking$posicion[ranking$tienda_id == id_tienda]
+n_tiendas  <- nrow(ranking)
+participa  <- kpi$ventas / sum(ranking$ventas)
+ticket_emp <- ventas %>%
+  filter(mes == mes_actual) %>%
+  summarise(t = mean(total_transaccion)) %>%
+  pull(t)
+
+# ---- Títulos dinámicos de las figuras (se usan en fig.cap) ----
+titulo_tendencia <- paste0("Ventas mensuales de la tienda (en naranja, ",
+                           nombre_mes(mes_actual), ")")
+titulo_ranking <- paste("Ventas de", nombre_mes(mes_actual),
+                        "por tienda (en naranja, esta tienda)")
+titulo_categorias <- paste("Ventas de", nombre_mes(mes_actual),
+                           "por categoría de producto")
+
+# ---- Frase de variación (texto dinámico) ----
+texto_variacion <- if (!hay_previo) {
+  "no se puede comparar porque no hay ventas registradas el mes anterior"
+} else if (var_ventas >= 0) {
+  paste0("crecieron **", pct(var_ventas), "** respecto a ",
+         nombre_mes(mes_previo), " (", dinero(kpi_ant$ventas), ")")
+} else {
+  paste0("cayeron **", pct(abs(var_ventas)), "** respecto a ",
+         nombre_mes(mes_previo), " (", dinero(kpi_ant$ventas), ")")
+}
+```
+
+# `r info_tienda$nombre_tienda` (`r info_tienda$ciudad`)
+
+## Resumen del mes
+
+En **`r nombre_mes(mes_actual)`**, la **`r info_tienda$nombre_tienda`**
+vendió **`r dinero(kpi$ventas)`** en `r kpi$transacciones` transacciones,
+con un ticket promedio de **`r dinero2(kpi$ticket)`**. Las ventas
+`r texto_variacion`. La tienda ocupó el lugar **`r posicion` de
+`r n_tiendas`** en ventas del mes y aportó el **`r pct(participa)`** de las
+ventas de la empresa.
+
+```{r tabla-kpis}
+fmt_var <- function(a, b) {
+  v <- variacion(a, b)
+  if (is.na(v)) "s/d" else percent(v, accuracy = 0.1)
+}
+tabla_kpis <- tibble(
+  Indicador = c("Ventas", "Transacciones", "Unidades vendidas",
+                "Ticket promedio"),
+  `Mes actual` = c(dinero(kpi$ventas), kpi$transacciones,
+                   kpi$unidades, dinero2(kpi$ticket)),
+  `Mes anterior` = c(dinero(kpi_ant$ventas), kpi_ant$transacciones,
+                     kpi_ant$unidades, dinero2(kpi_ant$ticket)),
+  `Variación` = c(fmt_var(kpi$ventas, kpi_ant$ventas),
+                  fmt_var(kpi$transacciones, kpi_ant$transacciones),
+                  fmt_var(kpi$unidades, kpi_ant$unidades),
+                  fmt_var(kpi$ticket, kpi_ant$ticket))
+)
+kable(tabla_kpis, format = "pipe", align = c("l", "r", "r", "r"),
+      caption = paste("Indicadores clave de", nombre_mes(mes_actual)))
+```
+
+## Tendencia del año
+
+```{r grafica-tendencia, fig.cap = titulo_tendencia}
+mensual <- ventas_tienda %>%
+  filter(mes <= mes_actual) %>%
+  group_by(mes) %>%
+  summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
+  mutate(es_actual = mes == mes_actual,
+         # "2023-12" -> "dic" (y respeta el orden cronológico)
+         etiqueta = substr(meses_es[as.integer(substr(mes, 6, 7))], 1, 3),
+         etiqueta = factor(etiqueta, levels = etiqueta))
+
+ggplot(mensual, aes(x = etiqueta, y = ventas, fill = es_actual)) +
+  geom_col(width = 0.7) +
+  scale_fill_manual(values = c(`FALSE` = color_gris,
+                               `TRUE` = color_resalte),
+                    guide = "none") +
+  scale_y_continuous(labels = label_dollar(scale = 1e-3, suffix = " mil")) +
+  labs(x = NULL, y = "Ventas") +
+  tema_reporte
+```
+
+## Comparación con las demás tiendas
+
+```{r grafica-ranking, fig.cap = titulo_ranking}
+ggplot(ranking, aes(x = ventas,
+                    y = reorder(nombre_tienda, ventas),
+                    fill = tienda_id == id_tienda)) +
+  geom_col(width = 0.7) +
+  scale_fill_manual(values = c(`FALSE` = color_gris,
+                               `TRUE` = color_resalte),
+                    guide = "none") +
+  scale_x_continuous(labels = label_dollar(scale = 1e-3, suffix = " mil")) +
+  labs(x = "Ventas del mes", y = NULL) +
+  tema_reporte
+```
+
+## Productos y categorías
+
+```{r tabla-productos}
+top_productos <- ventas_mes %>%
+  group_by(nombre_producto, categoria) %>%
+  summarise(unidades = sum(cantidad),
+            ventas = sum(total_transaccion), .groups = "drop") %>%
+  arrange(desc(ventas)) %>%
+  slice_head(n = 5) %>%
+  mutate(participacion = pct(ventas / kpi$ventas),
+         ventas = dinero(ventas))
+
+kable(top_productos, format = "pipe", align = c("l", "l", "r", "r", "r"),
+      col.names = c("Producto", "Categoría", "Unidades", "Ventas",
+                    "% de la tienda"),
+      caption = "Productos con más ventas en el mes (hasta 5)")
+```
+
+```{r grafica-categorias, fig.height = 2.8, fig.cap = titulo_categorias}
+ventas_mes %>%
+  group_by(categoria) %>%
+  summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
+  ggplot(aes(x = ventas, y = reorder(categoria, ventas))) +
+  geom_col(fill = color_principal, width = 0.7) +
+  scale_x_continuous(labels = label_dollar()) +
+  labs(x = "Ventas del mes", y = NULL) +
+  tema_reporte
+```
+
+## Conclusiones automáticas
+
+```{r conclusiones, results = "asis"}
+conclusiones <- character(0)
+
+# 1. Crecimiento contra el mes anterior
+if (!hay_previo) {
+  conclusiones <- c(conclusiones,
+    "No hay ventas del mes anterior para comparar el crecimiento.")
+} else if (var_ventas > 0.10) {
+  conclusiones <- c(conclusiones, paste0(
+    "**Crecimiento sólido:** las ventas subieron ", pct(var_ventas),
+    ". Identifica qué funcionó para replicarlo en otras tiendas."))
+} else if (var_ventas >= 0) {
+  conclusiones <- c(conclusiones, paste0(
+    "**Estabilidad:** las ventas crecieron ", pct(var_ventas),
+    ", dentro de lo normal."))
+} else if (var_ventas > -0.10) {
+  conclusiones <- c(conclusiones, paste0(
+    "**Ligera caída:** las ventas bajaron ", pct(abs(var_ventas)),
+    ". Conviene vigilar el próximo mes."))
+} else {
+  conclusiones <- c(conclusiones, paste0(
+    "**Alerta:** las ventas cayeron ", pct(abs(var_ventas)),
+    ". Revisa inventario, personal y promociones con el gerente."))
+}
+
+# 2. Posición frente a las demás tiendas
+if (posicion <= 3) {
+  conclusiones <- c(conclusiones, paste0(
+    "La tienda está en el **top 3** de la cadena (lugar ", posicion, ")."))
+} else if (posicion > n_tiendas - 3) {
+  conclusiones <- c(conclusiones, paste0(
+    "La tienda está entre las **3 con menores ventas** (lugar ",
+    posicion, " de ", n_tiendas, ")."))
+} else {
+  conclusiones <- c(conclusiones, paste0(
+    "La tienda está en una posición intermedia (lugar ", posicion,
+    " de ", n_tiendas, ")."))
+}
+
+# 3. Ticket promedio contra el de toda la empresa
+if (kpi$ticket >= ticket_emp) {
+  conclusiones <- c(conclusiones, paste0(
+    "El ticket promedio (", dinero2(kpi$ticket), ") es **mayor** que el ",
+    "de la empresa (", dinero2(ticket_emp), ")."))
+} else {
+  conclusiones <- c(conclusiones, paste0(
+    "El ticket promedio (", dinero2(kpi$ticket), ") es **menor** que el ",
+    "de la empresa (", dinero2(ticket_emp), "): hay espacio para ",
+    "venta cruzada."))
+}
+
+# 4. Pocos datos: advertir que las variaciones pueden ser azar
+if (kpi$transacciones < 5) {
+  conclusiones <- c(conclusiones, paste0(
+    "Precaución: el mes solo tiene ", kpi$transacciones,
+    " transacciones; interpreta las variaciones con cuidado."))
+}
+
+# 5. Calidad de datos: productos con costo mayor al precio de catálogo
+n_neg <- ventas_mes %>%
+  filter(costo > precio_catalogo) %>%
+  distinct(producto_id) %>%
+  nrow()
+if (n_neg > 0) {
+  conclusiones <- c(conclusiones, paste0(
+    "Calidad de datos: ", n_neg, " de los productos vendidos tienen ",
+    "un costo mayor que su precio de catálogo. Revisa esos precios ",
+    "con el área de Compras."))
+}
+
+# Imprimir como lista de Markdown (por eso results = "asis")
+cat(paste0("- ", conclusiones), sep = "\n")
+```
+
+---
+
+*Reporte generado automáticamente con R Markdown a partir de
+`transacciones.csv` (`r nrow(transacciones)` registros). Tienda
+`r id_tienda`, periodo `r mes_actual`.*

@@ -1,0 +1,2377 @@
+% ============================================================================
+% INTRODUCCIÓN: CÓMO USAR ESTE LIBRO
+% Va en \frontmatter, por eso el capítulo no lleva número.
+% ============================================================================
+\chapter{Cómo usar este libro}
+\label{cap:introduccion}
+
+% La introducción no tiene número de capítulo: dentro de este grupo las
+% secciones, figuras y tablas se numeran 1, 2, 3... (sin el prefijo "0.").
+% Al cerrar el grupo (final del archivo) se recupera la numeración normal.
+\begingroup
+\renewcommand{\thesection}{\arabic{section}}
+\renewcommand{\thefigure}{\arabic{figure}}
+\renewcommand{\thetable}{\arabic{table}}
+
+\begin{objetivos}[title={\ding{43}\ \ Al terminar esta introducción podrás\ldots}]
+\begin{itemize}
+  \item Explicar qué es Business Intelligence, qué es Business Analytics y
+        cuáles son los cuatro tipos de analítica.
+  \item Decidir cuándo conviene usar R y cuándo Excel, Power BI, Tableau o
+        Python.
+  \item Describir el ciclo de trabajo de un proyecto de BI y saber en qué
+        módulo del libro se aprende cada paso.
+  \item Leer los bloques de código, las salidas de R y las cajas didácticas
+        del libro.
+  \item Instalar R, RStudio y los paquetes del curso, y crear tu Proyecto de
+        RStudio.
+  \item Generar los datos del curso y conocer cada tabla, cada columna y
+        cómo se relacionan entre sí.
+\end{itemize}
+\end{objetivos}
+
+% ----------------------------------------------------------------------------
+\section{Bienvenida}
+\label{sec:m0-bienvenida}
+% ----------------------------------------------------------------------------
+
+Lunes, 9:00 de la mañana. La directora comercial de una cadena de tiendas te
+escribe: ``Necesito saber qué sucursal vendió más el último trimestre, qué
+productos nos están dejando sin margen y si los descuentos de verdad aumentan
+las ventas. Lo presento el jueves''.
+
+Si trabajas con hojas de cálculo ya sabes lo que viene: exportar archivos de
+varios sistemas, copiar y pegar columnas, corregir fechas que se leyeron mal,
+armar tablas dinámicas, hacer gráficas una por una\ldots{} y el lunes
+siguiente repetir todo desde cero porque llegaron datos nuevos. Este libro te
+enseña a hacer ese mismo trabajo con \textbf{R} y \textbf{RStudio}: escribes
+una sola vez las instrucciones en un archivo de código (un \termino{script})
+y, a partir de entonces, el análisis completo se repite en segundos, sin
+errores de copiar y pegar y con gráficas de calidad profesional.
+
+Es un \textbf{curso práctico}. Todo gira alrededor de una cadena minorista
+(\termino{retail}) ficticia con diez sucursales en México: sus ventas de
+2023, sus clientes, su catálogo de productos, sus empleados y sus tiendas.
+Con esos datos resolverás, paso a paso, las mismas preguntas que se hacen a
+diario en las áreas comerciales, de finanzas, de operaciones y de marketing
+de cualquier empresa. Cada ejemplo sigue el mismo patrón: una pregunta de
+negocio, el código comentado línea por línea, la salida real de R y la
+interpretación (``¿qué nos dice esto?''). Después te toca a ti.
+
+\subsection{Lo que sabrás hacer al terminar}
+
+Al final del libro podrás hacer el trabajo diario de un analista de
+Business Intelligence:
+
+\begin{itemize}
+  \item \textbf{Reunir datos} de archivos CSV, libros de Excel y bases de
+        datos SQL, y \textbf{unir} tablas de ventas, clientes, productos y
+        tiendas.
+  \item \textbf{Limpiar y transformar} datos con scripts reproducibles: lo
+        que hoy te toma una hora de trabajo manual se ejecutará con un clic.
+  \item \textbf{Calcular indicadores} (ventas, ticket promedio, margen,
+        crecimiento, participación) por tienda, mes, categoría o vendedor.
+  \item \textbf{Crear gráficas} claras y con estilo corporativo, listas para
+        una presentación ejecutiva.
+  \item \textbf{Explorar datos con estadística}: detectar valores atípicos,
+        medir relaciones y comprobar si una diferencia es real o casualidad.
+  \item \textbf{Construir dashboards interactivos} con Shiny que tus
+        compañeros pueden usar desde el navegador.
+  \item \textbf{Segmentar clientes y hacer pronósticos} con técnicas de
+        machine learning.
+  \item \textbf{Automatizar reportes} en HTML, Word y PDF que se actualizan
+        solos cuando llegan datos nuevos.
+  \item \textbf{Integrarlo todo} en un proyecto final: un dashboard
+        ejecutivo de \textit{retail analytics}.
+\end{itemize}
+
+\subsection{¿Para quién es este libro y qué necesitas?}
+
+No necesitas saber programar. Basta con que manejes una computadora y tengas
+nociones de hoja de cálculo (qué es una fila, una columna, una suma). Si ya
+programas en otro lenguaje, avanzarás rápido por el primer módulo; si ya
+usas R, aprovecharás sobre todo la parte de negocio: indicadores,
+dashboards, reportes automáticos y modelos aplicados.
+
+Necesitas una computadora con Windows 10/11, macOS o Linux, al menos 4\,GB
+de memoria RAM (8\,GB es más cómodo), unos 2\,GB libres en disco, conexión a
+internet para instalar el software y, sobre todo, constancia: el plan
+sugerido de la sección~\ref{sec:m0-plan} pide unas 8 horas por semana
+durante 10 semanas. Todo el software que usaremos es gratuito.
+
+% ----------------------------------------------------------------------------
+\section{¿Qué es Business Intelligence?}
+\label{sec:m0-que-es-bi}
+% ----------------------------------------------------------------------------
+
+\begin{concepto}{Business Intelligence y Business Analytics}
+\termino{Business Intelligence} (BI, inteligencia de negocios) es el
+conjunto de procesos, herramientas y prácticas que convierten los datos que
+genera una empresa ---ventas, inventarios, clientes, nómina--- en
+información confiable para tomar decisiones. Sus productos típicos son
+reportes, indicadores y tableros que responden \emph{qué pasó} y \emph{cómo
+vamos}.
+
+\termino{Business Analytics} (BA, analítica de negocios) va un paso más
+allá: usa estadística y modelos para explicar \emph{por qué} pasó algo,
+anticipar \emph{qué pasará} y recomendar \emph{qué hacer}.
+
+En la práctica la frontera es difusa y muchas empresas llaman ``BI'' a
+todo. En este libro aprenderás las dos cosas.
+\end{concepto}
+
+Dos términos que usarás en todo el libro. Un \termino{KPI} (\textit{Key
+Performance Indicator}, indicador clave de desempeño) es una medida numérica
+que dice si el negocio avanza hacia un objetivo: ventas del mes, ticket
+promedio, margen bruto, porcentaje de clientes que regresan. Un
+\termino{dashboard} (tablero) es una pantalla que reúne varios KPI y
+gráficas para dar un vistazo rápido al estado del negocio.
+
+\subsection{Los cuatro tipos de analítica}
+
+Las preguntas que se hacen con datos se suelen agrupar en cuatro tipos de
+analítica, de menor a mayor complejidad y, en general, de menor a mayor
+valor para la decisión (figura~\ref{fig:m0-analitica}). No es una escalera
+que se sube una sola vez: una empresa madura usa los cuatro tipos al mismo
+tiempo, y la analítica descriptiva, bien hecha, sigue siendo la base de
+todo.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  escalon/.style={rounded corners=3pt, minimum width=3.45cm,
+    minimum height=1.25cm, align=center, text=white,
+    font=\sffamily\small, anchor=south west},
+  nota/.style={text width=3.3cm, align=center, font=\sffamily\scriptsize,
+    text=gristexto, anchor=north},
+]
+  % Ejes
+  \draw[-{Stealth[length=3mm]}, gristexto, thick] (0,0) -- (15.4,0)
+    node[below left, font=\sffamily\small, text=gristexto]
+    {Complejidad};
+  \draw[-{Stealth[length=3mm]}, gristexto, thick] (0,0) -- (0,6.4)
+    node[above right, font=\sffamily\small, text=gristexto]
+    {Valor para la decisión};
+  % Escalones
+  \node[escalon, fill=secundario] (d1) at (0.35,0.35)
+    {\textbf{Descriptiva}\\¿Qué pasó?};
+  \node[escalon, fill=primario] (d2) at (4.1,1.75)
+    {\textbf{Diagnóstica}\\¿Por qué pasó?};
+  \node[escalon, fill=morado] (d3) at (7.85,3.15)
+    {\textbf{Predictiva}\\¿Qué pasará?};
+  \node[escalon, fill=acento] (d4) at (11.6,4.55)
+    {\textbf{Prescriptiva}\\¿Qué debemos hacer?};
+  % Notas bajo cada escalón
+  \node[nota] at ([yshift=-2pt]d2.south -| d2.center)
+    {Comparaciones, correlación, pruebas de hipótesis};
+  \node[nota] at ([yshift=-2pt]d3.south -| d3.center)
+    {Pronósticos, modelos de clasificación};
+  \node[nota] at ([yshift=-2pt]d4.south -| d4.center)
+    {Reglas de decisión, escenarios, optimización};
+  \node[nota, anchor=south] at ([yshift=2pt]d1.north)
+    {Reportes, KPI, tableros};
+\end{tikzpicture}
+\caption{Los cuatro tipos de analítica. Cada escalón responde una pregunta
+más difícil y, por lo general, más valiosa para la decisión.}
+\label{fig:m0-analitica}
+\end{figure}
+
+La tabla~\ref{tab:m0-analitica} aterriza cada tipo con ejemplos de nuestra
+cadena de tiendas y te dice en qué módulo lo aprenderás.
+
+\begin{table}[H]
+\centering\small
+\caption{Los cuatro tipos de analítica aplicados a una cadena de tiendas.}
+\label{tab:m0-analitica}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.1cm}
+    >{\raggedright\arraybackslash}X
+    >{\raggedright\arraybackslash}p{3.7cm}
+    >{\raggedright\arraybackslash}p{1.5cm}@{}}
+\toprule
+\textbf{Tipo} & \textbf{Ejemplo en nuestra cadena} &
+\textbf{Técnicas en R} & \textbf{Módulo} \\
+\midrule
+Descriptiva &
+  Ventas totales por mes y por tienda en 2023; los 10 productos más
+  vendidos; ticket promedio por método de pago. &
+  Resúmenes con \paquete{dplyr}, gráficas con \paquete{ggplot2}. &
+  \ref{cap:manipulacion}, \ref{cap:visualizacion} \\
+\addlinespace
+Diagnóstica &
+  ¿Bajaron las ventas de una sucursal porque hubo menos compras o porque
+  cada compra fue más pequeña? ¿Los clientes premium gastan más? &
+  Comparación de grupos, correlación, pruebas de hipótesis, regresión. &
+  \ref{cap:eda} \\
+\addlinespace
+Predictiva &
+  Pronóstico de ventas del próximo trimestre; probabilidad de que un
+  cliente deje de comprar. &
+  Series de tiempo (\paquete{forecast}), árboles y bosques aleatorios. &
+  \ref{cap:ml} \\
+\addlinespace
+Prescriptiva &
+  Qué productos reabastecer primero; a qué segmento de clientes enviar la
+  promoción. &
+  Reglas de decisión sobre predicciones y segmentos, comparación de
+  escenarios. &
+  \ref{cap:ml}, \ref{cap:proyecto} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Siendo honestos: la analítica prescriptiva ``completa'' (optimización
+matemática de precios, rutas o inventarios) es un campo propio que va más
+allá de este libro. Aquí harás la versión que más se usa en el día a día:
+convertir segmentos y pronósticos en reglas de decisión claras y comparar
+escenarios.
+
+\subsection{Roles de datos en una empresa}
+
+Alrededor de los datos trabajan varios perfiles. Conocerlos te ayuda a
+entender qué parte del trabajo te toca y con quién colaboras
+(tabla~\ref{tab:m0-roles}).
+
+\begin{table}[H]
+\centering\small
+\caption{Roles de datos más comunes y la pregunta típica de cada uno.}
+\label{tab:m0-roles}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.3cm}
+    >{\raggedright\arraybackslash}X
+    >{\raggedright\arraybackslash}p{3.1cm}
+    >{\raggedright\arraybackslash}p{3.6cm}@{}}
+\toprule
+\textbf{Rol} & \textbf{Qué hace} & \textbf{Herramientas} &
+\textbf{Pregunta típica} \\
+\midrule
+Analista de BI &
+  Traduce preguntas de negocio en indicadores; construye reportes y
+  dashboards periódicos. &
+  SQL, Excel, Power BI o Tableau, R. &
+  ¿Cómo vamos contra la meta del mes? \\
+\addlinespace
+Analista de datos &
+  Responde preguntas puntuales con análisis a la medida y estadística. &
+  SQL, R o Python, Excel. &
+  ¿Qué tipo de cliente responde mejor a los descuentos? \\
+\addlinespace
+Científico de datos &
+  Construye modelos predictivos y diseña experimentos. &
+  R o Python, machine learning. &
+  ¿Qué clientes tienen alta probabilidad de irse? \\
+\addlinespace
+Ingeniero de datos &
+  Construye y mantiene las ``tuberías'' que llevan los datos de los
+  sistemas al almacén de datos. &
+  SQL, Python, herramientas de ETL, servicios en la nube. &
+  ¿Llegaron completos y a tiempo los datos de ventas de ayer? \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{negocio}{una persona, varios sombreros}
+En una empresa grande cada rol es un equipo distinto. En una empresa mediana
+o pequeña es común que una sola persona extraiga los datos, los limpie, haga
+el análisis y presente el dashboard. Este libro te forma principalmente como
+\textbf{analista de BI y de datos}, con una introducción sólida a la ciencia
+de datos (Módulo~\ref{cap:ml}) y a la parte de ingeniería que todo analista
+necesita: bases de datos, SQL y procesos ETL (Módulo~\ref{cap:bases-datos}).
+\end{negocio}
+
+\subsection{Preguntas de negocio que resuelve BI}
+
+BI no empieza con los datos, sino con una pregunta. La
+tabla~\ref{tab:m0-preguntas} reúne preguntas típicas por área de la empresa y
+la tabla del curso con la que podrás responderlas.
+
+\begin{table}[H]
+\centering\small
+\caption{Preguntas de negocio por área y datos del curso que las responden.}
+\label{tab:m0-preguntas}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.4cm}
+    >{\raggedright\arraybackslash}X
+    >{\raggedright\arraybackslash}p{3.3cm}@{}}
+\toprule
+\textbf{Área} & \textbf{Preguntas típicas} & \textbf{Datos del curso} \\
+\midrule
+Ventas &
+  ¿Qué tiendas venden más? ¿Cómo evolucionan las ventas mes a mes? ¿Qué
+  día de la semana vendemos más? &
+  \archivo{ventas\_retail}, \archivo{transacciones} \\
+\addlinespace
+Clientes &
+  ¿Quiénes son los mejores clientes? ¿Los clientes premium compran más?
+  ¿Qué segmentos existen? &
+  \archivo{clientes} + ventas \\
+\addlinespace
+Productos e inventario &
+  ¿Qué productos tienen margen negativo? ¿Cuáles están por debajo del stock
+  mínimo? ¿Qué categoría aporta más? &
+  \archivo{productos} + ventas \\
+\addlinespace
+Tiendas &
+  ¿Cuánto vende cada tienda por metro cuadrado? ¿Las tiendas más antiguas
+  venden más? &
+  \archivo{tiendas} + ventas \\
+\addlinespace
+Recursos humanos &
+  ¿Cómo se distribuyen los salarios por departamento, puesto y nivel
+  educativo? ¿Qué vendedor vende más? &
+  \archivo{empleados} + ventas \\
+\addlinespace
+Finanzas &
+  ¿Cuánto dinero dejamos de cobrar por descuentos? ¿Cómo cambia el ingreso
+  por trimestre? &
+  \archivo{ventas\_retail} \\
+\addlinespace
+Marketing &
+  ¿Qué método de pago prefieren los clientes? ¿A qué segmento dirigimos la
+  próxima campaña? &
+  \archivo{transacciones}, \archivo{clientes} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{hazlotu}
+Escribe tres preguntas que se hagan en tu trabajo (o en un negocio que
+conozcas) y clasifícalas como descriptiva, diagnóstica, predictiva o
+prescriptiva. Guárdalas: al terminar el libro podrás responderlas con R.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{¿Por qué R y RStudio para BI?}
+\label{sec:m0-por-que-r}
+% ----------------------------------------------------------------------------
+
+\termino{R} es un lenguaje de programación gratuito y de código abierto
+creado específicamente para el análisis de datos y la estadística (nació en
+los años noventa en la Universidad de Auckland, Nueva Zelanda). Su fuerza
+está en sus \termino{paquetes}: extensiones gratuitas que agregan funciones
+nuevas. En el repositorio oficial, \termino{CRAN}, hay más de 20\,000. Entre
+ellos destaca el \termino{tidyverse}, una colección de paquetes con una
+forma de escribir código muy legible, casi como una receta: ``toma las
+ventas, filtra 2023, agrupa por tienda, suma el total''.
+
+\begin{concepto}{R y RStudio no son lo mismo}
+\textbf{R} es el motor: el programa que ejecuta los cálculos.
+\textbf{RStudio} es el tablero del coche: un programa (un \termino{IDE},
+entorno de desarrollo integrado) que te da un editor de código, una
+consola, un visor de gráficas, un explorador de archivos y la ayuda, todo en
+una ventana. RStudio lo desarrolla la empresa Posit y necesita que R esté
+instalado. Tú trabajarás siempre dentro de RStudio.
+\end{concepto}
+
+\subsection{Comparación honesta con otras herramientas}
+
+R no es la única herramienta de BI ni la mejor para todo. La
+tabla~\ref{tab:m0-herramientas} resume fortalezas y limitaciones de las
+opciones más comunes.
+
+\begin{table}[H]
+\centering\small
+\caption{R frente a otras herramientas de análisis de datos.}
+\label{tab:m0-herramientas}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{1.9cm}
+    >{\raggedright\arraybackslash}X
+    >{\raggedright\arraybackslash}X
+    >{\raggedright\arraybackslash}p{3.3cm}@{}}
+\toprule
+\textbf{Herramienta} & \textbf{Fortalezas} & \textbf{Limitaciones} &
+\textbf{Úsala cuando\ldots} \\
+\midrule
+Excel &
+  Está en todas las empresas; todo mundo lo sabe leer; ideal para
+  cálculos rápidos y tablas dinámicas. &
+  Máximo 1\,048\,576 filas por hoja; los procesos de copiar y pegar son
+  difíciles de repetir y de auditar; errores de fórmula silenciosos;
+  estadística limitada. &
+  El análisis es pequeño y único, o necesitas entregar resultados a
+  usuarios de negocio. \\
+\addlinespace
+Power BI y Tableau &
+  Dashboards interactivos arrastrando y soltando; publicación con
+  permisos para toda la organización; muchos conectores; actualización
+  programada. &
+  Licencias de pago para compartir; transformaciones complejas y
+  estadística avanzada son difíciles; lenguajes propios (DAX, cálculos)
+  con su propia curva. &
+  La empresa ya lo tiene y necesitas un tablero corporativo de consulta
+  diaria para muchas personas. \\
+\addlinespace
+Python &
+  Lenguaje de propósito general; líder en machine learning a gran escala,
+  deep learning e integración con otros sistemas. &
+  Para estadística y gráficas de reporte suele requerir más código y más
+  librerías distintas; configurar el entorno es más confuso al principio. &
+  El modelo irá a producción dentro de una aplicación o tu equipo ya
+  trabaja en Python. \\
+\addlinespace
+R y RStudio &
+  Diseñado para analizar datos; código legible con el tidyverse; gráficas
+  de calidad con \paquete{ggplot2}; reportes reproducibles; dashboards con
+  Shiny; gratuito. &
+  Hay que programar (curva inicial); los datos se cargan en la memoria
+  RAM; se usa menos para desarrollar software; publicar dashboards
+  Shiny requiere un servidor. &
+  Necesitas limpiar, analizar, modelar y reportar de forma reproducible y
+  automatizable. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+La gran ventaja de R para BI se resume en una palabra:
+\termino{reproducible}. Un análisis es reproducible cuando cualquier
+persona ---incluido tú dentro de seis meses--- puede volver a ejecutarlo y
+obtener exactamente el mismo resultado. En Excel, los pasos viven en tu
+memoria (``primero filtré, luego copié esta columna\ldots''); en R, viven en
+un script que se puede revisar, corregir, compartir y volver a ejecutar con
+los datos del mes siguiente.
+
+\begin{consejo}
+R \textbf{complementa} a tus otras herramientas; no las sustituye. Un
+analista eficaz usa cada una para lo que hace mejor. Con R puedes exportar
+resultados a Excel para el área de finanzas (Módulo~\ref{cap:fundamentos}),
+alimentar un tablero de Power BI (que puede ejecutar scripts de R como
+fuente de datos) o generar el reporte en Word que pide dirección
+(Módulo~\ref{cap:reportes}). Aprender R no te obliga a abandonar nada.
+\end{consejo}
+
+% ----------------------------------------------------------------------------
+\section{El ciclo de trabajo de un proyecto de BI}
+\label{sec:m0-ciclo}
+% ----------------------------------------------------------------------------
+
+Todo proyecto de BI, desde un reporte semanal hasta un modelo de
+pronóstico, sigue un ciclo parecido (figura~\ref{fig:m0-ciclo}). Es un
+ciclo porque la medición de resultados casi siempre genera una pregunta
+nueva. El libro está organizado para que aprendas cada paso; debajo de cada
+uno verás el módulo donde lo practicas.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  paso/.style={draw=#1, fill=#1!7, line width=0.9pt, rounded corners=4pt,
+    text width=3.25cm, align=center, inner sep=4pt,
+    font=\sffamily\small},
+  modulo/.style={font=\sffamily\scriptsize, text=gristexto},
+  flecha/.style={-{Stealth[length=2.6mm]}, line width=1pt,
+    gristexto!70},
+]
+  \node[paso=acento] (p1) at (90:6.0cm and 3.9cm)
+    {\textbf{1. Pregunta de negocio}\\[1pt]
+     {\modulo ¿Qué hay que decidir?}\\
+     {\modulo Introducción y Módulo \ref{cap:proyecto}}};
+  \node[paso=secundario] (p2) at (38.57:6.0cm and 3.9cm)
+    {\textbf{2. Obtener los datos}\\[1pt]
+     {\modulo CSV, Excel, SQL}\\
+     {\modulo Módulos \ref{cap:fundamentos} y \ref{cap:bases-datos}}};
+  \node[paso=primario] (p3) at (-12.86:6.0cm and 3.9cm)
+    {\textbf{3. Limpiar y transformar (ETL)}\\[1pt]
+     {\modulo Filtrar, unir, resumir}\\
+     {\modulo Módulos \ref{cap:manipulacion} y \ref{cap:bases-datos}}};
+  \node[paso=morado] (p4) at (-64.29:6.0cm and 3.9cm)
+    {\textbf{4. Analizar}\\[1pt]
+     {\modulo Estadística y modelos}\\
+     {\modulo Módulos \ref{cap:eda} y \ref{cap:ml}}};
+  \node[paso=exito] (p5) at (-115.71:6.0cm and 3.9cm)
+    {\textbf{5. Visualizar y comunicar}\\[1pt]
+     {\modulo Gráficas, dashboards, reportes}\\
+     {\modulo Módulos \ref{cap:visualizacion}, \ref{cap:shiny} y
+      \ref{cap:reportes}}};
+  \node[paso=acento] (p6) at (-167.14:6.0cm and 3.9cm)
+    {\textbf{6. Tomar la decisión}\\[1pt]
+     {\modulo Junto con el negocio}\\
+     {\modulo Módulo \ref{cap:proyecto}}};
+  \node[paso=secundario] (p7) at (141.43:6.0cm and 3.9cm)
+    {\textbf{7. Medir el resultado}\\[1pt]
+     {\modulo KPI antes y después}\\
+     {\modulo Módulos \ref{cap:shiny} y \ref{cap:reportes}}};
+  % Flechas del ciclo
+  \foreach \a/\b in {p1/p2, p2/p3, p3/p4, p4/p5, p5/p6, p6/p7, p7/p1}
+    \draw[flecha] (\a) to[bend left=12] (\b);
+  % Texto central
+  \node[align=center, font=\sffamily, text=primario] at (0,0.1)
+    {\textbf{Ciclo de un}\\\textbf{proyecto de BI}\\[3pt]
+     {\scriptsize\color{gristexto}cada resultado genera}\\
+     {\scriptsize\color{gristexto}una pregunta nueva}};
+\end{tikzpicture}
+\caption{El ciclo de trabajo de un proyecto de BI y el módulo del libro
+donde se aprende cada paso.}
+\label{fig:m0-ciclo}
+\end{figure}
+
+La tabla~\ref{tab:m0-ciclo} detalla qué haces en cada paso y qué
+herramientas de R usarás. No te preocupes si todavía no reconoces los
+nombres: los irás conociendo módulo a módulo.
+
+\begin{table}[H]
+\centering\small
+\caption{Qué se hace en cada paso del ciclo y con qué herramientas de R.}
+\label{tab:m0-ciclo}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{3.0cm}
+    >{\raggedright\arraybackslash}X
+    >{\raggedright\arraybackslash}p{5.2cm}@{}}
+\toprule
+\textbf{Paso} & \textbf{Qué haces} & \textbf{Herramientas en R} \\
+\midrule
+1. Pregunta &
+  Acuerdas con el área de negocio qué se quiere decidir y cómo se medirá
+  el éxito. &
+  Papel, lápiz y buenas preguntas. \\
+2. Obtener datos &
+  Localizas las fuentes y las cargas en R. &
+  \paquete{readr}, \paquete{readxl}, \paquete{DBI}, \paquete{RSQLite} \\
+3. Limpiar y transformar &
+  Corriges tipos y errores, unes tablas y calculas columnas nuevas. A este
+  proceso se le llama \termino{ETL} (\textit{extract, transform, load}:
+  extraer, transformar y cargar). &
+  \paquete{dplyr}, \paquete{tidyr}, \paquete{lubridate},
+  \paquete{dbplyr} \\
+4. Analizar &
+  Resumes, comparas, buscas patrones y construyes modelos. &
+  \paquete{dplyr}, \paquete{skimr}, \paquete{forecast},
+  \paquete{caret}, \paquete{cluster} \\
+5. Visualizar y comunicar &
+  Conviertes los resultados en gráficas, tableros y reportes que
+  cualquiera entiende. &
+  \paquete{ggplot2}, \paquete{shiny}, \paquete{plotly},
+  \paquete{rmarkdown} \\
+6. Decidir &
+  El negocio decide con base en la evidencia; tú explicas alcances y
+  riesgos. &
+  Un buen resumen ejecutivo. \\
+7. Medir &
+  Compruebas si la decisión funcionó con los mismos KPI, periódicamente. &
+  Reportes automáticos y dashboards. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{ejemplo}{el ciclo completo en una pregunta real}
+La directora comercial pregunta: \textit{``¿Los descuentos aumentan las
+unidades vendidas o solo nos quitan margen?''}. Así se vería el ciclo:
+\begin{enumerate}
+  \item \textbf{Pregunta:} ¿las ventas con 15 o 20\,\% de descuento venden
+        más unidades que las ventas sin descuento?
+  \item \textbf{Datos:} \archivo{ventas\_retail.csv}, columnas
+        \codigo{descuento\_pct}, \codigo{cantidad} y \codigo{total}.
+  \item \textbf{Limpiar:} comprobar que \codigo{total} sea igual a
+        \codigo{subtotal} menos \codigo{descuento\_monto} y que no haya
+        valores faltantes.
+  \item \textbf{Analizar:} comparar las unidades promedio por nivel de
+        descuento y probar si la diferencia es estadísticamente
+        significativa (Módulo~\ref{cap:eda}).
+  \item \textbf{Comunicar:} una gráfica de barras con las unidades
+        promedio por nivel de descuento y una frase con la conclusión.
+  \item \textbf{Decidir:} si los descuentos no mueven las unidades, se
+        reducen a las fechas clave.
+  \item \textbf{Medir:} comparar unidades y margen del trimestre siguiente
+        contra el anterior.
+\end{enumerate}
+\end{ejemplo}
+
+\begin{hazlotu}
+Piensa en una decisión reciente de tu trabajo (un precio, una compra, una
+contratación). Escribe cómo habría sido cada uno de los siete pasos del
+ciclo. ¿Qué datos habrías necesitado? ¿Cómo habrías medido el resultado?
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Cómo está organizado el libro}
+\label{sec:m0-organizacion}
+% ----------------------------------------------------------------------------
+
+El libro tiene cuatro partes que van de principiante a avanzado, más dos
+apéndices (tabla~\ref{tab:m0-modulos}). Cada módulo se apoya en los
+anteriores, así que te recomendamos seguirlos en orden, al menos la primera
+vez.
+
+\begin{table}[H]
+\centering\small
+\caption{Partes, módulos, nivel y horas estimadas de estudio y práctica.}
+\label{tab:m0-modulos}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.3cm}
+    c >{\raggedright\arraybackslash}X
+    >{\raggedright\arraybackslash}p{2.0cm} r@{}}
+\toprule
+\textbf{Parte} & \textbf{Módulo} & \textbf{Tema} & \textbf{Nivel} &
+\textbf{Horas} \\
+\midrule
+\multirow{3}{2.3cm}{\raggedright I.~Nivel principiante} &
+  \ref{cap:fundamentos} & Fundamentos de R y RStudio: objetos, vectores,
+  tablas, funciones, importar y exportar CSV y Excel. & Principiante & 8 \\
+& \ref{cap:manipulacion} & Manipulación de datos con \paquete{dplyr} y
+  \paquete{tidyr}: filtrar, crear columnas, agrupar, resumir, unir y
+  pivotar. & Principiante & 10 \\
+& \ref{cap:visualizacion} & Visualización con \paquete{ggplot2}: barras,
+  líneas, dispersión, distribuciones y tema corporativo. & Principiante &
+  8 \\
+\midrule
+\multirow{3}{2.3cm}{\raggedright II.~Nivel intermedio} &
+  \ref{cap:eda} & Análisis exploratorio y estadística: resúmenes,
+  distribuciones, atípicos, correlación, pruebas y regresión. &
+  Intermedio & 8 \\
+& \ref{cap:bases-datos} & Bases de datos y SQL: SQLite desde R, consultas
+  SQL, \paquete{dbplyr} y procesos ETL. & Intermedio & 6 \\
+& \ref{cap:shiny} & Dashboards interactivos con Shiny y
+  \paquete{shinydashboard}. & Intermedio & 8 \\
+\midrule
+\multirow{2}{2.3cm}{\raggedright III.~Nivel avanzado} &
+  \ref{cap:ml} & Machine learning para BI: segmentación, clasificación,
+  regresión y series de tiempo. & Avanzado & 10 \\
+& \ref{cap:reportes} & Reportes automáticos con R Markdown en HTML, Word y
+  PDF. & Avanzado & 6 \\
+\midrule
+IV.~Proyecto integrador & \ref{cap:proyecto} & Proyecto final: dashboard
+  ejecutivo de \textit{retail analytics}, de los datos crudos al reporte.
+  & Integrador & 12 \\
+\midrule
+Apéndices & \ref{ap:soluciones} & Soluciones completas de todos los
+  ejercicios. & --- & --- \\
+& \ref{ap:referencia} & Referencia rápida de funciones y atajos. & --- &
+  --- \\
+\midrule
+\multicolumn{4}{@{}l}{\textbf{Total aproximado}} & \textbf{76} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Estructura de cada módulo}
+
+Todos los módulos siguen la misma estructura, para que sepas siempre dónde
+estás:
+
+\begin{enumerate}
+  \item \textbf{Objetivos} y un escenario de negocio que motiva el tema.
+  \item \textbf{Secciones de contenido}: cada idea se presenta con un
+        concepto breve, un ejemplo con código comentado, la salida real de
+        R, su interpretación y un reto ``Hazlo tú''.
+  \item \textbf{Casos prácticos} completos, de la pregunta a la conclusión.
+  \item \textbf{Errores comunes}: los mensajes de error que verás con más
+        frecuencia y cómo resolverlos.
+  \item \textbf{Resumen} con lo aprendido y una tabla de funciones clave.
+  \item \textbf{Ejercicios} graduados por nivel (Básico, Intermedio,
+        Avanzado y Reto). Cada ejercicio indica la página de su solución
+        en el Apéndice~\ref{ap:soluciones}.
+\end{enumerate}
+
+\subsection{Plan de estudio sugerido de 10 semanas}
+\label{sec:m0-plan}
+
+Si estudias por tu cuenta, el plan de la tabla~\ref{tab:m0-plan} reparte
+unas 80 horas (los módulos más esta introducción y la planeación del
+proyecto) en 10 semanas de 6 a 10 horas. Cada semana termina con un
+\textbf{entregable}: algo concreto que puedes guardar en tu portafolio.
+
+\begin{table}[H]
+\centering\small
+\caption{Plan de estudio sugerido de 10 semanas.}
+\label{tab:m0-plan}
+\begin{tabularx}{\textwidth}{@{}c
+    >{\raggedright\arraybackslash}p{5.2cm}
+    >{\raggedright\arraybackslash}X r@{}}
+\toprule
+\textbf{Semana} & \textbf{Contenido} & \textbf{Entregable sugerido} &
+\textbf{Horas} \\
+\midrule
+1 & Introducción y primera mitad del Módulo~\ref{cap:fundamentos}. &
+  Entorno instalado, datos generados y un script con tus primeros
+  cálculos. & 7 \\
+2 & Resto del Módulo~\ref{cap:fundamentos} e inicio del
+  Módulo~\ref{cap:manipulacion}. &
+  Un script que importa los CSV del curso y exporta una tabla a Excel. &
+  8 \\
+3 & Resto del Módulo~\ref{cap:manipulacion}. &
+  Tabla de ventas por tienda y categoría, con clientes y productos
+  unidos. & 8 \\
+4 & Módulo~\ref{cap:visualizacion}. &
+  Cinco gráficas de ventas con tu tema corporativo. & 8 \\
+5 & Módulo~\ref{cap:eda}. &
+  Informe exploratorio: distribuciones, atípicos y relaciones. & 8 \\
+6 & Módulo~\ref{cap:bases-datos}. &
+  Base SQLite con las tablas del curso y cinco consultas SQL. & 6 \\
+7 & Módulo~\ref{cap:shiny}. &
+  Dashboard Shiny de ventas con filtros. & 8 \\
+8 & Módulo~\ref{cap:ml}. &
+  Segmentación de clientes y pronóstico de ventas. & 10 \\
+9 & Módulo~\ref{cap:reportes} y planeación del proyecto. &
+  Reporte mensual automático en HTML y Word. & 7 \\
+10 & Módulo~\ref{cap:proyecto}. &
+  Proyecto final completo: ETL, análisis, dashboard y reporte. & 10 \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{Total aproximado}} & \textbf{80} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{consejo}
+Si tienes prisa por una necesidad concreta, estas rutas cortas funcionan:
+para \textbf{reportes y gráficas}, Módulos~\ref{cap:fundamentos},
+\ref{cap:manipulacion}, \ref{cap:visualizacion} y \ref{cap:reportes}; para
+\textbf{dashboards}, añade el Módulo~\ref{cap:shiny}; para
+\textbf{modelos predictivos}, añade los Módulos~\ref{cap:eda} y
+\ref{cap:ml}. Los Módulos~\ref{cap:fundamentos} y \ref{cap:manipulacion} son
+obligatorios en cualquier ruta: todo lo demás se construye sobre ellos.
+\end{consejo}
+
+% ----------------------------------------------------------------------------
+\section{Convenciones del libro}
+\label{sec:m0-convenciones}
+% ----------------------------------------------------------------------------
+
+Antes de empezar conviene que sepas leer el libro: cómo se distingue el
+código que debes ejecutar, cómo se ve lo que R responde y para qué sirve
+cada caja de color. Si todavía no tienes R instalado, solo lee esta sección;
+en la sección~\ref{sec:m0-entorno} lo instalas y luego puedes volver a
+probar los ejemplos.
+
+\subsection{Bloques de código}
+
+El libro usa cinco tipos de bloque. El más importante es el de
+\textbf{código R que se ejecuta}: fondo gris claro y números de línea a la
+izquierda. Todo el código de estos bloques se probó de principio a fin, en
+orden, antes de publicar el libro.
+
+\begin{rcode}
+# Ventas diarias de una sucursal durante una semana (en pesos)
+ventas_semana <- c(1200, 950, 1830, 1100, 2400, 3100, 2800)
+sum(ventas_semana)    # venta total de la semana
+mean(ventas_semana)   # venta promedio por día
+\end{rcode}
+
+Justo debajo aparece la \textbf{salida}: lo que R imprime en la consola al
+ejecutar ese código. Tiene fondo blanco y una franja azul verdosa a la
+izquierda:
+
+\begin{rsalida}
+[1] 13380
+[1] 1911.429
+\end{rsalida}
+
+Los \textbf{números de línea} (1, 2, 3, 4 en gris) no forman parte del
+código: sirven para que el texto pueda decir ``en la línea 2 creamos el
+vector'' y tú sepas exactamente dónde mirar. No los escribas. Las líneas que
+empiezan con \codigo{\#} son \termino{comentarios}: R las ignora; están ahí
+para explicarte qué hace cada instrucción. En tus propios scripts, comenta
+igual. Si una línea es demasiado larga para el ancho de la página, el libro
+la parte y marca la continuación con el símbolo $\hookrightarrow$; en R
+escríbela en una sola línea.
+
+El segundo tipo es el \textbf{código R que no se ejecuta automáticamente}.
+Se ve igual, pero con una franja naranja a la izquierda:
+
+\begin{rnoejecutar}
+# Instala un paquete (se hace UNA sola vez en cada computadora)
+install.packages("tidyverse")
+\end{rnoejecutar}
+
+La franja naranja significa ``ejecútalo tú cuando lo necesites'': son
+instalaciones, aplicaciones Shiny que abren una ventana, conexiones a
+servidores que no existen en tu computadora, plantillas con valores
+ficticios que debes cambiar o código con errores intencionales para
+aprender a leerlos. Por eso casi nunca llevan salida debajo.
+
+El tercer tipo es \textbf{SQL}, el lenguaje de las bases de datos, con una
+franja morada. Lo aprenderás en el Módulo~\ref{cap:bases-datos}:
+
+\begin{sqlcode}
+-- Ventas totales por tienda, de mayor a menor
+SELECT tienda_id, SUM(total) AS ventas_totales
+FROM ventas
+GROUP BY tienda_id
+ORDER BY ventas_totales DESC;
+\end{sqlcode}
+
+Por último, los bloques de \textbf{texto literal} muestran cosas que no son
+código R: encabezados de R Markdown, comandos de terminal, estructuras de
+carpetas o archivos de configuración. Este, por ejemplo, es el encabezado
+de un reporte que harás en el Módulo~\ref{cap:reportes}:
+
+\begin{textocodigo}
+---
+title: "Reporte mensual de ventas"
+author: "Área de Inteligencia Comercial"
+output: html_document
+---
+\end{textocodigo}
+
+\begin{advertencia}
+No copies y pegues código desde el PDF: se copian también los números de
+línea y a veces las comillas o los espacios cambian, lo que produce errores
+difíciles de ver. Escribe el código tú mismo (así aprendes más rápido) o
+abre el script del módulo en la carpeta \archivo{latex/codigo/}
+(sección~\ref{sec:m0-codigo}).
+\end{advertencia}
+
+\subsection{Cómo leer una salida de R}
+\label{sec:m0-leer-salida}
+
+En la consola de RStudio verás el símbolo \codigo{>} antes de cada
+instrucción: es el \termino{prompt}, la forma en que R dice ``estoy listo,
+escribe algo''. En el libro no lo mostramos: el bloque de código contiene
+exactamente lo que escribes y el bloque de salida, exactamente lo que R
+responde.
+
+\subsubsection{El \texorpdfstring{\codigo{[1]}}{[1]} y los índices}
+
+Cada línea de salida de un vector empieza con un número entre corchetes. No
+es un dato: es la \textbf{posición} del primer elemento de esa línea. Se nota
+cuando el resultado no cabe en una sola línea:
+
+\begin{rcode}
+# Números de día de un mes de 30 días
+dias_mes <- 1:30
+dias_mes
+\end{rcode}
+
+\begin{rsalida}
+ [1]  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22
+[23] 23 24 25 26 27 28 29 30
+\end{rsalida}
+
+La primera línea empieza en el elemento 1 y la segunda en el elemento 23.
+En la salida de \codigo{sum(ventas\_semana)}, el \codigo{[1]} solo indica
+que el resultado tiene un único elemento: 13380.
+
+\subsubsection{Tablas: data frames y tibbles}
+
+Los datos de negocio viven en tablas. En R, una tabla se llama
+\termino{data frame}; el tidyverse usa una versión moderna llamada
+\termino{tibble}, que se imprime de forma más informativa:
+
+\begin{rcode}
+library(tibble)   # paquete de tablas modernas (parte del tidyverse)
+
+# Una tabla pequeña: ventas de tres tiendas
+ventas_tienda <- tibble(
+  tienda = c("Centro", "Norte", "Sur"),
+  ventas = c(152300, 98750, 120400)
+)
+ventas_tienda
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 3 x 2
+  tienda ventas
+  <chr>   <dbl>
+1 Centro 152300
+2 Norte   98750
+3 Sur    120400
+\end{rsalida}
+
+Así se lee:
+\begin{itemize}
+  \item \codigo{\# A tibble: 3 x 2}: la tabla tiene 3 filas y 2 columnas.
+        En tu pantalla verás el signo $\times$ en lugar de la \codigo{x}
+        y algunos elementos en color; en el libro usamos caracteres
+        simples.
+  \item La segunda línea tiene los nombres de las columnas y la tercera su
+        \textbf{tipo} entre \codigo{< >} (tabla~\ref{tab:m0-tipos}).
+  \item Los números 1, 2, 3 de la izquierda son solo el número de fila.
+  \item Si la tabla es grande, R muestra las primeras 10 filas y avisa
+        con una línea como \codigo{\# i 355 more rows} (quedan 355 filas
+        más) o \codigo{\# i 9 more variables: \ldots} (hay 9 columnas que no
+        cupieron). En tu pantalla la \codigo{i} aparece como un símbolo de
+        información. Los datos están completos: solo se recorta la
+        impresión.
+  \item Un número que termina en punto, como \codigo{126274.}, tiene
+        decimales que no se muestran para ahorrar espacio.
+\end{itemize}
+
+\begin{table}[H]
+\centering\small
+\caption{Tipos de columna que verás en las salidas de R.}
+\label{tab:m0-tipos}
+\begin{tabularx}{\textwidth}{@{}l l X@{}}
+\toprule
+\textbf{Así aparece} & \textbf{Tipo} & \textbf{Ejemplo en los datos del
+curso} \\
+\midrule
+\codigo{<chr>}  & Texto (\textit{character}) & nombre de la ciudad, método
+  de pago \\
+\codigo{<dbl>}  & Número decimal (\textit{double}) & total de la venta,
+  salario \\
+\codigo{<int>}  & Número entero (\textit{integer}) & conteo de ventas \\
+\codigo{<lgl>}  & Lógico: \codigo{TRUE} o \codigo{FALSE} & ¿el cliente es
+  premium? \\
+\codigo{<date>} & Fecha & fecha de la venta \\
+\codigo{<time>} & Hora del día & hora de la transacción \\
+\codigo{<dttm>} & Fecha y hora & momento exacto de un registro \\
+\codigo{<fct>}  & Factor: categoría con niveles fijos & segmento de
+  cliente ordenado \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsubsection{Valores faltantes, advertencias y errores}
+
+En los datos reales faltan cosas. R marca un valor faltante con
+\codigo{NA} (\textit{not available}). Mira qué pasa cuando una columna de
+ventas llega como texto y uno de los valores dice ``N/D'':
+
+\begin{rcode}
+# Ventas que llegaron como texto desde un sistema
+ventas_texto <- c("1500", "2300", "N/D", "980")
+ventas_numero <- as.numeric(ventas_texto)   # convertir a número
+ventas_numero
+sum(ventas_numero)                 # la suma con un NA da NA
+sum(ventas_numero, na.rm = TRUE)   # na.rm = TRUE ignora los NA
+\end{rcode}
+
+\begin{rsalida}
+Warning message:
+NAs introducidos por coerción
+[1] 1500 2300   NA  980
+[1] NA
+[1] 4780
+\end{rsalida}
+
+Hay tres clases de avisos. Una \termino{advertencia}
+(\textit{warning}) significa ``hice lo que pediste, pero algo raro pasó'':
+aquí R no pudo convertir ``N/D'' en número y puso \codigo{NA}. Un
+\termino{error} (\textit{error}) significa ``me detuve y no hice nada''. Un
+\termino{mensaje} (\textit{message}) es solo informativo. Nunca ignores una
+advertencia sin entenderla: en BI suele ser la primera pista de un problema
+de calidad de datos.
+
+Fíjate también en que el aviso salió mitad en inglés (\textit{Warning
+message}) y mitad en español. R traduce muchos de sus mensajes según el
+idioma de tu sistema, así que en tu computadora pueden salir en español, en
+inglés o mezclados. No te preocupes: el significado es el mismo. Por último,
+cuando una salida es muy larga la recortamos y lo indicamos con una línea
+\codigo{...}.
+
+\subsection{Las cajas didácticas}
+
+Además del código, el libro usa cajas de colores. Cada una tiene un
+propósito fijo; al verla sabrás qué tipo de contenido esperar. Al inicio de
+cada módulo, una caja azul de \textbf{objetivos} (como la de la primera
+página de esta introducción) lista lo que podrás hacer al terminarlo. Estas
+son las demás.
+
+La caja \textbf{Concepto clave} contiene definiciones e ideas teóricas que
+necesitas para seguir adelante. Si vas a repasar un módulo en diez minutos,
+lee solo estas cajas:
+
+\begin{concepto}{ticket promedio}
+El \termino{ticket promedio} es el importe medio de cada compra:
+ventas totales divididas entre el número de compras (tickets). Si sube, tus
+clientes gastan más por visita; si baja, compran menos cosas o más baratas.
+\end{concepto}
+
+La caja \textbf{Ejemplo práctico} plantea un problema de negocio que se
+resuelve paso a paso. Normalmente contiene la pregunta y el código va justo
+después:
+
+\begin{ejemplo}{ticket promedio de la semana}
+Con las ventas de la semana (\codigo{ventas\_semana}) y el número de
+tickets de cada día, ¿cuál fue el ticket promedio de la sucursal?
+\end{ejemplo}
+
+\begin{rcode}
+# Número de tickets (compras) registrados cada día de la semana
+tickets_semana <- c(40, 31, 55, 38, 70, 88, 81)
+
+# Ticket promedio = venta total / número total de tickets
+ticket_promedio <- sum(ventas_semana) / sum(tickets_semana)
+round(ticket_promedio, 2)   # redondeamos a centavos
+\end{rcode}
+
+\begin{rsalida}
+[1] 33.2
+\end{rsalida}
+
+Interpretación: en esa semana cada cliente gastó en promedio \$33.20 por
+compra. Después de cada salida importante encontrarás una interpretación
+así: el número por sí solo no sirve de nada hasta que dices qué significa
+para el negocio.
+
+La caja \textbf{En la empresa} cuenta cómo se usa una técnica en una
+organización real, con sus ventajas y sus problemas prácticos:
+
+\begin{negocio}{el reporte de los lunes}
+En muchas cadenas, cada lunes alguien arma a mano el reporte de ventas de
+la semana anterior: descarga archivos, los pega en Excel y actualiza
+gráficas. Con un script de R y un reporte de R Markdown
+(Módulo~\ref{cap:reportes}) ese trabajo se reduce a ejecutar un archivo, y
+el analista usa ese tiempo en lo que sí aporta valor: explicar qué pasó y
+qué hacer.
+\end{negocio}
+
+La caja \textbf{Consejo} reúne buenas prácticas profesionales, esas que no
+son obligatorias para que el código funcione pero que distinguen a un
+analista cuidadoso:
+
+\begin{consejo}
+Nombra tus scripts con un número y un verbo que indiquen el orden en que se
+ejecutan: \archivo{01\_importar.R}, \archivo{02\_limpiar.R},
+\archivo{03\_analizar.R}. Dentro de un año agradecerás saber por dónde
+empezar.
+\end{consejo}
+
+La caja \textbf{Cuidado} advierte sobre errores comunes y cómo evitarlos:
+
+\begin{advertencia}
+R distingue entre mayúsculas y minúsculas: \codigo{Ventas} y
+\codigo{ventas} son dos objetos distintos. Si creas \codigo{ventas} y luego
+escribes \codigo{Ventas}, R responderá con un error que dice que el objeto
+no se encontró (\textit{object not found}).
+\end{advertencia}
+
+La caja \textbf{Hazlo tú} es un reto corto para practicar en ese mismo
+momento. Muchas traen una pista, pero no una solución formal: la idea es
+que experimentes.
+
+\begin{hazlotu}
+Cambia los valores de \codigo{ventas\_semana} por las ventas de un negocio
+que conozcas (o inventa unas) y vuelve a calcular el total, el promedio
+diario y el ticket promedio.
+\end{hazlotu}
+
+Al final de cada módulo, la caja \textbf{Resumen del módulo} repasa lo
+aprendido y suele incluir una tabla con las funciones clave:
+
+\begin{resumen}[title={Resumen del módulo (ejemplo)}]
+\begin{itemize}
+  \item \codigo{sum()} suma y \codigo{mean()} promedia los elementos de un
+        vector.
+  \item \codigo{NA} marca un valor faltante; \codigo{na.rm = TRUE} lo
+        ignora en los cálculos.
+\end{itemize}
+\end{resumen}
+
+Después del resumen vienen los \textbf{ejercicios}, en cajas naranjas
+numeradas (Ejercicio 2.1, 2.2\ldots). Cada ejercicio indica su nivel
+(Básico, Intermedio, Avanzado o Reto) y, en la esquina inferior derecha, la
+página del Apéndice~\ref{ap:soluciones} donde está su solución completa:
+explicación, código, salida real e interpretación. Intenta resolverlo
+antes de mirar la solución.
+
+\subsection{Formato del texto}
+
+Dentro de los párrafos, el formato también te da pistas
+(tabla~\ref{tab:m0-formato}).
+
+\begin{table}[H]
+\centering\small
+\caption{Formato del texto y su significado.}
+\label{tab:m0-formato}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{5.2cm} X@{}}
+\toprule
+\textbf{Así lo verás} & \textbf{Significa} \\
+\midrule
+\codigo{summarise()} & Código de R dentro del texto: funciones, objetos,
+  argumentos. \\
+\paquete{dplyr} & Nombre de un paquete de R. \\
+\archivo{ventas\_retail.csv} & Nombre de un archivo o de una carpeta. \\
+\menu{Tools > Global Options} & Menú u opción de RStudio. \\
+\tecla{Ctrl} + \tecla{Enter} & Atajo de teclado. En Mac, cambia
+  \tecla{Ctrl} por \tecla{Cmd}. \\
+\termino{tabla de hechos} & Término nuevo que se define ahí mismo. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ----------------------------------------------------------------------------
+\section{Preparar tu entorno de trabajo}
+\label{sec:m0-entorno}
+% ----------------------------------------------------------------------------
+
+Vas a instalar dos programas, en este orden: primero \textbf{R} (el motor)
+y después \textbf{RStudio} (el tablero). Luego configurarás RStudio,
+instalarás los paquetes del curso y crearás un Proyecto de RStudio. Calcula
+entre 30 y 60 minutos, la mayor parte esperando descargas. El libro se
+verificó con R 4.3.3; cualquier versión 4.3 o posterior sirve.
+
+\subsection{Paso 1: instalar R}
+
+R se descarga de \termino{CRAN} (\textit{Comprehensive R Archive
+Network}), el repositorio oficial: \url{https://cran.r-project.org}.
+
+\textbf{Windows}
+\begin{enumerate}
+  \item En la página de CRAN elige \menu{Download R for Windows} y luego
+        \menu{base}.
+  \item Pulsa \menu{Download R-4.x.x for Windows} (el número cambia con
+        cada versión).
+  \item Ejecuta el instalador \archivo{.exe} y acepta las opciones por
+        defecto.
+  \item Verás una página sobre \textbf{Rtools}: solo hace falta para
+        compilar paquetes desde su código fuente; para este curso no la
+        necesitas.
+\end{enumerate}
+
+\textbf{macOS}
+\begin{enumerate}
+  \item En CRAN elige \menu{Download R for macOS}.
+  \item Descarga el instalador \archivo{.pkg} que corresponde a tu
+        procesador: \textbf{Apple silicon} (M1, M2, M3\ldots; archivo con
+        \archivo{arm64} en el nombre) o \textbf{Intel} (\archivo{x86\_64}).
+        Si no sabes cuál tienes, abre el menú Apple $\rightarrow$
+        \menu{Acerca de esta Mac} y mira el campo ``Chip'' o
+        ``Procesador''.
+  \item Abre el \archivo{.pkg} y sigue el asistente.
+\end{enumerate}
+
+\textbf{Linux (Ubuntu o Debian)}. Abre una terminal y ejecuta:
+
+\begin{textocodigo}
+sudo apt update
+sudo apt install r-base r-base-dev
+# Bibliotecas del sistema que necesitan algunos paquetes de R
+sudo apt install libcurl4-openssl-dev libssl-dev libxml2-dev
+R --version
+\end{textocodigo}
+
+La versión de los repositorios de tu distribución puede estar algo
+atrasada; en la sección de Linux de CRAN hay instrucciones para agregar su
+repositorio y obtener siempre la versión más reciente.
+
+\subsection{Paso 2: instalar RStudio}
+
+\begin{enumerate}
+  \item Entra a \url{https://posit.co/download/rstudio-desktop/}.
+  \item Descarga \textbf{RStudio Desktop} (gratuito) para tu sistema. La
+        página suele detectarlo sola.
+  \item Instálalo: en Windows ejecuta el \archivo{.exe}; en macOS abre el
+        \archivo{.dmg} y arrastra RStudio a \archivo{Aplicaciones}; en
+        Ubuntu instala el archivo \archivo{.deb}.
+  \item Abre RStudio. Si en la consola aparece un texto que empieza con
+        \codigo{R version 4.}, R y RStudio están conectados.
+\end{enumerate}
+
+\begin{consejo}
+Si no puedes instalar software en la computadora de tu trabajo, crea una
+cuenta gratuita en \textbf{Posit Cloud} (\url{https://posit.cloud}): es
+RStudio en el navegador. Sube ahí la carpeta del curso y sigue el libro
+igual. El plan gratuito tiene límites de memoria y de horas de uso, pero
+alcanza para practicar.
+\end{consejo}
+
+\subsection{Un recorrido rápido por RStudio}
+
+Al abrir RStudio verás cuatro paneles (figura~\ref{fig:m0-rstudio}). Si solo
+ves tres, abre un script nuevo con \menu{File > New File > R Script} y
+aparecerá el editor.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  titulo/.style={font=\sffamily\bfseries\small, text=primario,
+    anchor=north west},
+  texto/.style={font=\sffamily\scriptsize, text=gristexto,
+    anchor=north west, align=left},
+]
+  % Ventana
+  \draw[gristexto!70, fill=gray!8, rounded corners=3pt]
+    (0,0) rectangle (14.4,8.3);
+  \fill[primario, rounded corners=3pt] (0,7.75) rectangle (14.4,8.3);
+  \fill[primario] (0,7.75) rectangle (14.4,7.95);
+  \node[anchor=west, font=\sffamily\footnotesize\bfseries, text=white]
+    at (0.2,8.02) {RStudio};
+  \node[anchor=west, font=\sffamily\scriptsize, text=gristexto]
+    at (0.2,7.45) {File\quad Edit\quad Code\quad View\quad Plots\quad
+    Session\quad Build\quad Debug\quad Profile\quad Tools\quad Help};
+  % Paneles
+  \draw[fill=white, draw=gristexto!50] (0.2,3.85) rectangle (8.4,7.15);
+  \draw[fill=white, draw=gristexto!50] (0.2,0.2) rectangle (8.4,3.65);
+  \draw[fill=white, draw=gristexto!50] (8.6,3.85) rectangle (14.2,7.15);
+  \draw[fill=white, draw=gristexto!50] (8.6,0.2) rectangle (14.2,3.65);
+  % 1. Editor
+  \node[titulo] at (0.35,7.0) {1. Editor (Source)};
+  \node[texto, text width=7.6cm] at (0.35,6.45)
+    {Aquí escribes y guardas tus scripts (\texttt{.R}) y reportes
+     (\texttt{.Rmd}). Nada se ejecuta hasta que lo envías a la consola con
+     \texttt{Ctrl + Enter}.};
+  \node[anchor=north west, font=\ttfamily\scriptsize, text=rcomentario,
+    align=left] at (0.35,5.2)
+    {\# Mi primer script\\
+     \textcolor{rtexto}{ventas <- c(1200, 950, 1830)}\\
+     \textcolor{rtexto}{sum(ventas)}};
+  % 2. Consola
+  \node[titulo] at (0.35,3.5) {2. Consola (Console)};
+  \node[texto, text width=7.6cm] at (0.35,2.95)
+    {Aquí R ejecuta el código y responde. El símbolo \texttt{>} indica
+     que está listo para recibir una instrucción.};
+  \node[anchor=north west, font=\ttfamily\scriptsize, text=rtexto,
+    align=left] at (0.35,1.95)
+    {> sum(ventas)\\
+     \textcolor{black!80}{[1] 3980}\\
+     >};
+  % 3. Entorno
+  \node[titulo] at (8.75,7.0) {3. Entorno (Environment)};
+  \node[texto, text width=5.2cm] at (8.75,6.45)
+    {Los objetos que has creado: tablas, vectores, modelos. Las pestañas
+     \textit{History} y \textit{Connections} guardan tu historial y tus
+     conexiones a bases de datos.};
+  \node[anchor=north west, font=\ttfamily\scriptsize, text=rtexto]
+    at (8.75,4.75) {ventas \quad num [1:3] 1200 950 1830};
+  % 4. Archivos, gráficas, ayuda
+  \node[titulo] at (8.75,3.5) {4. Files, Plots, Help\ldots};
+  \node[texto, text width=5.2cm] at (8.75,2.95)
+    {Explorador de archivos del proyecto, gráficas, paquetes instalados
+     (\textit{Packages}), ayuda (\textit{Help}) y visor de dashboards y
+     reportes (\textit{Viewer}).};
+\end{tikzpicture}
+\caption{Los cuatro paneles de RStudio.}
+\label{fig:m0-rstudio}
+\end{figure}
+
+Los atajos de teclado de la tabla~\ref{tab:m0-atajos} te ahorrarán mucho
+tiempo desde el primer día. El más importante es \tecla{Ctrl} +
+\tecla{Enter}: ejecuta la línea donde está el cursor (o el texto
+seleccionado) y avanza a la siguiente.
+
+\begin{table}[H]
+\centering\small
+\caption{Atajos de teclado esenciales de RStudio.}
+\label{tab:m0-atajos}
+\begin{tabularx}{\textwidth}{@{}X l l@{}}
+\toprule
+\textbf{Acción} & \textbf{Windows y Linux} & \textbf{macOS} \\
+\midrule
+Ejecutar la línea actual o la selección &
+  \tecla{Ctrl} + \tecla{Enter} & \tecla{Cmd} + \tecla{Return} \\
+Ejecutar todo el script &
+  \tecla{Ctrl} + \tecla{Shift} + \tecla{Enter} &
+  \tecla{Cmd} + \tecla{Shift} + \tecla{Return} \\
+Insertar el pipe \codigo{\%>\%} &
+  \tecla{Ctrl} + \tecla{Shift} + \tecla{M} &
+  \tecla{Cmd} + \tecla{Shift} + \tecla{M} \\
+Insertar la asignación \codigo{<-} &
+  \tecla{Alt} + \tecla{-} & \tecla{Option} + \tecla{-} \\
+Comentar o descomentar líneas &
+  \tecla{Ctrl} + \tecla{Shift} + \tecla{C} &
+  \tecla{Cmd} + \tecla{Shift} + \tecla{C} \\
+Nuevo script &
+  \tecla{Ctrl} + \tecla{Shift} + \tecla{N} &
+  \tecla{Cmd} + \tecla{Shift} + \tecla{N} \\
+Guardar el script & \tecla{Ctrl} + \tecla{S} & \tecla{Cmd} + \tecla{S} \\
+Autocompletar nombres de funciones y objetos &
+  \tecla{Tab} & \tecla{Tab} \\
+Ver la ayuda de la función bajo el cursor & \tecla{F1} & \tecla{F1} \\
+Limpiar la consola & \tecla{Ctrl} + \tecla{L} & \tecla{Ctrl} + \tecla{L} \\
+Reiniciar R (sesión limpia) &
+  \tecla{Ctrl} + \tecla{Shift} + \tecla{F10} &
+  \tecla{Cmd} + \tecla{Shift} + \tecla{0} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Paso 3: configurar RStudio}
+
+Abre \menu{Tools > Global Options} y ajusta las opciones de la
+tabla~\ref{tab:m0-config}. La más importante es la primera pareja: evita
+que R guarde y restaure automáticamente los objetos de la sesión anterior.
+
+\begin{table}[H]
+\centering\small
+\caption{Configuración recomendada de RStudio
+(\menu{Tools > Global Options}).}
+\label{tab:m0-config}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.2cm}
+    >{\raggedright\arraybackslash}p{4.6cm}
+    >{\raggedright\arraybackslash}p{2.1cm} X@{}}
+\toprule
+\textbf{Sección} & \textbf{Opción} & \textbf{Valor} & \textbf{Por qué} \\
+\midrule
+\menu{General} & Restore .RData into workspace at startup & Desmarcada &
+  Cada sesión empieza limpia, sin objetos ``fantasma'' de ayer. \\
+\menu{General} & Save workspace to .RData on exit & Never &
+  Tu trabajo debe vivir en scripts, no en la memoria. \\
+\menu{Code > Editing} & Insert spaces for Tab (Tab width 2) & Marcada &
+  Sangría uniforme, al estilo tidyverse. \\
+\menu{Code > Editing} & Use native pipe operator, \codigo{|>} &
+  Desmarcada & El libro usa \codigo{\%>\%}; así el atajo inserta ese pipe
+  (el Módulo~\ref{cap:manipulacion} explica los dos). \\
+\menu{Code > Display} & Show line numbers; Highlight selected line &
+  Marcadas & Ubicas los errores por número de línea. \\
+\menu{Code > Display} & Show margin; Use rainbow parentheses & Marcadas &
+  Líneas cortas y paréntesis de colores para ver cuál cierra a cuál. \\
+\menu{Code > Saving} & Default text encoding & UTF-8 &
+  Acentos y eñes correctos en cualquier sistema. \\
+\menu{Appearance} & Editor theme, font size & A tu gusto (12 a 14) &
+  Trabajarás muchas horas: que sea cómodo. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Paso 4: instalar los paquetes del curso}
+
+Un \termino{paquete} se \textbf{instala} una sola vez en cada computadora
+(con \codigo{install.packages()}) y se \textbf{carga} en cada sesión en que
+lo uses (con \codigo{library()}). Es como comprar un libro y después
+abrirlo cada vez que lo lees. Copia el siguiente bloque en un script nuevo y
+ejecútalo completo; tarda entre 10 y 30 minutos según tu conexión.
+
+\begin{rnoejecutar}[title=Paquetes obligatorios del curso]
+paquetes <- c(
+  # --- Importar, manipular, visualizar y explorar (Módulos 1 a 4) ---
+  "tidyverse",      # dplyr, ggplot2, tidyr, readr, tibble, stringr...
+  "readxl",         # leer archivos de Excel (.xlsx y .xls)
+  "writexl",        # escribir archivos de Excel
+  "lubridate",      # trabajar con fechas: meses, semanas, días
+  "scales",         # formato de ejes: $, %, separador de miles
+  "skimr",          # resumen rápido de una tabla completa
+  "corrplot",       # gráficas de matrices de correlación
+  # --- Bases de datos y SQL (Módulo 5) ---
+  "DBI",            # interfaz común para cualquier base de datos
+  "RSQLite",        # base de datos SQLite en un archivo local
+  "dbplyr",         # traducir verbos de dplyr a SQL
+  # --- Dashboards interactivos (Módulo 6) ---
+  "shiny",          # aplicaciones web con R
+  "shinydashboard", # plantilla de dashboard para Shiny
+  "DT",             # tablas interactivas: buscar, ordenar, filtrar
+  "plotly",         # gráficas interactivas
+  # --- Machine learning (Módulo 7) ---
+  "cluster",        # segmentación (clustering) y silueta
+  "factoextra",     # visualizar clusters y componentes principales
+  "forecast",       # series de tiempo y pronósticos
+  "rpart",          # árboles de decisión
+  "randomForest",   # bosques aleatorios
+  "caret",          # entrenar y evaluar modelos
+  # --- Reportes automáticos (Módulo 8) ---
+  "rmarkdown",      # reportes en HTML, Word y PDF
+  "knitr"           # motor que ejecuta el código de los reportes
+)
+
+# Instala solo los paquetes que todavía no tienes
+faltantes <- setdiff(paquetes, rownames(installed.packages()))
+install.packages(faltantes)
+\end{rnoejecutar}
+
+Algunos módulos mencionan paquetes adicionales. No son necesarios para
+seguir el libro, pero puedes instalarlos si quieres probar esos ejemplos:
+
+\begin{rnoejecutar}[title=Paquetes opcionales]
+install.packages(c(
+  "arules",      # reglas de asociación (análisis de canasta de compras)
+  "rpart.plot",  # dibujos más legibles de árboles de decisión
+  "janitor",     # limpiar nombres de columnas y tablas de frecuencia
+  "openxlsx"     # Excel con formato: colores, anchos, estilos
+))
+\end{rnoejecutar}
+
+\begin{advertencia}
+Si durante la instalación R pregunta \textit{Do you want to install from
+sources the packages which need compilation?}, responde \codigo{no}: se
+instalará la versión ya compilada, que funciona igual y no requiere
+herramientas adicionales. En Linux los paquetes siempre se compilan; si
+alguno falla, casi siempre es porque falta una biblioteca del sistema (el
+mensaje de error dice cuál) como las del paso~1.
+\end{advertencia}
+
+\subsection{Paso 5: crear un Proyecto de RStudio}
+
+Descarga la carpeta del curso, \archivo{curso-bi-rstudio/} (por ejemplo,
+descargando el repositorio como ZIP y descomprimiéndolo), y colócala en un
+lugar fácil de encontrar, como \archivo{Documentos}. Evita rutas con
+caracteres especiales o carpetas que se sincronizan constantemente con la
+nube, porque a veces bloquean archivos mientras R los escribe. Después:
+
+\begin{enumerate}
+  \item En RStudio elige \menu{File > New Project\ldots}.
+  \item Selecciona \menu{Existing Directory} y, con \menu{Browse\ldots},
+        la carpeta \archivo{curso-bi-rstudio}.
+  \item Pulsa \menu{Create Project}. RStudio se reinicia, crea el archivo
+        \archivo{curso-bi-rstudio.Rproj} y muestra el nombre del proyecto en
+        la esquina superior derecha.
+  \item Las próximas veces abre el curso con doble clic en
+        \archivo{curso-bi-rstudio.Rproj} (o desde \menu{File > Open
+        Project}).
+\end{enumerate}
+
+\begin{concepto}{Proyecto de RStudio y rutas relativas}
+Un \termino{Proyecto de RStudio} es una carpeta con un archivo
+\archivo{.Rproj}. Al abrirlo, RStudio fija esa carpeta como
+\termino{directorio de trabajo}: el lugar desde donde R busca y guarda
+archivos. Gracias a eso puedes usar \termino{rutas relativas} como
+\codigo{"datasets/ventas\_retail.csv"} en lugar de rutas absolutas como
+\codigo{"C:/Users/Ana/Documents/\ldots"}. Tu código funcionará igual en
+cualquier computadora donde copies la carpeta, y cada proyecto tendrá su
+propio historial y sus propios archivos abiertos.
+\end{concepto}
+
+Para comprobar dónde está trabajando R, escribe en la consola:
+
+\begin{rnoejecutar}
+getwd()   # muestra el directorio de trabajo actual
+\end{rnoejecutar}
+
+La respuesta debe terminar en \archivo{curso-bi-rstudio}. Todo el código
+del libro supone que el directorio de trabajo es esa carpeta.
+
+\begin{advertencia}
+Evita escribir \codigo{setwd("C:/Users/TuNombre/\ldots")} al inicio de tus
+scripts. Funciona en tu computadora, pero falla en la de cualquier otra
+persona (y en la tuya, si mueves la carpeta). Con un Proyecto de RStudio no
+lo necesitas.
+\end{advertencia}
+
+\subsection{La estructura de carpetas del curso}
+
+La carpeta del curso está organizada así:
+
+\begin{textocodigo}
+curso-bi-rstudio/
+|-- curso-bi-rstudio.Rproj    <- lo crea RStudio (paso 5)
+|-- README.md                 <- presentación del curso
+|-- GUIA_INSTALACION.md       <- guía de instalación resumida
+|-- datasets/                 <- datos del curso
+|   |-- generar_datasets.R    <- script que crea todos los datos
+|   |-- ventas_retail.csv     <- (estos archivos aparecen al
+|   |-- clientes.csv          <-  ejecutar el script)
+|   |-- ...
+|   `-- datos_empresa.xlsx
+|-- latex/                    <- el libro que estás leyendo
+|   |-- curso-bi-rstudio.tex  <- archivo principal del libro
+|   |-- preambulo.tex         <- estilos, colores y cajas
+|   |-- capitulos/            <- un archivo .tex por módulo
+|   |-- apendices/            <- soluciones y referencia rápida
+|   |-- figuras/              <- gráficas del libro en PDF
+|   |-- codigo/               <- un script .R por módulo
+|   `-- herramientas/         <- extraer código, generar figuras
+|-- modulo-01-fundamentos/    <- scripts complementarios de
+|-- modulo-02-.../            <-  práctica de algunos módulos
+|-- proyecto-final/           <- material del proyecto integrador
+`-- resultados/               <- lo crean los ejemplos que guardan
+                                 archivos (CSV, Excel, gráficas)
+\end{textocodigo}
+
+Las carpetas \archivo{modulo-XX/} contienen scripts de práctica
+complementarios; el código completo y verificado de cada módulo del libro
+está en \archivo{latex/codigo/}.
+
+% ----------------------------------------------------------------------------
+\section{Generar los datos del curso}
+\label{sec:m0-generar}
+% ----------------------------------------------------------------------------
+
+Los datos del curso no se descargan: los crea un script de R. Así pesan
+poco, y todos obtenemos exactamente los mismos datos.
+
+\subsection{Paso 6: ejecutar el generador}
+
+Con el proyecto abierto (el directorio de trabajo debe ser
+\archivo{curso-bi-rstudio}), escribe en la consola:
+
+\begin{rcode}
+source("datasets/generar_datasets.R")   # ejecuta el script completo
+\end{rcode}
+
+\begin{rsalida}
+[1] "✓ ventas_retail.csv creado"
+[1] "✓ clientes.csv creado"
+[1] "✓ productos.csv creado"
+[1] "✓ empleados.csv creado"
+[1] "✓ transacciones.csv creado"
+[1] "✓ tiendas.csv creado"
+[1] "✓ datos_empresa.xlsx creado"
+
+============================================
+  DATASETS GENERADOS EXITOSAMENTE
+============================================
+Archivos creados:
+  1. ventas_retail.csv ( 365 filas )
+  2. clientes.csv ( 200 filas )
+  3. productos.csv ( 50 filas )
+  4. empleados.csv ( 100 filas )
+  5. transacciones.csv ( 1000 filas )
+  6. tiendas.csv ( 10 filas )
+  7. datos_empresa.xlsx (multi-hoja)
+============================================
+¡Listo para usar en los módulos del curso!
+============================================
+\end{rsalida}
+
+La función \codigo{source()} ejecuta de principio a fin todas las
+instrucciones de un script. El generador fija una \termino{semilla}
+aleatoria con \codigo{set.seed(123)}: los datos son aleatorios, pero la
+semilla hace que R produzca siempre la misma secuencia de números. Por eso,
+con R 3.6 o posterior, tus archivos serán idénticos a los del libro y tus
+resultados coincidirán con las salidas impresas. Solo necesitas ejecutarlo
+una vez; si borras algún archivo por accidente, vuelve a ejecutarlo.
+
+\begin{advertencia}
+Si aparece \textit{cannot open file 'datasets/generar\_datasets.R': No such
+file or directory}, R no está trabajando en la carpeta del curso. Abre el
+archivo \archivo{curso-bi-rstudio.Rproj} y vuelve a intentarlo. Si el error
+menciona \paquete{writexl}, te falta instalar los paquetes del paso~4.
+\end{advertencia}
+
+\subsection{Nota sobre el idioma de los días y los meses}
+
+El generador escribe el día de la semana con la función
+\codigo{weekdays()}, que usa el idioma configurado en tu sistema para las
+fechas. Puedes consultarlo así:
+
+\begin{rcode}
+Sys.getlocale("LC_TIME")   # idioma y región que R usa para las fechas
+\end{rcode}
+
+\begin{rsalida}
+[1] "es_MX.UTF-8"
+\end{rsalida}
+
+Los datos del libro se generaron con español de México
+(\codigo{es\_MX.UTF-8}), por eso verás ``lunes'', ``martes''\ldots{} En
+Windows la respuesta se parece a \codigo{"Spanish\_Mexico.utf8"}. Si en tu
+computadora ves algo como \codigo{"English\_United States.utf8"} o
+\codigo{"en\_US.UTF-8"}, tus días saldrán en inglés (``Monday'',
+``Tuesday''\ldots) y algunas salidas del libro no coincidirán con las tuyas.
+Para generar los datos en español, cambia el idioma de las fechas antes de
+ejecutar el generador:
+
+\begin{rnoejecutar}
+# Windows
+Sys.setlocale("LC_TIME", "Spanish")
+# macOS y Linux
+Sys.setlocale("LC_TIME", "es_MX.UTF-8")
+
+source("datasets/generar_datasets.R")   # vuelve a generar los datos
+\end{rnoejecutar}
+
+El cambio dura solo esa sesión de R. En Linux, si la instrucción responde
+con una advertencia, el idioma no está instalado; se agrega con
+\codigo{sudo locale-gen es\_MX.UTF-8} en la terminal. Las cifras, los
+identificadores y los totales no dependen del idioma: solo los nombres de
+días y meses.
+
+\subsection{Paso 7: verificar la instalación}
+
+El siguiente script revisa todo de una vez: la versión de R, que cada
+paquete del curso se pueda cargar y que existan los archivos de datos. Es
+un buen primer script para guardar en tu proyecto como
+\archivo{00\_verificar\_entorno.R}. Lee los comentarios: aunque todavía no
+conozcas \codigo{for} ni \codigo{if}, entenderás la idea.
+
+\begin{rcode}[title=Verificación del entorno del curso]
+library(tidyverse)   # carga dplyr, ggplot2, readr y compañía
+
+# ---- 1. Versión de R ----
+cat("Versión de R:", as.character(getRversion()), "\n\n")
+
+# ---- 2. Paquetes del curso: ¿se pueden cargar? ----
+paquetes_curso <- c("tidyverse", "readxl", "writexl", "lubridate",
+                    "scales", "DBI", "RSQLite", "dbplyr", "shiny",
+                    "shinydashboard", "DT", "plotly", "cluster",
+                    "factoextra", "forecast", "rpart", "randomForest",
+                    "caret", "rmarkdown", "knitr", "skimr", "corrplot")
+problemas <- 0                         # contador de problemas
+
+cat("Paquetes:\n")
+for (p in paquetes_curso) {            # revisa los paquetes uno por uno
+  if (requireNamespace(p, quietly = TRUE)) {        # ¿carga bien?
+    version <- as.character(packageVersion(p))
+    cat(sprintf("  OK     %-15s %s\n", p, version))
+  } else {
+    problemas <- problemas + 1
+    cat(sprintf("  FALTA  %-15s instálalo (paso 4)\n", p))
+  }
+}
+
+# ---- 3. Archivos de datos ----
+cat("\nArchivos en datasets/:\n")
+tablas <- c("ventas_retail", "clientes", "productos", "empleados",
+            "transacciones", "tiendas")
+for (t in tablas) {
+  archivo_csv <- file.path("datasets", paste0(t, ".csv"))
+  if (file.exists(archivo_csv)) {
+    datos <- read_csv(archivo_csv, show_col_types = FALSE)
+    cat(sprintf("  OK     %-18s %5d filas %3d columnas\n",
+                basename(archivo_csv), nrow(datos), ncol(datos)))
+  } else {
+    problemas <- problemas + 1
+    cat(sprintf("  FALTA  %s (ejecuta el paso 6)\n", archivo_csv))
+  }
+}
+hojas <- readxl::excel_sheets("datasets/datos_empresa.xlsx")
+cat("  OK     datos_empresa.xlsx con hojas:\n        ",
+    paste(hojas, collapse = ", "), "\n")
+
+# ---- 4. Veredicto ----
+if (problemas == 0) {
+  cat("\n¡Todo listo! Tu entorno está preparado para el curso.\n")
+} else {
+  cat("\nHay", problemas, "problema(s): revisa las líneas FALTA.\n")
+}
+\end{rcode}
+
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+Al ejecutar \codigo{library(tidyverse)} verás además un mensaje de
+bienvenida con la lista de paquetes que se cargaron y un par de avisos de
+``conflictos''; no es un error y no lo reproducimos en el libro (el
+Módulo~\ref{cap:fundamentos} lo explica). Tus números de versión serán
+distintos si instalaste paquetes más recientes: no importa. Lo que importa
+es que no haya ninguna línea \codigo{FALTA}.
+
+\subsection{Tu primer análisis}
+
+Ya que todo funciona, date un gusto: responde tu primera pregunta de
+negocio. ¿Cuánto vendió la cadena en cada trimestre de 2023? No te
+preocupes por entender cada función; en el Módulo~\ref{cap:manipulacion}
+las verás con calma. Lee el código como una receta, gracias al operador
+\codigo{\%>\%} (el \termino{pipe}, que se lee ``y luego''):
+
+\begin{rcode}
+# Leer la tabla de ventas
+ventas <- read_csv("datasets/ventas_retail.csv", show_col_types = FALSE)
+
+ventas %>%                                  # toma las ventas, y luego
+  group_by(trimestre) %>%                   # agrúpalas por trimestre,
+  summarise(ventas_totales = sum(total),    # suma el total vendido,
+            numero_ventas = n(),            # cuenta las ventas
+            ticket_promedio = mean(total),  # y promedia su importe
+            .groups = "drop")
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 4 x 4
+  trimestre ventas_totales numero_ventas ticket_promedio
+  <chr>              <dbl>         <int>           <dbl>
+1 Q1               126274.            90           1403.
+2 Q2               120717.            91           1327.
+3 Q3               134427.            92           1461.
+4 Q4               132498.            92           1440.
+\end{rsalida}
+
+¿Qué nos dice esto? El tercer trimestre fue el mejor, con unos \$134,427, y
+el segundo el más flojo, con \$120,717. Como el número de ventas casi no
+cambia entre trimestres (de 90 a 92), la diferencia viene del
+\textbf{ticket promedio}: en el tercer trimestre cada venta fue de \$1,461
+en promedio, frente a \$1,327 en el segundo. Ese es exactamente el tipo de
+lectura que harás en todo el libro: pasar de la tabla a la frase que le
+sirve a quien decide.
+
+\begin{hazlotu}
+Cambia \codigo{group\_by(trimestre)} por \codigo{group\_by(mes)} y vuelve a
+ejecutar. ¿Qué mes vendió más? Luego prueba con
+\codigo{group\_by(dia\_semana)}.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{Diccionario de datos}
+\label{sec:m0-diccionario}
+% ----------------------------------------------------------------------------
+
+Un \termino{diccionario de datos} describe cada tabla y cada columna: qué
+significa, de qué tipo es y qué valores puede tomar. Es el primer
+documento que pide un analista al llegar a una empresa, y el que más tiempo
+ahorra. Vuelve a esta sección siempre que tengas dudas sobre una columna.
+
+\subsection{La empresa y sus tablas}
+
+Los datos describen el año 2023 de una cadena minorista ficticia con
+\textbf{10 tiendas} en 6 ciudades (CDMX, Guadalajara, Monterrey, Puebla,
+Querétaro y Tijuana), \textbf{50 productos} de 10 categorías,
+\textbf{200 clientes} y \textbf{100 empleados}. Las tablas siguen la
+organización típica de un almacén de datos de BI.
+
+\begin{concepto}{tablas de hechos y dimensiones (esquema estrella)}
+Una \termino{tabla de hechos} registra eventos del negocio con medidas
+numéricas: cada venta, cada transacción. Una \termino{tabla de dimensión}
+describe el contexto de esos eventos: quién compró (clientes), qué se
+vendió (productos), dónde (tiendas) y quién atendió (empleados). Las tablas
+se conectan mediante \termino{llaves}: la \termino{llave primaria} (PK)
+identifica cada fila de una dimensión, y la \termino{llave foránea} (FK) de
+la tabla de hechos apunta a ella. Dibujadas, las dimensiones rodean a los
+hechos como las puntas de una estrella: por eso se llama
+\termino{esquema estrella}.
+\end{concepto}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  cab/.style={draw=#1, fill=#1, text=white, font=\sffamily\bfseries\small,
+    minimum width=3.7cm, minimum height=0.55cm, inner sep=2pt},
+  cuerpo/.style={draw=#1, fill=#1!5, font=\ttfamily\scriptsize,
+    text width=3.4cm, inner sep=0.15cm, align=left},
+  rel/.style={line width=0.9pt, draw=#1},
+  llave/.style={font=\ttfamily\scriptsize, text=#1, fill=white,
+    inner sep=1pt},
+]
+  % ---- Tablas de hechos (centro) ----
+  \node[cab=acento] (vh) at (0,3.3) {ventas\_retail};
+  \node[cuerpo=acento, below=0pt of vh] (vb)
+    {fecha\\
+     \textbf{producto\_id} (FK)\\
+     \textbf{cliente\_id} (FK)\\
+     \textbf{tienda\_id} (FK)\\
+     \textbf{vendedor\_id} (FK)\\
+     cantidad, total, \ldots};
+  \node[cab=acento] (th) at (0,-0.35) {transacciones};
+  \node[cuerpo=acento, below=0pt of th] (tb)
+    {\textbf{transaccion\_id} (PK)\\
+     \textbf{producto\_id} (FK)\\
+     \textbf{cliente\_id} (FK)\\
+     \textbf{tienda\_id} (FK)\\
+     \textbf{vendedor\_id} (FK)\\
+     fecha, hora, total\_\ldots};
+  % ---- Dimensiones (izquierda) ----
+  \node[cab=secundario] (ch) at (-6.2,3.3) {clientes};
+  \node[cuerpo=secundario, below=0pt of ch] (cb)
+    {\textbf{cliente\_id} (PK)\\
+     nombre, edad, ciudad\\
+     segmento, \ldots};
+  \node[cab=morado] (ph) at (-6.2,-0.35) {productos};
+  \node[cuerpo=morado, below=0pt of ph] (pb)
+    {\textbf{producto\_id} (PK)\\
+     categoria, marca\\
+     precio\_catalogo, costo, \ldots};
+  % ---- Dimensiones (derecha) ----
+  \node[cab=exito] (sh) at (6.2,3.3) {tiendas};
+  \node[cuerpo=exito, below=0pt of sh] (sb)
+    {\textbf{tienda\_id} (PK)\\
+     nombre\_tienda, ciudad\\
+     tipo, tamano\_m2, \ldots};
+  \node[cab=primario] (eh) at (6.2,-0.35) {empleados};
+  \node[cuerpo=primario, below=0pt of eh] (eb)
+    {\textbf{empleado\_id} (PK)\\
+     nombre, departamento\\
+     puesto, salario, \ldots};
+  % ---- Relaciones ----
+  \draw[rel=secundario] (vb.west) -- (cb.east);
+  \draw[rel=secundario] (tb.west) -- (cb.east);
+  \draw[rel=morado] (vb.west) -- (pb.east);
+  \draw[rel=morado] (tb.west) -- (pb.east);
+  \draw[rel=exito] (vb.east) -- (sb.west);
+  \draw[rel=exito] (tb.east) -- (sb.west);
+  \draw[rel=primario] (vb.east) -- (eb.west);
+  \draw[rel=primario] (tb.east) -- (eb.west);
+  % Etiquetas de las llaves junto a cada dimensión
+  \node[llave=secundario, anchor=south west] at ([xshift=2pt,yshift=3pt]cb.east)
+    {cliente\_id};
+  \node[llave=morado, anchor=north west] at ([xshift=2pt,yshift=-3pt]pb.east)
+    {producto\_id};
+  \node[llave=exito, anchor=south east] at ([xshift=-2pt,yshift=3pt]sb.west)
+    {tienda\_id};
+  \node[llave=primario, anchor=north east, align=right]
+    at ([xshift=-2pt,yshift=-3pt]eb.west)
+    {vendedor\_id\\= empleado\_id};
+\end{tikzpicture}
+\caption{Relaciones entre las tablas del curso. Las dos tablas de hechos
+(al centro) se unen con las cuatro dimensiones mediante llaves foráneas
+(FK) que apuntan a la llave primaria (PK) de cada dimensión. Cada fila de
+una dimensión puede aparecer en muchas ventas (relación de muchos a uno).}
+\label{fig:m0-relaciones}
+\end{figure}
+
+Observa la relación más delicada: en las tablas de hechos la columna se
+llama \codigo{vendedor\_id}, pero en \archivo{empleados.csv} se llama
+\codigo{empleado\_id}. Cuando unas estas tablas en el
+Módulo~\ref{cap:manipulacion} tendrás que indicarle a R que son la misma
+llave con nombres distintos.
+
+En las tablas siguientes, el \textbf{tipo} es el que asigna
+\codigo{read\_csv()} al leer cada archivo (tabla~\ref{tab:m0-tipos}). Los
+identificadores y las cantidades se leen como \codigo{<dbl>} aunque sean
+enteros; es normal.
+
+\subsection{\texorpdfstring{\archivo{ventas\_retail.csv}}{ventas\_retail.csv}:
+ventas diarias}
+
+\textbf{365 filas y 14 columnas}. Cada fila es una venta y hay
+exactamente una venta por cada día de 2023. Es una simplificación: una
+cadena real tiene cientos de tickets diarios. Sirve para practicar
+análisis por fecha, tienda, producto y descuento.
+
+\begin{table}[H]
+\centering\small
+\caption{Diccionario de \archivo{ventas\_retail.csv}.}
+\label{tab:m0-dic-ventas}
+\begin{tabularx}{\textwidth}{@{}l l X@{}}
+\toprule
+\textbf{Columna} & \textbf{Tipo} & \textbf{Descripción} \\
+\midrule
+\codigo{fecha} & \codigo{<date>} & Día de la venta, del 2023-01-01 al
+  2023-12-31 (uno por fila). \\
+\codigo{dia\_semana} & \codigo{<chr>} & Nombre del día (``domingo'',
+  ``lunes''\ldots). Depende del idioma del sistema al generar los datos. \\
+\codigo{producto\_id} & \codigo{<dbl>} & Producto vendido, de 1 a 50.
+  Llave foránea hacia \archivo{productos}. \\
+\codigo{cliente\_id} & \codigo{<dbl>} & Cliente que compró, de 1 a 200.
+  Llave foránea hacia \archivo{clientes}. \\
+\codigo{cantidad} & \codigo{<dbl>} & Unidades vendidas, de 1 a 10. \\
+\codigo{precio\_unitario} & \codigo{<dbl>} & Precio cobrado por unidad,
+  aleatorio entre \$10 y \$500, con dos decimales. No coincide con el
+  precio de catálogo del producto. \\
+\codigo{descuento\_pct} & \codigo{<dbl>} & Descuento en porcentaje: 0, 5,
+  10, 15 o 20 (con probabilidades de 50, 20, 15, 10 y 5\,\%). \\
+\codigo{tienda\_id} & \codigo{<dbl>} & Tienda de la venta, de 1 a 10.
+  Llave foránea hacia \archivo{tiendas}. \\
+\codigo{vendedor\_id} & \codigo{<dbl>} & Empleado que vendió, de 1 a 25.
+  Llave foránea hacia \codigo{empleado\_id} de \archivo{empleados}. \\
+\codigo{subtotal} & \codigo{<dbl>} & \codigo{cantidad} $\times$
+  \codigo{precio\_unitario}. \\
+\codigo{descuento\_monto} & \codigo{<dbl>} & \codigo{subtotal} $\times$
+  \codigo{descuento\_pct} / 100. \\
+\codigo{total} & \codigo{<dbl>} & \codigo{subtotal} $-$
+  \codigo{descuento\_monto}: lo que pagó el cliente. \\
+\codigo{mes} & \codigo{<chr>} & Año y mes como texto: ``2023-01'' a
+  ``2023-12''. \\
+\codigo{trimestre} & \codigo{<chr>} & Trimestre: ``Q1'', ``Q2'', ``Q3'' o
+  ``Q4''. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{\texorpdfstring{\archivo{clientes.csv}}{clientes.csv}: base de
+clientes}
+
+\textbf{200 filas y 10 columnas}. Cada fila es un cliente.
+
+\begin{table}[H]
+\centering\small
+\caption{Diccionario de \archivo{clientes.csv}.}
+\label{tab:m0-dic-clientes}
+\begin{tabularx}{\textwidth}{@{}l l X@{}}
+\toprule
+\textbf{Columna} & \textbf{Tipo} & \textbf{Descripción} \\
+\midrule
+\codigo{cliente\_id} & \codigo{<dbl>} & Identificador único, de 1 a 200.
+  Llave primaria. \\
+\codigo{nombre} & \codigo{<chr>} & Nombre y apellido, combinados al azar
+  de 20 nombres y 18 apellidos (puede repetirse). \\
+\codigo{edad} & \codigo{<dbl>} & Edad en años, de 18 a 75. \\
+\codigo{genero} & \codigo{<chr>} & ``M'' o ``F''. \\
+\codigo{ciudad} & \codigo{<chr>} & Ciudad de residencia: CDMX,
+  Guadalajara, Monterrey, Puebla, Querétaro, Tijuana, León, Mérida, Cancún
+  o Toluca. \\
+\codigo{fecha\_registro} & \codigo{<date>} & Fecha de alta como cliente,
+  entre 2020-01-01 y 2023-12-31. \\
+\codigo{es\_premium} & \codigo{<lgl>} & \codigo{TRUE} si pertenece al
+  programa premium (alrededor de 30\,\% de los clientes). \\
+\codigo{email} & \codigo{<chr>} & Correo en minúsculas con dominio
+  \codigo{@email.com}. Se generó con otro nombre al azar, así que no
+  corresponde a la columna \codigo{nombre}. \\
+\codigo{telefono} & \codigo{<chr>} & Teléfono con formato
+  ``55-XXXX-XXXX''. \\
+\codigo{segmento} & \codigo{<chr>} & Segmento por edad: Joven (18 a 25),
+  Adulto (26 a 40), Maduro (41 a 60) o Senior (61 a 75). \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{\texorpdfstring{\archivo{productos.csv}}{productos.csv}:
+catálogo de productos}
+
+\textbf{50 filas y 13 columnas}. Cada fila es un producto del catálogo.
+
+\begin{table}[H]
+\centering\small
+\caption{Diccionario de \archivo{productos.csv}.}
+\label{tab:m0-dic-productos}
+\begin{tabularx}{\textwidth}{@{}l l X@{}}
+\toprule
+\textbf{Columna} & \textbf{Tipo} & \textbf{Descripción} \\
+\midrule
+\codigo{producto\_id} & \codigo{<dbl>} & Identificador, de 1 a 50. Llave
+  primaria. \\
+\codigo{nombre\_producto} & \codigo{<chr>} & ``Producto 01'' a
+  ``Producto 50''. \\
+\codigo{categoria} & \codigo{<chr>} & Una de 10 categorías asignadas al
+  azar: Electrónica, Ropa, Alimentos, Hogar, Deportes, Libros, Juguetes,
+  Belleza, Automotriz o Mascotas. \\
+\codigo{subcategoria} & \codigo{<chr>} & ``Sub 1'' a ``Sub 5''. \\
+\codigo{marca} & \codigo{<chr>} & ``Marca A'' a ``Marca E''. \\
+\codigo{precio\_catalogo} & \codigo{<dbl>} & Precio de lista, aleatorio
+  entre \$15 y \$800. \\
+\codigo{costo} & \codigo{<dbl>} & Costo unitario, aleatorio entre \$10 y
+  \$400, generado sin relación con el precio. \\
+\codigo{stock\_actual} & \codigo{<dbl>} & Unidades en inventario, de 0 a
+  500. \\
+\codigo{stock\_minimo} & \codigo{<dbl>} & Punto de reorden, de 10 a 50
+  unidades. \\
+\codigo{proveedor} & \codigo{<chr>} & ``Proveedor 1'' a ``Proveedor 4''. \\
+\codigo{activo} & \codigo{<lgl>} & \codigo{TRUE} si el producto sigue a la
+  venta (alrededor de 90\,\%). \\
+\codigo{margen\_pct} & \codigo{<dbl>} & Margen bruto en porcentaje:
+  (\codigo{precio\_catalogo} $-$ \codigo{costo}) /
+  \codigo{precio\_catalogo} $\times$ 100, con dos decimales. Puede ser
+  negativo. \\
+\codigo{estado\_stock} & \codigo{<chr>} & ``Sin Stock'' si
+  \codigo{stock\_actual} es 0; ``Stock Bajo'' si es menor que
+  \codigo{stock\_minimo}; si no, ``Stock OK''. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{\texorpdfstring{\archivo{empleados.csv}}{empleados.csv}:
+recursos humanos}
+
+\textbf{100 filas y 12 columnas}. Cada fila es un empleado.
+
+\begin{table}[H]
+\centering\small
+\caption{Diccionario de \archivo{empleados.csv}.}
+\label{tab:m0-dic-empleados}
+\begin{tabularx}{\textwidth}{@{}l l X@{}}
+\toprule
+\textbf{Columna} & \textbf{Tipo} & \textbf{Descripción} \\
+\midrule
+\codigo{empleado\_id} & \codigo{<dbl>} & Identificador, de 1 a 100. Llave
+  primaria; el \codigo{vendedor\_id} de las ventas apunta aquí. \\
+\codigo{nombre} & \codigo{<chr>} & Nombre y apellido al azar. \\
+\codigo{departamento} & \codigo{<chr>} & Ventas, Marketing, IT, RRHH,
+  Operaciones, Finanzas o Atención al Cliente. \\
+\codigo{puesto} & \codigo{<chr>} & Analista, Especialista, Gerente,
+  Coordinador o Asistente. \\
+\codigo{salario\_mensual} & \codigo{<dbl>} & Salario mensual en pesos,
+  aleatorio entre \$8,000 y \$45,000. \\
+\codigo{fecha\_ingreso} & \codigo{<date>} & Fecha de contratación, entre
+  2015-01-01 y 2023-12-31. \\
+\codigo{sucursal} & \codigo{<chr>} & Matriz, Sucursal Norte, Sucursal Sur,
+  Sucursal Este o Sucursal Oeste. \\
+\codigo{genero} & \codigo{<chr>} & ``M'' o ``F''. \\
+\codigo{edad} & \codigo{<dbl>} & Edad en años, de 22 a 65. \\
+\codigo{nivel\_educacion} & \codigo{<chr>} & Preparatoria, Licenciatura,
+  Maestría o Doctorado (con probabilidades de 20, 50, 25 y 5\,\%). \\
+\codigo{antiguedad\_anos} & \codigo{<dbl>} & Años de antigüedad al
+  2024-01-01 (días transcurridos / 365, con un decimal). \\
+\codigo{salario\_anual} & \codigo{<dbl>} & \codigo{salario\_mensual}
+  $\times$ 12. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{\texorpdfstring{\archivo{transacciones.csv}}{transacciones.csv}:
+tickets de venta}
+
+\textbf{1000 filas y 14 columnas}. Cada fila es un ticket de venta con su
+hora y su método de pago. Es la tabla más parecida a la que exporta un
+sistema de punto de venta real. Sus datos se generaron por separado de
+\archivo{ventas\_retail.csv}, así que las dos tablas no ``cuadran'' entre
+sí: úsalas como dos fuentes independientes.
+
+\begin{table}[H]
+\centering\small
+\caption{Diccionario de \archivo{transacciones.csv}.}
+\label{tab:m0-dic-transacciones}
+\begin{tabularx}{\textwidth}{@{}l l X@{}}
+\toprule
+\textbf{Columna} & \textbf{Tipo} & \textbf{Descripción} \\
+\midrule
+\codigo{transaccion\_id} & \codigo{<dbl>} & Identificador del ticket, de 1
+  a 1000. Llave primaria. \\
+\codigo{fecha} & \codigo{<date>} & Día de la transacción, al azar dentro
+  de 2023. \\
+\codigo{hora} & \codigo{<time>} & Hora entre 8:00 y 20:45, en intervalos
+  de 15 minutos. En el CSV está como texto sin cero inicial (``8:15'');
+  \codigo{read\_csv()} la reconoce como hora. \\
+\codigo{cliente\_id} & \codigo{<dbl>} & Cliente, de 1 a 200 (FK hacia
+  \archivo{clientes}). \\
+\codigo{producto\_id} & \codigo{<dbl>} & Producto, de 1 a 50 (FK hacia
+  \archivo{productos}). \\
+\codigo{cantidad} & \codigo{<dbl>} & Unidades, de 1 a 5. \\
+\codigo{precio\_venta} & \codigo{<dbl>} & Precio unitario cobrado,
+  aleatorio entre \$20 y \$600. \\
+\codigo{metodo\_pago} & \codigo{<chr>} & Efectivo, Tarjeta Crédito,
+  Tarjeta Débito o Transferencia (con probabilidades de 30, 35, 25 y
+  10\,\%). \\
+\codigo{tienda\_id} & \codigo{<dbl>} & Tienda, de 1 a 10 (FK hacia
+  \archivo{tiendas}). \\
+\codigo{vendedor\_id} & \codigo{<dbl>} & Vendedor, de 1 a 25 (FK hacia
+  \codigo{empleado\_id}). \\
+\codigo{total\_transaccion} & \codigo{<dbl>} & \codigo{cantidad} $\times$
+  \codigo{precio\_venta} (esta tabla no tiene descuentos). \\
+\codigo{mes} & \codigo{<chr>} & Año y mes: ``2023-01'' a ``2023-12''. \\
+\codigo{trimestre} & \codigo{<chr>} & ``Q1'' a ``Q4''. \\
+\codigo{dia\_semana} & \codigo{<chr>} & Nombre del día; depende del idioma
+  del sistema. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{\texorpdfstring{\archivo{tiendas.csv}}{tiendas.csv}: red de
+sucursales}
+
+\textbf{10 filas y 8 columnas}. Cada fila es una tienda.
+
+\begin{table}[H]
+\centering\small
+\caption{Diccionario de \archivo{tiendas.csv}.}
+\label{tab:m0-dic-tiendas}
+\begin{tabularx}{\textwidth}{@{}l l X@{}}
+\toprule
+\textbf{Columna} & \textbf{Tipo} & \textbf{Descripción} \\
+\midrule
+\codigo{tienda\_id} & \codigo{<dbl>} & Identificador, de 1 a 10. Llave
+  primaria. \\
+\codigo{nombre\_tienda} & \codigo{<chr>} & ``Sucursal Centro'', ``Sucursal
+  Norte'', \ldots, ``Sucursal Express''. \\
+\codigo{ciudad} & \codigo{<chr>} & CDMX (4 tiendas), Guadalajara (2),
+  Monterrey, Puebla, Tijuana y Querétaro (1 cada una). \\
+\codigo{zona} & \codigo{<chr>} & Centro, Norte, Sur, Este u Oeste. \\
+\codigo{tamano\_m2} & \codigo{<dbl>} & Superficie de la tienda en metros
+  cuadrados, de 300 a 800. \\
+\codigo{empleados} & \codigo{<dbl>} & Número de empleados de la tienda,
+  de 12 a 40. No es una llave hacia \archivo{empleados.csv}. \\
+\codigo{fecha\_apertura} & \codigo{<date>} & Fecha de apertura, entre
+  2009-01-15 y 2020-07-01. \\
+\codigo{tipo} & \codigo{<chr>} & Principal, Estándar, Outlet, Premium o
+  Express. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{\texorpdfstring{\archivo{datos\_empresa.xlsx}}{datos\_empresa.xlsx}:
+el mismo negocio en Excel}
+
+Un libro de Excel con cinco hojas, para practicar la importación de
+archivos de Excel en el Módulo~\ref{cap:fundamentos}: \textbf{Ventas} (las
+primeras 100 filas de \archivo{ventas\_retail}), \textbf{Clientes} (los
+primeros 50), \textbf{Productos} (los 50), \textbf{Empleados} (los primeros
+50) y \textbf{Tiendas} (las 10).
+
+\subsection{Datos simulados: lo que debes saber}
+\label{sec:m0-calidad}
+
+Los datos son \textbf{simulados}: se generaron al azar con reglas simples,
+no provienen de una empresa real. Eso tiene una consecuencia que no vamos a
+esconder: algunas columnas se generaron de forma independiente y producen
+combinaciones que en un negocio real serían errores. Lejos de ser un
+problema, es una oportunidad, porque los datos reales tampoco vienen
+limpios. Revisar la \termino{calidad de datos} antes de analizar es una de
+las tareas más importantes de un analista, y aquí la practicarás desde el
+primer día (tabla~\ref{tab:m0-calidad}).
+
+\begin{table}[H]
+\centering\small
+\caption{Hallazgos de calidad de datos conocidos en los datos del curso.}
+\label{tab:m0-calidad}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X
+    >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Hallazgo} & \textbf{Por qué ocurre} \\
+\midrule
+Productos con margen negativo (costo mayor que precio). &
+  \codigo{precio\_catalogo} y \codigo{costo} se generaron por separado. \\
+El precio cobrado en las ventas no coincide con el precio de catálogo. &
+  \codigo{precio\_unitario} y \codigo{precio\_venta} son aleatorios. \\
+Ventas de productos marcados como inactivos. &
+  \codigo{activo} se asignó al azar, sin mirar las ventas. \\
+Ventas anteriores a la fecha de registro del cliente. &
+  \codigo{fecha\_registro} llega hasta diciembre de 2023. \\
+El correo de un cliente no corresponde a su nombre. &
+  \codigo{email} se armó con otro nombre al azar. \\
+Hay ``vendedores'' que no son del departamento de Ventas. &
+  \codigo{vendedor\_id} toma los empleados 1 a 25, sin importar su
+  departamento. \\
+Una sola venta por día en \archivo{ventas\_retail}, y no cuadra con
+  \archivo{transacciones}. &
+  Son dos muestras independientes y simplificadas. \\
+La suma de \codigo{empleados} en \archivo{tiendas} no coincide con las 100
+  filas de \archivo{empleados.csv}, y la sucursal ``Matriz'' no existe en
+  \archivo{tiendas}. &
+  Las dos tablas se generaron sin relación entre sí. \\
+Hay clientes en ciudades sin tienda (León, Mérida, Cancún, Toluca). &
+  Posible en la realidad (compran de visita), pero conviene saberlo. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+No necesitas creernos: el siguiente código comprueba varios de estos
+hallazgos. Usa funciones que aprenderás en el
+Módulo~\ref{cap:manipulacion}, así que por ahora basta con que leas los
+comentarios. Reutiliza la tabla \codigo{ventas} que leíste en tu primer
+análisis.
+
+\begin{rcode}
+# Leemos las tablas que vamos a revisar
+productos <- read_csv("datasets/productos.csv", show_col_types = FALSE)
+clientes  <- read_csv("datasets/clientes.csv", show_col_types = FALSE)
+empleados <- read_csv("datasets/empleados.csv", show_col_types = FALSE)
+
+# Hallazgo 1: ¿cuántos productos tienen margen negativo?
+sum(productos$margen_pct < 0)
+
+# Hallazgo 2: ¿cuántas ventas son de productos inactivos?
+ventas %>%
+  left_join(productos, by = "producto_id") %>%  # agrega datos del producto
+  filter(activo == FALSE) %>%                   # solo productos inactivos
+  nrow()                                        # cuenta las filas
+
+# Hallazgo 3: ¿cuántas ventas ocurrieron ANTES del registro del cliente?
+ventas %>%
+  left_join(clientes, by = "cliente_id") %>%    # agrega datos del cliente
+  filter(fecha < fecha_registro) %>%            # compra antes del alta
+  nrow()
+\end{rcode}
+
+\begin{rsalida}
+[1] 10
+[1] 65
+[1] 42
+\end{rsalida}
+
+De los 50 productos, 10 tienen margen negativo; 65 de las 365 ventas
+corresponden a productos inactivos, y en 42 ventas el cliente ``compró''
+antes de registrarse. Ahora los dos hallazgos que se ven a simple vista:
+
+\begin{rcode}
+# Hallazgo 4: el nombre y el correo no corresponden a la misma persona
+clientes %>%
+  select(cliente_id, nombre, email) %>%
+  head(3)
+
+# Hallazgo 5: ¿de qué departamento son los "vendedores" 1 a 25?
+empleados %>%
+  filter(empleado_id <= 25) %>%
+  count(departamento, sort = TRUE)
+\end{rcode}
+
+\begin{rsalida}
+PENDIENTE
+\end{rsalida}
+
+El cliente 1 se llama Ricardo Morales, pero su correo es de ``juan.ramírez''.
+Y de los 25 empleados que aparecen como vendedores, solo 4 pertenecen al
+departamento de Ventas. En una empresa real, cada uno de estos hallazgos
+sería una conversación con el dueño del sistema de origen. En el curso los
+usaremos para practicar: los detectarás, decidirás cómo tratarlos y
+documentarás tu decisión.
+
+\begin{advertencia}
+Por lo mismo, las cifras del curso no representan a ninguna empresa real.
+No saques conclusiones de negocio sobre el comercio en México a partir de
+ellas: son un campo de práctica. Lo que sí es real es el método, que
+aplicarás igual con los datos de tu trabajo.
+\end{advertencia}
+
+\begin{hazlotu}
+En el panel \textit{Files} de RStudio haz clic en
+\archivo{datasets/productos.csv} y elige \menu{View File}. Busca el
+producto con el margen más negativo. ¿Qué pasaría con un reporte de
+rentabilidad por categoría si nadie lo detectara? Pista: en la salida de
+arriba, R te dijo cuántos productos revisar.
+\end{hazlotu}
+
+% ----------------------------------------------------------------------------
+\section{El código del libro y cómo compilarlo}
+\label{sec:m0-codigo}
+% ----------------------------------------------------------------------------
+
+\subsection{Los scripts de la carpeta \texorpdfstring{\archivo{codigo/}}{codigo/}}
+
+La carpeta \archivo{latex/codigo/} contiene un script de R por módulo
+(\archivo{01-fundamentos.R}, \archivo{02-manipulacion-datos.R}, etc.) con
+todo el código ejecutable de ese módulo, en el mismo orden que en el libro.
+Los bloques de franja naranja (instalaciones, apps Shiny, conexiones a
+servidores) aparecen comentados, solo como referencia. Para usarlos:
+
+\begin{enumerate}
+  \item Abre tu proyecto \archivo{curso-bi-rstudio.Rproj}, para que el
+        directorio de trabajo sea la carpeta del curso.
+  \item Abre el script del módulo desde el panel \textit{Files}.
+  \item Ejecútalo bloque por bloque con \tecla{Ctrl} + \tecla{Enter} mientras
+        lees el módulo. Cada bloque está marcado con un comentario
+        \codigo{\# ---- Bloque N}.
+\end{enumerate}
+
+Estos scripts se generan automáticamente a partir de los capítulos del
+libro con el programa \archivo{herramientas/extraer\_codigo.py} (escrito en
+Python), así que siempre coinciden con lo impreso. Si modificas un capítulo
+y quieres regenerarlos, desde la carpeta \archivo{latex/} ejecuta en una
+terminal:
+
+\begin{textocodigo}
+python3 herramientas/extraer_codigo.py
+\end{textocodigo}
+
+\subsection{Compilar el libro}
+
+El libro está escrito en \LaTeX{}. Si quieres generar tu propio PDF (por
+ejemplo, después de añadir notas a un capítulo), tienes dos caminos:
+
+\begin{itemize}
+  \item \textbf{Overleaf} (en línea, sin instalar nada): comprime la
+        carpeta \archivo{latex/} en un ZIP, crea un proyecto con
+        \menu{New Project > Upload Project}, verifica en \menu{Menu} que el
+        compilador sea \textbf{pdfLaTeX} y que el documento principal sea
+        \archivo{curso-bi-rstudio.tex}, y pulsa \menu{Recompile}. Si el
+        plan gratuito se queda sin tiempo de compilación, compila en tu
+        computadora.
+  \item \textbf{En tu computadora}, con una distribución de \LaTeX{} como
+        TeX Live (Windows y Linux) o MacTeX (macOS), abre una terminal en
+        la carpeta \archivo{latex/} y ejecuta:
+\end{itemize}
+
+\begin{textocodigo}
+latexmk -pdf curso-bi-rstudio.tex
+\end{textocodigo}
+
+\codigo{latexmk} compila las veces que haga falta para que el índice y las
+referencias cruzadas (``Solución en la página\ldots'') queden correctos. Si
+ya usas R, otra opción es el paquete \paquete{tinytex}, que instala una
+distribución ligera de \LaTeX{} y descarga sola los paquetes que falten (el
+Módulo~\ref{cap:reportes} lo usa para los reportes en PDF):
+
+\begin{rnoejecutar}
+install.packages("tinytex")
+tinytex::install_tinytex()                  # solo la primera vez
+setwd("latex")                              # carpeta del libro
+tinytex::latexmk("curso-bi-rstudio.tex")    # compila con pdfLaTeX
+\end{rnoejecutar}
+
+% ----------------------------------------------------------------------------
+\section{Consejos para aprender}
+\label{sec:m0-consejos}
+% ----------------------------------------------------------------------------
+
+Aprender R es como aprender un idioma: se aprende hablándolo. Estos
+consejos vienen de muchas generaciones de estudiantes:
+
+\begin{enumerate}
+  \item \textbf{Escribe el código tú mismo}, no lo copies. Teclear cada
+        línea te obliga a leerla, y los errores que cometas al escribir te
+        enseñarán a leer los mensajes de R.
+  \item \textbf{Predice antes de ejecutar.} Antes de pulsar \tecla{Ctrl} +
+        \tecla{Enter}, pregúntate qué va a salir. Si aciertas, lo
+        entendiste; si no, acabas de aprender algo.
+  \item \textbf{Lee los errores con calma.} El mensaje casi siempre dice qué
+        pasó y en qué función. Los más comunes son un paréntesis o una
+        comilla sin cerrar, una coma de más, un nombre mal escrito o un
+        paquete sin cargar.
+  \item \textbf{Rompe el código a propósito.} Cambia un número, quita un
+        argumento, usa otra columna. Ver qué cambia es la forma más rápida
+        de entender qué hace cada parte.
+  \item \textbf{Practica con tus propios datos.} Cuando termines un módulo,
+        repite un ejemplo con datos de tu trabajo (exportados a CSV y
+        respetando siempre la confidencialidad). Nada motiva más que
+        resolver un problema real.
+  \item \textbf{Constancia antes que intensidad.} Una hora diaria rinde
+        mucho más que siete horas el domingo.
+  \item \textbf{Intenta los ejercicios antes de ver la solución.} Dale al
+        menos 20 minutos a cada uno. Si te atoras, lee solo la primera
+        línea de la solución y vuelve a intentarlo.
+  \item \textbf{Lleva tu propio acordeón}: un script con las funciones que
+        vas aprendiendo y un ejemplo corto de cada una. El
+        Apéndice~\ref{ap:referencia} te da una base.
+  \item \textbf{Explica lo que aprendiste} a un colega. Si puedes
+        explicarlo con palabras sencillas, lo dominas.
+\end{enumerate}
+
+% ----------------------------------------------------------------------------
+\section{Cómo pedir ayuda}
+\label{sec:m0-ayuda}
+% ----------------------------------------------------------------------------
+
+\subsection{La ayuda dentro de R}
+
+Toda función de R tiene una página de ayuda con su descripción, sus
+argumentos y ejemplos al final. Es la primera parada cuando no recuerdas
+cómo se usa algo:
+
+\begin{rnoejecutar}
+?mean                      # ayuda de una función (o F1 sobre su nombre)
+help("read_csv")           # lo mismo, escrito de otra forma
+??"regression"             # busca un tema en todas las ayudas instaladas
+example(mean)              # ejecuta los ejemplos de la ayuda
+args(round)                # muestra solo los argumentos de una función
+vignette("dplyr")          # guía larga (viñeta) de un paquete
+\end{rnoejecutar}
+
+La ayuda de R está en inglés. Léela primero por la sección
+\textit{Examples}, al final: suele ser lo más claro.
+
+\begin{consejo}
+Cuando busques un error en internet, búscalo en inglés: hay muchas más
+respuestas. Si tu R muestra los mensajes en español, puedes cambiarlos a
+inglés en la sesión actual con \codigo{Sys.setenv(LANGUAGE = "en")}, volver
+a ejecutar la línea que falló y copiar el mensaje exacto en el buscador.
+\end{consejo}
+
+\subsection{Recursos en línea}
+
+\begin{itemize}
+  \item \textbf{Hojas de referencia (\textit{cheatsheets}) de Posit}: una o
+        dos páginas por paquete con las funciones principales; varias están
+        traducidas al español. Desde RStudio: \menu{Help > Cheat Sheets}, o
+        en \url{https://posit.co/resources/cheatsheets/}.
+  \item \textbf{R for Data Science}, de Hadley Wickham y colaboradores,
+        gratuito en línea (\url{https://r4ds.hadley.nz}). Su primera
+        edición está traducida al español como \textit{R para Ciencia de
+        Datos} (\url{https://es.r4ds.hadley.nz}).
+  \item \textbf{Stack Overflow}, el sitio de preguntas y respuestas de
+        programación: en inglés con la etiqueta \codigo{r}
+        (\url{https://stackoverflow.com/questions/tagged/r}) y en español
+        en \url{https://es.stackoverflow.com}.
+  \item \textbf{Posit Community}, el foro oficial de RStudio y el
+        tidyverse: \url{https://forum.posit.co}.
+  \item \textbf{TidyTuesday}: cada semana la comunidad publica un conjunto
+        de datos nuevo para practicar y compartir análisis
+        (\url{https://github.com/rfordatascience/tidytuesday}).
+  \item \textbf{R-bloggers}: artículos y tutoriales de toda la comunidad
+        (\url{https://www.r-bloggers.com}).
+\end{itemize}
+
+\subsection{Comunidad de R en español}
+
+R tiene una comunidad hispanohablante muy activa y acogedora con los
+principiantes:
+
+\begin{itemize}
+  \item \textbf{R-Ladies} (\url{https://rladies.org}): organización mundial
+        que promueve la diversidad de género en la comunidad de R, con
+        capítulos locales en muchas ciudades de México y Latinoamérica.
+        Organiza reuniones y talleres gratuitos, abiertos a todas las
+        personas interesadas.
+  \item \textbf{Comunidad R Hispano} (\url{https://comunidadrhispano.es}):
+        asociación de usuarios de R en español; organiza las Jornadas de R
+        en España.
+  \item \textbf{LatinR} (\url{https://latin-r.com}): conferencia
+        latinoamericana sobre uso de R en investigación y desarrollo, con
+        charlas y talleres en español y portugués.
+  \item \textbf{Grupos locales de usuarios de R}: busca en Meetup o en
+        redes sociales ``R user group'' o ``useR'' seguido de tu ciudad.
+\end{itemize}
+
+\subsection{Cómo hacer una buena pregunta}
+
+Quien te ayuda no ve tu pantalla. Una buena pregunta incluye un
+\termino{ejemplo reproducible} (\textit{reprex}): el código mínimo que
+produce el problema, unos pocos datos de ejemplo (creados en el propio
+código, nunca datos confidenciales de tu empresa), el mensaje de error
+completo y lo que esperabas obtener. Muchas veces, al preparar el ejemplo
+mínimo, encontrarás tú mismo la solución. El paquete \paquete{reprex}, que
+se instala con el tidyverse, te ayuda a preparar ese ejemplo con formato
+listo para pegar en un foro.
+
+Los asistentes de inteligencia artificial también pueden explicarte un
+mensaje de error o sugerirte código. Úsalos como a un compañero que a veces
+se equivoca: ejecuta lo que te propongan, comprueba que el resultado tenga
+sentido y asegúrate de entender cada línea antes de usarla en un reporte.
+
+\begin{resumen}[title={Resumen de la introducción}]
+\begin{itemize}
+  \item \textbf{BI} convierte datos en información para decidir;
+        \textbf{Business Analytics} añade explicación, predicción y
+        recomendación. Hay cuatro tipos de analítica: descriptiva,
+        diagnóstica, predictiva y prescriptiva.
+  \item R y RStudio aportan análisis \textbf{reproducible},
+        estadística, gráficas de calidad, dashboards y reportes
+        automáticos. Complementan a Excel, Power BI y Python.
+  \item Todo proyecto de BI sigue un ciclo: pregunta, datos, ETL, análisis,
+        comunicación, decisión y medición.
+  \item Los bloques grises (\codigo{rcode}) se ejecutan; los de franja
+        naranja los ejecutas tú cuando haga falta; las salidas tienen
+        franja azul verdosa. El \codigo{[1]} es un índice, no un dato.
+  \end{itemize}
+\textbf{Lista de verificación antes del Módulo~\ref{cap:fundamentos}:}
+\begin{itemize}
+  \item[\ding{113}] R y RStudio instalados y configurados (sin guardar
+        \archivo{.RData}).
+  \item[\ding{113}] Paquetes del curso instalados.
+  \item[\ding{113}] Proyecto \archivo{curso-bi-rstudio.Rproj} creado.
+  \item[\ding{113}] Datos generados con \codigo{source("datasets/generar\_datasets.R")}.
+  \item[\ding{113}] Script de verificación sin líneas \codigo{FALTA}.
+  \item[\ding{113}] Tu primer análisis (ventas por trimestre) ejecutado.
+\end{itemize}
+\end{resumen}
+
+¿Todo listo? Entonces abre tu proyecto y pasa al
+Módulo~\ref{cap:fundamentos}. Empezamos por lo más básico: cómo piensa R.
+
+\endgroup

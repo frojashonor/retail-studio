@@ -1,0 +1,1668 @@
+% ============================================================================
+% MÓDULO 9 - PROYECTO FINAL: TECHRETAIL MÉXICO
+% ============================================================================
+\chapter{Proyecto final: TechRetail México}
+\label{cap:proyecto}
+
+\begin{objetivos}
+\begin{itemize}
+  \item Plantear un proyecto de Business Intelligence completo a partir de un
+        reto de negocio real: preguntas, entregables, cronograma y criterios
+        de evaluación.
+  \item Construir un proceso ETL auditable: cargar varias fuentes, detectar
+        problemas de calidad, documentar cada decisión de limpieza y armar un
+        modelo en estrella listo para analizar.
+  \item Calcular los KPIs de la empresa y convertir cada tabla o gráfica en
+        un hallazgo de negocio con números reales.
+  \item Aplicar segmentación de clientes y pronóstico de ventas siendo honesto
+        sobre lo que los datos permiten (y lo que no).
+  \item Diseñar el tablero ejecutivo, redactar el reporte para la dirección y
+        preparar la presentación de resultados.
+  \item Organizar el proyecto de forma reproducible y presentarlo en tu
+        portafolio para buscar trabajo en BI.
+\end{itemize}
+\end{objetivos}
+
+Llegaste al final del curso. Ya sabes importar y transformar datos
+(Módulo~\ref{cap:manipulacion}), graficarlos con criterio
+(Módulo~\ref{cap:visualizacion}), explorarlos con estadística
+(Módulo~\ref{cap:eda}), guardarlos en una base de datos
+(Módulo~\ref{cap:bases-datos}), construir tableros interactivos
+(Módulo~\ref{cap:shiny}), entrenar modelos (Módulo~\ref{cap:ml}) y
+automatizar reportes (Módulo~\ref{cap:reportes}). Cada módulo resolvió una
+pieza. En la vida real nadie te pide ``una pieza'': te piden \emph{resolver un
+problema de negocio}, y tú decides qué herramientas usar, en qué orden y cómo
+comunicar lo que encontraste.
+
+Este módulo simula exactamente eso. Vas a trabajar como consultor de BI para
+\textbf{TechRetail México}, una cadena de diez sucursales que tiene un año de
+datos y muchas preguntas. No vamos a re-enseñar técnicas: cada vez que uses
+algo que ya aprendiste, te remitiremos al módulo donde se explicó y nos
+concentraremos en lo que distingue a un analista junior de uno senior: el
+\emph{razonamiento de negocio}, las \emph{decisiones} (y su justificación) y la
+\emph{comunicación} de resultados.
+
+Una advertencia honesta antes de empezar: los datos del curso son simulados.
+Eso significa que algunos patrones que esperarías en una tienda real (más
+ventas en diciembre, fines de semana más fuertes, clientes premium que gastan
+más) pueden no aparecer, o aparecer por azar. Lejos de ser un problema, es un
+excelente entrenamiento: aprenderás a decir ``los datos no muestran
+diferencia'' con la misma seguridad con la que dirías ``encontramos una
+oportunidad de un millón de pesos''. Un buen analista no fuerza conclusiones.
+
+\begin{concepto}{Proyecto integrador de BI}
+Un \termino{proyecto integrador} recorre el ciclo completo de la
+inteligencia de negocios: \emph{pregunta de negocio} $\rightarrow$
+\emph{datos} (ETL) $\rightarrow$ \emph{análisis} (KPIs, exploración,
+modelos) $\rightarrow$ \emph{producto} (tablero, reporte) $\rightarrow$
+\emph{decisión} (presentación y recomendaciones). El valor no está en
+ninguna etapa aislada, sino en que la cadena completa lleve de un dato crudo
+a una acción concreta de la dirección.
+\end{concepto}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    fase/.style={draw=primario, fill=primario!6, rounded corners=3pt,
+                 minimum width=4.4cm, minimum height=1.45cm, align=center,
+                 font=\small\sffamily},
+    flecha/.style={-{Stealth[length=2.5mm]}, thick, color=acento}]
+  \node[fase] (f1) {\textbf{Fase 1. ETL y modelo}\\ Módulos \ref{cap:manipulacion} y \ref{cap:bases-datos}};
+  \node[fase, right=0.9cm of f1] (f2) {\textbf{Fase 2. KPIs y exploración}\\ Módulos \ref{cap:visualizacion} y \ref{cap:eda}};
+  \node[fase, right=0.9cm of f2] (f3) {\textbf{Fase 3. Segmentación}\\ \textbf{y pronóstico}\\ Módulo \ref{cap:ml}};
+  \node[fase, below=1.1cm of f3] (f4) {\textbf{Fase 4. Dashboard}\\ Módulo \ref{cap:shiny}};
+  \node[fase, left=0.9cm of f4] (f5) {\textbf{Fase 5. Reporte ejecutivo}\\ Módulo \ref{cap:reportes}};
+  \node[fase, left=0.9cm of f5] (f6) {\textbf{Fase 6. Presentación}\\ Storytelling con datos};
+  \draw[flecha] (f1) -- (f2);
+  \draw[flecha] (f2) -- (f3);
+  \draw[flecha] (f3) -- (f4);
+  \draw[flecha] (f4) -- (f5);
+  \draw[flecha] (f5) -- (f6);
+\end{tikzpicture}
+\caption{Las seis fases del proyecto y los módulos del libro que usa cada una.}
+\label{fig:m09-fases}
+\end{figure}
+
+% ============================================================================
+\section{El caso: TechRetail México}
+\label{sec:m09-caso}
+% ============================================================================
+
+TechRetail México es una cadena minorista con diez sucursales en seis
+ciudades del país. Vende productos de diez categorías (desde electrónica y
+juguetes hasta alimentos y artículos para mascotas) y registra cada venta en
+un sistema de punto de venta. La dirección tiene los datos de 2023 pero nunca
+los ha analizado de forma integral: cada gerente de tienda lleva su propio
+Excel, y las juntas de resultados terminan en discusiones sobre ``qué número
+es el bueno''.
+
+Antes de escribir una sola línea de análisis, prepara el entorno del
+proyecto. Fíjate en la \termino{fecha de corte}: es la fecha ``de hoy'' para
+el proyecto. El script original del curso usaba \codigo{Sys.Date()}, lo que
+hace que los resultados cambien cada día que lo ejecutas (la antigüedad de
+una tienda o los días desde la última compra de un cliente serían distintos
+mañana). En un proyecto profesional eso es inaceptable: quien revise tu
+trabajo dentro de seis meses debe obtener exactamente los mismos números.
+
+\begin{rcode}[title=Configuración del proyecto]
+# ---- Paquetes (todos se explicaron en módulos anteriores) ----
+library(tidyverse)   # dplyr, ggplot2, readr, tidyr, purrr, lubridate
+library(scales)      # formatos de negocio: dollar(), percent(), comma()
+library(DBI)         # interfaz a bases de datos (Módulo 5)
+library(RSQLite)     # motor SQLite en un archivo local
+library(cluster)     # silueta para evaluar k-means (Módulo 7)
+library(forecast)    # modelos de pronóstico (Módulo 7)
+
+# ---- Fecha de corte FIJA (nunca Sys.Date() en un proyecto) ----
+fecha_corte <- as.Date("2024-01-01")
+
+# ---- Carpetas de salida del proyecto ----
+dir.create("resultados", showWarnings = FALSE)
+dir.create("datos", showWarnings = FALSE)
+
+# ---- Colores corporativos y tema (los mismos del Módulo 3) ----
+color_principal <- "#2a78d6"   # una sola serie
+color_resalte   <- "#eb6834"   # lo que queremos destacar
+color_gris      <- "#b5b3ad"   # el resto
+paleta_libro <- c("#2a78d6", "#eb6834", "#1baf7a", "#eda100",
+                  "#e87ba4", "#008300", "#4a3aa7", "#e34948")
+
+tema_libro <- function(base_size = 11) {
+  theme_minimal(base_size = base_size) +
+    theme(
+      plot.title       = element_text(face = "bold", color = "#0b0b0b"),
+      plot.subtitle    = element_text(color = "#52514e"),
+      plot.caption     = element_text(color = "#52514e", size = rel(0.8)),
+      axis.title       = element_text(color = "#52514e"),
+      axis.text        = element_text(color = "#52514e"),
+      panel.grid.minor = element_blank(),
+      panel.grid.major = element_line(color = "#e6e5e1", linewidth = 0.3),
+      legend.position  = "top",
+      legend.title     = element_text(color = "#52514e")
+    )
+}
+
+# Formato de pesos sin decimales para textos y tablas
+pesos <- function(x) dollar(x, accuracy = 1)
+\end{rcode}
+
+Al cargar \paquete{tidyverse} y \paquete{forecast} verás mensajes de
+bienvenida o avisos como \codigo{Registered S3 method overwritten}; son
+normales y no indican ningún error.
+
+\subsection{La cadena en números}
+
+Describe a la empresa con sus propios datos, no con adjetivos. El archivo
+\archivo{tiendas.csv} es el catálogo de sucursales.
+
+\begin{rcode}
+tiendas <- read_csv("datasets/tiendas.csv", show_col_types = FALSE)
+
+# Antigüedad de cada sucursal calculada a la fecha de corte
+tiendas %>%
+  mutate(anios = floor(time_length(
+           interval(fecha_apertura, fecha_corte), "years"))) %>%
+  select(tienda = nombre_tienda, ciudad, zona, tipo,
+         m2 = tamano_m2, empleados, anios) %>%
+  arrange(desc(m2))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 10 x 7
+   tienda           ciudad      zona   tipo         m2 empleados anios
+   <chr>            <chr>       <chr>  <chr>     <dbl>     <dbl> <dbl>
+ 1 Sucursal Premium CDMX        Sur    Premium     800        40    14
+ 2 Sucursal Plaza A CDMX        Oeste  Principal   700        35     7
+ 3 Sucursal Sur     Monterrey   Norte  Estándar    600        30    12
+ 4 Sucursal Oeste   Puebla      Centro Estándar    550        22    10
+ 5 Sucursal Centro  CDMX        Centro Principal   500        25    13
+ 6 Sucursal Plaza B Guadalajara Norte  Estándar    480        21     9
+ 7 Sucursal Norte   Guadalajara Norte  Estándar    450        20    11
+ 8 Sucursal Este    CDMX        Este   Estándar    400        18     8
+ 9 Sucursal Outlet  Tijuana     Norte  Outlet      350        15     5
+10 Sucursal Express Querétaro   Centro Express     300        12     3
+\end{rsalida}
+
+\begin{rcode}
+# Resumen de la red de sucursales
+tiendas %>%
+  summarise(sucursales = n(),
+            ciudades   = n_distinct(ciudad),
+            m2_totales = sum(tamano_m2),
+            empleados  = sum(empleados),
+            m2_por_empleado = round(sum(tamano_m2) / sum(empleados), 1))
+
+tiendas %>% count(ciudad, sort = TRUE)
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 1 x 5
+  sucursales ciudades m2_totales empleados m2_por_empleado
+       <int>    <int>      <dbl>     <dbl>           <dbl>
+1         10        6       5130       238            21.6
+# A tibble: 6 x 2
+  ciudad          n
+  <chr>       <int>
+1 CDMX            4
+2 Guadalajara     2
+3 Monterrey       1
+4 Puebla          1
+5 Querétaro       1
+6 Tijuana         1
+\end{rsalida}
+
+¿Qué nos dice esto? TechRetail tiene 10 sucursales en 6 ciudades, con
+5,130~m\textsuperscript{2} de piso de venta y 238 empleados. La Ciudad de
+México concentra 4 sucursales, incluidas la más grande (Sucursal Premium,
+800~m\textsuperscript{2} y 40 empleados, la más antigua: 14 años) y la
+Sucursal Plaza A. En el otro extremo están la Sucursal Express de Querétaro
+(300~m\textsuperscript{2}, abierta en 2020) y la Sucursal Outlet de Tijuana.
+Hay cinco formatos (Principal, Estándar, Outlet, Premium y Express), lo cual
+será importante: no es justo comparar las ventas absolutas de una tienda de
+800~m\textsuperscript{2} con las de una de 300.
+
+\begin{advertencia}
+Observa que la ``Sucursal Sur'' está en Monterrey y pertenece a la zona
+\emph{Norte}. Los nombres heredados no siempre describen la realidad. En el
+análisis usaremos siempre la columna \codigo{zona}, nunca el nombre de la
+tienda, para agrupar geográficamente.
+\end{advertencia}
+
+\subsection{El reto de la dirección}
+
+\begin{negocio}{El correo de la directora general}
+\emph{``Necesitamos dejar de discutir números y empezar a tomar decisiones.
+Quiero, en seis semanas: (1) una sola versión de la verdad de nuestras ventas
+de 2023, (2) entender qué tiendas, productos y clientes nos hacen ganar
+dinero, (3) un tablero que los gerentes consulten cada lunes y (4) una
+recomendación clara de en qué enfocarnos en 2024. Preséntalo al comité
+directivo en 20 minutos.''}
+
+Traducido a BI: la dirección pide \textbf{calidad y gobierno de datos} (una
+sola versión de la verdad), \textbf{análisis descriptivo y diagnóstico}
+(qué pasó y por qué), un \textbf{producto de datos recurrente} (tablero) y
+\textbf{recomendaciones accionables} (presentación y reporte).
+\end{negocio}
+
+\subsection{Las 20 preguntas de negocio}
+
+El primer entregable de cualquier consultoría es la lista de preguntas que
+vas a contestar, acordada con el cliente. Evita el ``análisis de todo'': si
+una tabla no responde una pregunta, sobra. La
+Tabla~\ref{tab:m09-preguntas} agrupa las 20 preguntas en cuatro áreas e
+indica dónde se responde cada una en este módulo.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Las 20 preguntas de negocio del proyecto y dónde se responden.}
+\label{tab:m09-preguntas}
+\begin{tabularx}{\textwidth}{@{}c X l@{}}
+\toprule
+\# & Pregunta & Dónde se responde \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{Ventas}} \\
+1 & ¿Cuánto vendimos en 2023, en cuántas transacciones y con qué ticket promedio? & Sec.~\ref{sec:m09-kpis-globales} \\
+2 & ¿Cómo evolucionaron las ventas mes a mes? ¿Estamos creciendo? & Sec.~\ref{sec:m09-mensual} \\
+3 & ¿Qué categorías generan más ingresos y más margen? & Sec.~\ref{sec:m09-categorias} \\
+4 & ¿Qué método de pago prefieren los clientes y cambia el ticket? & Sec.~\ref{sec:m09-pago} \\
+5 & ¿Qué ventas podemos esperar en las próximas semanas? & Sec.~\ref{sec:m09-pronostico} \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{Clientes}} \\
+6 & ¿Cuántos clientes activos tenemos y cuántos no compraron? & Sec.~\ref{sec:m09-kpis-globales} \\
+7 & ¿Los clientes premium gastan más que los demás? & Sec.~\ref{sec:m09-premium} \\
+8 & ¿Qué segmentos de clientes existen según su comportamiento? & Sec.~\ref{sec:m09-rfm} \\
+9 & ¿Cuántos clientes vuelven a comprar y cada cuánto? & Reto~\ref{ej:p-1} \\
+10 & ¿Se comportan distinto los clientes según el mes en que llegaron? & Reto~\ref{ej:p-4} \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{Productos}} \\
+11 & ¿Pocos productos concentran la mayoría de las ventas (Pareto)? & Sec.~\ref{sec:m09-pareto} \\
+12 & ¿Qué productos tienen margen negativo en el catálogo? & Sec.~\ref{sec:m09-auditoria} \\
+13 & ¿Vendemos al precio de catálogo? & Sec.~\ref{sec:m09-auditoria} \\
+14 & ¿Se venden productos marcados como inactivos? & Sec.~\ref{sec:m09-auditoria} \\
+15 & ¿Qué productos necesitan reabastecerse pronto? & Reto~\ref{ej:p-3} \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{Operaciones}} \\
+16 & ¿Qué sucursales y zonas venden más? & Sec.~\ref{sec:m09-tiendas} \\
+17 & ¿Qué sucursales son más productivas por m\textsuperscript{2} y por empleado? & Reto~\ref{ej:p-2} \\
+18 & ¿Qué días y horas concentran las ventas? & Sec.~\ref{sec:m09-dia-hora} \\
+19 & ¿Qué vendedores venden más y se relaciona con su salario? & Sec.~\ref{sec:m09-vendedores} \\
+20 & ¿Hay transacciones atípicas que debamos revisar? & Reto~\ref{ej:p-5} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{consejo}
+Escribe las preguntas \emph{antes} de abrir los datos y pídele a la dirección
+que las priorice. Si al final del proyecto alguien pregunta ``¿y esto para
+qué sirve?'', debes poder señalar qué pregunta responde cada gráfica.
+\end{consejo}
+
+\subsection{Entregables y cronograma}
+
+El proyecto se organiza en seis fases con un entregable concreto cada una
+(Tabla~\ref{tab:m09-cronograma}). Las horas son una estimación para alguien
+que termina este libro; en una empresa real, la Fase~1 suele consumir
+más tiempo del que todos esperan.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Cronograma del proyecto por fases.}
+\label{tab:m09-cronograma}
+\begin{tabularx}{\textwidth}{@{}l X X c c@{}}
+\toprule
+Fase & Actividades principales & Entregable & Semana & Horas \\
+\midrule
+1. ETL y modelo & Cargar fuentes, auditar calidad, limpiar, modelo en estrella & Datos limpios (RDS y SQLite) y bitácora de decisiones & 1 & 5--6 \\
+2. KPIs y exploración & KPIs globales, tendencias, cortes por tienda, producto, cliente y vendedor & Diccionario de KPIs y cuaderno de hallazgos & 2 & 5--6 \\
+3. Modelos & Segmentación RFM con k-means y pronóstico de ventas & Segmentos con acciones y pronóstico con intervalos & 3 & 4--5 \\
+4. Dashboard & Diseño y construcción del tablero en Shiny & App funcionando con filtros & 4 & 4--5 \\
+5. Reporte & Reporte ejecutivo automatizado en R Markdown & PDF o HTML de 1--2 páginas & 5 & 2--3 \\
+6. Presentación & Guion, diapositivas y ensayo & Presentación de 8--10 diapositivas & 6 & 2--3 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Rúbrica de evaluación}
+
+Si usas este proyecto para un curso, un bootcamp o tu portafolio, evalúalo
+con criterios explícitos (Tabla~\ref{tab:m09-rubrica}). Observa que el código
+vale menos de la mitad: en BI, un análisis técnicamente perfecto que nadie
+entiende no sirve.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Rúbrica de evaluación del proyecto final.}
+\label{tab:m09-rubrica}
+\begin{tabularx}{\textwidth}{@{}l c X X@{}}
+\toprule
+Criterio & Peso & Excelente & Insuficiente \\
+\midrule
+Calidad de datos & 15\% & Auditoría con evidencia, decisiones documentadas y justificadas & Se limpian datos ``a ojo'' o se borran filas sin explicar \\
+Código y reproducibilidad & 20\% & Scripts numerados, comentados, fecha de corte fija; corre de principio a fin & Rutas absolutas, \codigo{Sys.Date()}, pasos manuales \\
+Análisis y KPIs & 25\% & Cada gráfica responde una pregunta y trae un hallazgo con números & Muchas gráficas sin conclusión \\
+Modelos & 10\% & Modelo justificado, validado y con limitaciones explícitas & Modelo sin validar o con conclusiones exageradas \\
+Tablero y reporte & 15\% & Tablero claro con KPIs y filtros; reporte breve y automatizado & Tablero saturado; reporte copiado a mano \\
+Comunicación & 15\% & Historia clara, recomendaciones accionables con impacto & Lista de datos sin recomendación \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{hazlotu}
+Agrega tres preguntas propias a la Tabla~\ref{tab:m09-preguntas} (por
+ejemplo, sobre marcas o proveedores). Para cada una anota qué archivo y qué
+columnas necesitarías para responderla.
+\end{hazlotu}
+
+% ============================================================================
+\section{Fase 1: ETL y modelo de datos}
+\label{sec:m09-etl}
+% ============================================================================
+
+La primera fase construye la ``única versión de la verdad'' que pidió la
+directora. Seguimos las tres letras del \termino{ETL}: \emph{extraer} (leer
+las fuentes), \emph{transformar} (auditar, limpiar, enriquecer) y
+\emph{cargar} (guardar el resultado en un formato listo para analizar). Las
+funciones de \paquete{dplyr} y \paquete{readr} se explicaron en el
+Módulo~\ref{cap:manipulacion} y las bases de datos en el
+Módulo~\ref{cap:bases-datos}; aquí nos enfocamos en las decisiones.
+
+\subsection{Extraer: cargar las fuentes}
+
+\begin{rcode}
+# Tabla de hechos candidata principal: una fila por transacción
+transacciones <- read_csv("datasets/transacciones.csv",
+                          show_col_types = FALSE)
+# Segunda fuente de ventas (una venta registrada por día)
+ventas_retail <- read_csv("datasets/ventas_retail.csv",
+                          show_col_types = FALSE)
+# Catálogos (futuras dimensiones)
+clientes  <- read_csv("datasets/clientes.csv",  show_col_types = FALSE)
+productos <- read_csv("datasets/productos.csv", show_col_types = FALSE)
+empleados <- read_csv("datasets/empleados.csv", show_col_types = FALSE)
+# tiendas ya se cargó en la sección anterior
+
+glimpse(transacciones)
+\end{rcode}
+
+\begin{rsalida}
+Rows: 1,000
+Columns: 14
+$ transaccion_id    <dbl> 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,~
+$ fecha             <date> 2023-01-13, 2023-01-09, 2023-02-20, 2023-~
+$ hora              <time> 13:15:00, 10:45:00, 10:30:00, 10:45:00, 1~
+$ cliente_id        <dbl> 155, 155, 75, 51, 173, 135, 90, 168, 13, 9~
+$ producto_id       <dbl> 3, 47, 6, 17, 28, 46, 30, 48, 21, 12, 49, ~
+$ cantidad          <dbl> 4, 4, 3, 4, 1, 2, 4, 2, 2, 5, 2, 3, 4, 2, ~
+$ precio_venta      <dbl> 303.97, 58.07, 275.46, 105.28, 205.47, 534~
+$ metodo_pago       <chr> "Tarjeta Crédito", "Tarjeta Débito", "Tarj~
+$ tienda_id         <dbl> 10, 2, 7, 6, 7, 7, 8, 8, 5, 2, 7, 6, 8, 2,~
+$ vendedor_id       <dbl> 4, 22, 14, 5, 14, 22, 23, 5, 3, 14, 5, 9, ~
+$ total_transaccion <dbl> 1215.88, 232.28, 826.38, 421.12, 205.47, 1~
+$ mes               <chr> "2023-01", "2023-01", "2023-02", "2023-05"~
+$ trimestre         <chr> "Q1", "Q1", "Q1", "Q2", "Q1", "Q1", "Q2", ~
+$ dia_semana        <chr> "viernes", "lunes", "lunes", "viernes", "m~
+\end{rsalida}
+
+Fíjate en un detalle: en el archivo la hora viene como texto sin cero
+inicial (\codigo{"8:00"}, \codigo{"13:15"}), pero \paquete{readr} la
+reconoció como hora (\codigo{<time>}). Eso nos permitirá extraer la hora del
+día con \codigo{hour()} sin conversiones manuales.
+
+\subsection{¿Qué tabla usar como hechos?}
+\label{sec:m09-fuente}
+
+Tenemos \emph{dos} archivos de ventas. Antes de sumar nada, compáralos: si
+fueran el mismo registro visto de dos formas, sumarlos duplicaría las ventas;
+si son registros distintos, necesitamos saber cuál es el oficial.
+
+\begin{rcode}
+# Perfil rápido de cada fuente de ventas
+perfil_fuente <- function(datos, nombre, col_total) {
+  tibble(fuente   = nombre,
+         filas    = nrow(datos),
+         columnas = ncol(datos),
+         desde    = min(datos$fecha),
+         hasta    = max(datos$fecha),
+         ventas   = sum(datos[[col_total]]))
+}
+
+bind_rows(
+  perfil_fuente(transacciones, "transacciones", "total_transaccion"),
+  perfil_fuente(ventas_retail, "ventas_retail", "total")
+)
+
+# ¿Qué información tiene cada fuente que la otra no?
+setdiff(names(transacciones), names(ventas_retail))
+setdiff(names(ventas_retail), names(transacciones))
+
+# ¿Coinciden registros (misma fecha, cliente y producto)?
+inner_join(transacciones, ventas_retail,
+           by = c("fecha", "cliente_id", "producto_id")) %>%
+  nrow()
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 2 x 6
+  fuente        filas columnas desde      hasta       ventas
+  <chr>         <int>    <int> <date>     <date>       <dbl>
+1 transacciones  1000       14 2023-01-01 2023-12-31 959993.
+2 ventas_retail   365       14 2023-01-01 2023-12-31 513917.
+[1] "transaccion_id"    "hora"              "precio_venta"     
+[4] "metodo_pago"       "total_transaccion"
+[1] "precio_unitario" "descuento_pct"   "subtotal"       
+[4] "descuento_monto" "total"          
+[1] 0
+\end{rsalida}
+
+Las dos fuentes cubren todo 2023, pero no son el mismo registro: ninguna
+combinación de fecha, cliente y producto coincide entre ellas, y los totales
+son muy distintos (\$959,993 contra \$513,917). \textbf{Decisión:} usamos
+\archivo{transacciones.csv} como tabla de hechos porque (1) es más granular
+(1,000 transacciones contra 365 registros, uno por día), (2) trae
+información que la otra no tiene y que la dirección pidió (hora, método de
+pago) y (3) su total es consistente con su detalle (lo comprobaremos en la
+auditoría). \archivo{ventas\_retail.csv} queda como fuente secundaria: es la
+única que registra descuentos, así que la usaremos solo para preguntas sobre
+promociones (Reto~\ref{ej:p-6}). \textbf{Nunca sumaremos ambas fuentes.}
+
+\begin{advertencia}
+Mezclar fuentes de ventas es el error más caro de un proyecto de BI: el
+tablero muestra un total que nadie reconoce y el proyecto pierde credibilidad
+en la primera junta. Si dos sistemas registran ventas, documenta cuál es el
+oficial para cada pregunta y dilo explícitamente en el reporte.
+\end{advertencia}
+
+\subsection{Auditoría de calidad de datos}
+\label{sec:m09-auditoria}
+
+Una \termino{auditoría de calidad} revisa sistemáticamente cada tabla antes
+de usarla: tamaño, faltantes, duplicados, rangos, integridad de llaves y
+reglas de negocio. Conviértela en una función para aplicarla igual a todas
+las tablas (y reutilizarla cada mes cuando lleguen datos nuevos).
+
+\begin{rcode}
+# Auditoría básica de una tabla: tamaño, faltantes y duplicados
+auditar <- function(datos, nombre, llave) {
+  tibble(
+    tabla      = nombre,
+    filas      = nrow(datos),
+    columnas   = ncol(datos),
+    celdas_na  = sum(is.na(datos)),               # valores faltantes
+    filas_dup  = sum(duplicated(datos)),          # filas idénticas
+    llaves_dup = sum(duplicated(datos[[llave]]))  # llave repetida
+  )
+}
+
+auditoria <- bind_rows(
+  auditar(transacciones, "transacciones", "transaccion_id"),
+  auditar(clientes,      "clientes",      "cliente_id"),
+  auditar(productos,     "productos",     "producto_id"),
+  auditar(tiendas,       "tiendas",       "tienda_id"),
+  auditar(empleados,     "empleados",     "empleado_id")
+)
+auditoria
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 5 x 6
+  tabla         filas columnas celdas_na filas_dup llaves_dup
+  <chr>         <int>    <int>     <int>     <int>      <int>
+1 transacciones  1000       14         0         0          0
+2 clientes        200       10         0         0          0
+3 productos        50       13         0         0          0
+4 tiendas          10        8         0         0          0
+5 empleados       100       12         0         0          0
+\end{rsalida}
+
+Buenas noticias en lo estructural: ninguna tabla tiene valores faltantes,
+filas duplicadas ni llaves repetidas. Eso no significa que los datos sean
+correctos; significa que están \emph{completos}. Sigue con los rangos y la
+consistencia interna de la tabla de hechos.
+
+\begin{rcode}
+# Rangos de las columnas clave de la tabla de hechos
+rango <- function(x) str_c(min(x), " a ", max(x))
+transacciones %>%
+  summarise(fecha    = rango(fecha),
+            hora     = rango(hms::as_hms(hora)),
+            cantidad = rango(cantidad),
+            precio   = rango(precio_venta),
+            total    = rango(total_transaccion)) %>%
+  pivot_longer(everything(), names_to = "columna",
+               values_to = "rango")
+
+# ¿El total cuadra con cantidad x precio? (tolerancia de 1 centavo)
+transacciones %>%
+  summarise(totales_incorrectos =
+              sum(abs(total_transaccion - cantidad * precio_venta) > 0.01))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 5 x 2
+  columna  rango                  
+  <chr>    <chr>                  
+1 fecha    2023-01-01 a 2023-12-31
+2 hora     28800 a 74700          
+3 cantidad 1 a 5                  
+4 precio   20.14 a 598.81         
+5 total    22.65 a 2992.35        
+# A tibble: 1 x 1
+  totales_incorrectos
+                <int>
+1                   0
+\end{rsalida}
+
+Las fechas cubren el año completo, las horas van de 8:00 a 20:45 (horario de
+tienda razonable), no hay cantidades ni precios negativos y los 1,000 totales
+cuadran con su detalle. Ahora revisa la \termino{integridad referencial}:
+toda llave de la tabla de hechos debe existir en su catálogo. Para eso
+\codigo{anti\_join()} es ideal: devuelve las filas de la primera tabla que
+\emph{no} encuentran pareja en la segunda (Módulo~\ref{cap:manipulacion}).
+
+\begin{rcode}
+# Llaves huérfanas: transacciones cuyo id no existe en el catálogo
+tibble(
+  llave = c("cliente_id", "producto_id", "tienda_id", "vendedor_id"),
+  huerfanas = c(
+    nrow(anti_join(transacciones, clientes,  by = "cliente_id")),
+    nrow(anti_join(transacciones, productos, by = "producto_id")),
+    nrow(anti_join(transacciones, tiendas,   by = "tienda_id")),
+    nrow(anti_join(transacciones, empleados,
+                   by = c("vendedor_id" = "empleado_id")))
+  )
+)
+
+# En sentido contrario: elementos del catálogo sin ninguna venta
+clientes_sin_compra <- anti_join(clientes, transacciones,
+                                 by = "cliente_id")
+clientes_sin_compra %>% select(cliente_id, nombre, fecha_registro)
+nrow(anti_join(productos, transacciones, by = "producto_id"))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 4 x 2
+  llave       huerfanas
+  <chr>           <int>
+1 cliente_id          0
+2 producto_id         0
+3 tienda_id           0
+4 vendedor_id         0
+# A tibble: 2 x 3
+  cliente_id nombre            fecha_registro
+       <dbl> <chr>             <date>        
+1        171 Rosa Jiménez      2022-08-27    
+2        199 Ricardo Hernández 2023-09-16    
+[1] 0
+\end{rsalida}
+
+No hay llaves huérfanas: cada transacción apunta a un cliente, producto,
+tienda y vendedor que existen. En sentido contrario, 2 de los 200 clientes
+registrados no compraron en 2023 (los usaremos para distinguir ``clientes
+registrados'' de ``clientes activos'') y los 50 productos tuvieron al menos
+una venta.
+
+La parte más valiosa de la auditoría son las \termino{reglas de negocio}:
+condiciones que los datos deberían cumplir según cómo funciona la empresa.
+Aquí es donde aparecen los hallazgos interesantes.
+
+\begin{rcode}
+# Unimos a cada transacción los datos del producto y del cliente
+revision <- transacciones %>%
+  left_join(productos, by = "producto_id") %>%
+  left_join(select(clientes, cliente_id, fecha_registro),
+            by = "cliente_id")
+
+vendedores_ids <- unique(transacciones$vendedor_id)
+
+hallazgos <- tibble(
+  regla = c(
+    "Productos con margen de catálogo negativo",
+    "Transacciones con precio menor al costo",
+    "Transacciones a +/-20% del precio de catálogo",
+    "Productos inactivos que sí se vendieron",
+    "Transacciones de productos inactivos",
+    "Transacciones anteriores al registro del cliente",
+    "Clientes con compras antes de registrarse",
+    "Vendedores que no son del depto. de Ventas"),
+  casos = c(
+    sum(productos$margen_pct < 0),
+    sum(revision$precio_venta < revision$costo),
+    sum(abs(revision$precio_venta / revision$precio_catalogo - 1)
+        <= 0.20),
+    n_distinct(revision$producto_id[!revision$activo]),
+    sum(!revision$activo),
+    sum(revision$fecha < revision$fecha_registro),
+    n_distinct(revision$cliente_id[revision$fecha <
+                                     revision$fecha_registro]),
+    empleados %>%
+      filter(empleado_id %in% vendedores_ids,
+             departamento != "Ventas") %>% nrow())
+)
+hallazgos
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 8 x 2
+  regla                                            casos
+  <chr>                                            <int>
+1 Productos con margen de catálogo negativo           10
+2 Transacciones con precio menor al costo            252
+3 Transacciones a +/-20% del precio de catálogo      149
+4 Productos inactivos que sí se vendieron              7
+5 Transacciones de productos inactivos               137
+6 Transacciones anteriores al registro del cliente   114
+7 Clientes con compras antes de registrarse           34
+8 Vendedores que no son del depto. de Ventas          21
+\end{rsalida}
+
+Cada renglón es una conversación con el área de negocio. Revisemos los más
+importantes con detalle.
+
+\begin{rcode}
+# Detalle: productos cuyo costo supera al precio de catálogo
+productos %>%
+  filter(margen_pct < 0) %>%
+  select(producto_id, categoria, precio_catalogo, costo, margen_pct,
+         activo) %>%
+  arrange(margen_pct)
+
+# ¿Qué tan lejos está el precio de venta del de catálogo?
+revision %>%
+  mutate(razon_precio = precio_venta / precio_catalogo) %>%
+  summarise(minimo  = min(razon_precio),
+            mediana = median(razon_precio),
+            maximo  = max(razon_precio))
+
+# ¿A qué departamento pertenecen los vendedores según Recursos Humanos?
+empleados %>%
+  filter(empleado_id %in% vendedores_ids) %>%
+  count(departamento, sort = TRUE)
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 10 x 6
+   producto_id categoria   precio_catalogo costo margen_pct activo
+         <dbl> <chr>                 <dbl> <dbl>      <dbl> <lgl> 
+ 1           5 Alimentos              25.5 355.     -1292.  TRUE  
+ 2          46 Automotriz             64.5 178.      -175.  FALSE 
+ 3          32 Hogar                 143.  210.       -46.7 TRUE  
+ 4          26 Electrónica           115.  159.       -38.3 TRUE  
+ 5          29 Belleza               298.  392.       -31.6 TRUE  
+ 6           9 Hogar                 250.  328.       -31.2 TRUE  
+ 7           2 Belleza               313.  399.       -27.7 TRUE  
+ 8          12 Mascotas              289.  369.       -27.4 TRUE  
+ 9          40 Electrónica            50.1  58.2      -16.0 TRUE  
+10          13 Ropa                  348.  393.       -12.8 FALSE 
+# A tibble: 1 x 3
+  minimo mediana maximo
+   <dbl>   <dbl>  <dbl>
+1 0.0288   0.750   23.4
+# A tibble: 7 x 2
+  departamento            n
+  <chr>               <int>
+1 Atención al Cliente    10
+2 RRHH                    4
+3 Ventas                  4
+4 Marketing               3
+5 Finanzas                2
+6 IT                      1
+7 Operaciones             1
+\end{rsalida}
+
+Esto es lo que encontró la auditoría, traducido a lenguaje de negocio:
+
+\begin{itemize}
+  \item \textbf{Márgenes negativos en el catálogo.} 10 de los 50 productos
+        cuestan más de lo que dice su precio de lista. El caso extremo es el
+        producto 5 (Alimentos): precio de \$25.47 y costo de \$354.63, un
+        margen de $-1{,}292$\%. Casi seguro es un error de captura (un costo
+        por caja registrado como costo unitario, por ejemplo), pero debe
+        confirmarlo Compras.
+  \item \textbf{El precio de venta no respeta el catálogo.} Solo
+        15\% (149) de las transacciones se vendió a menos de 20\% de
+        distancia del precio de lista; hay ventas a 3\% del precio de
+        catálogo y otras a 23 veces ese precio. O el catálogo está
+        desactualizado, o el punto de venta permite capturar cualquier
+        precio. En cualquier caso, \emph{el margen que calculemos con el
+        costo del catálogo será una estimación}, y en 252 transacciones
+        (una de cada cuatro) el precio cobrado quedó por debajo del costo.
+  \item \textbf{Productos inactivos con ventas.} Los 7 productos marcados
+        como inactivos suman 137 transacciones en 2023. Lo más probable es
+        que la bandera \codigo{activo} describa el estado \emph{actual}
+        (productos descontinuados después), no el de todo el año.
+  \item \textbf{Compras antes del registro.} 114 transacciones de 34 clientes
+        ocurrieron antes de su fecha de registro. La fecha de registro no es
+        confiable para medir antigüedad; usaremos la fecha de la primera
+        compra.
+  \item \textbf{Los ``vendedores'' no son de Ventas.} De los 25
+        \codigo{vendedor\_id}, solo 4 corresponden a empleados del
+        departamento de Ventas según Recursos Humanos. O la llave
+        \codigo{vendedor\_id} no es el \codigo{empleado\_id}, o la tabla de
+        empleados está desactualizada. Además, la columna \codigo{sucursal}
+        de empleados usa nombres (``Matriz'', ``Sucursal Norte''\ldots) que
+        no corresponden a las 10 tiendas, así que no podemos asignar
+        empleados a tiendas con esa tabla.
+\end{itemize}
+
+\begin{negocio}{La auditoría también es un entregable}
+En una consultoría real, la lista de hallazgos de calidad suele ser lo
+primero que se presenta, y muchas veces es lo más valorado: la dirección
+descubre que su catálogo tiene costos imposibles o que el punto de venta
+deja cobrar cualquier precio. Presenta cada hallazgo con su evidencia (el
+número de casos), su impacto y un responsable de corregirlo.
+\end{negocio}
+
+\subsection{Decisiones de limpieza}
+\label{sec:m09-decisiones}
+
+Limpiar no es ``borrar lo raro''. Cada decisión se documenta con su
+justificación en una \termino{bitácora de decisiones}
+(Tabla~\ref{tab:m09-decisiones}), que acompaña al proyecto y se entrega a la
+dirección.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Bitácora de decisiones de limpieza.}
+\label{tab:m09-decisiones}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{3.6cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+Problema & Decisión & Justificación \\
+\midrule
+Dos fuentes de ventas distintas & Hechos = \archivo{transacciones.csv}; \archivo{ventas\_retail.csv} solo para descuentos & Más granular, con hora y método de pago; sumar ambas duplicaría ventas \\
+10 productos con margen negativo & Se conservan y se marcan con \codigo{margen\_negativo} & Son ventas reales; el error está en el costo y lo debe corregir Compras \\
+Precio de venta distinto al de catálogo & El ingreso se calcula con el precio cobrado; el margen se reporta como ``estimado'' & El precio cobrado es lo que entró a caja; el costo del catálogo es dudoso \\
+Ventas por debajo del costo & Se conservan con la bandera \codigo{bajo\_costo} & Pueden ser liquidaciones o errores; se reportan para revisión \\
+Productos inactivos con ventas & Se conservan con la bandera \codigo{producto\_inactivo} & La bandera describe el estado actual, no el de 2023 \\
+Compras antes del registro & No se usa \codigo{fecha\_registro} para antigüedad; se usa la primera compra & La fecha de registro no es confiable \\
+Vendedores fuera del depto. de Ventas & Se conserva \codigo{vendedor\_id}; el análisis de salario se marca como preliminar & La llave no está validada con Recursos Humanos \\
+Datos personales de clientes & No se copian email ni teléfono al modelo & Minimizar datos personales: el análisis no los necesita \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{consejo}
+Observa que ninguna decisión borra filas. Borrar transacciones cambiaría el
+total de ventas y abriría la discusión de ``qué número es el bueno'' que la
+directora quiere terminar. \emph{Marcar} con banderas (columnas lógicas) te
+permite excluir casos en un análisis específico sin alterar la verdad
+contable.
+\end{consejo}
+
+\subsection{Transformar: modelo en estrella}
+\label{sec:m09-estrella}
+
+Organizamos los datos en un \termino{modelo en estrella}: una
+\termino{tabla de hechos} con las medidas (cantidad, total, costo, margen) y
+las llaves, rodeada de \termino{tablas de dimensiones} que describen el
+contexto (quién compró, qué, dónde, cuándo y quién vendió). Es el mismo
+diseño que usan Power BI, Tableau y los data warehouses corporativos
+(Módulo~\ref{cap:bases-datos}). Empezamos por las dimensiones.
+
+\begin{rcode}
+# ---- Dimensión cliente (sin datos personales) ----
+dim_cliente <- clientes %>%
+  select(cliente_id, nombre, edad, genero, ciudad, segmento_edad = segmento,
+         es_premium, fecha_registro) %>%
+  mutate(con_compras = cliente_id %in% transacciones$cliente_id)
+
+# ---- Dimensión producto (con banderas de calidad) ----
+dim_producto <- productos %>%
+  select(producto_id, nombre_producto, categoria, subcategoria, marca,
+         proveedor, precio_catalogo, costo, margen_pct, activo,
+         stock_actual, stock_minimo, estado_stock) %>%
+  mutate(margen_negativo = margen_pct < 0)
+
+# ---- Dimensión tienda (antigüedad a la fecha de corte) ----
+dim_tienda <- tiendas %>%
+  rename(num_empleados = empleados) %>%
+  mutate(anios_operacion = floor(time_length(
+           interval(fecha_apertura, fecha_corte), "years")))
+
+# ---- Dimensión vendedor (solo los 25 que aparecen en ventas) ----
+dim_vendedor <- empleados %>%
+  filter(empleado_id %in% vendedores_ids) %>%
+  select(vendedor_id = empleado_id, nombre_vendedor = nombre,
+         departamento, puesto, salario_mensual, antiguedad_anos) %>%
+  mutate(depto_ventas = departamento == "Ventas")
+
+# ---- Dimensión fecha (calendario completo de 2023) ----
+dias_es <- c("lunes", "martes", "miércoles", "jueves", "viernes",
+             "sábado", "domingo")
+dim_fecha <- tibble(fecha = seq(as.Date("2023-01-01"),
+                                as.Date("2023-12-31"), by = "day")) %>%
+  mutate(anio       = year(fecha),
+         mes        = month(fecha),
+         trimestre  = quarter(fecha),
+         semana_iso = isoweek(fecha),
+         dia_semana = factor(dias_es[wday(fecha, week_start = 1)],
+                             levels = dias_es),
+         fin_semana = wday(fecha, week_start = 1) >= 6)
+
+map_int(list(dim_cliente, dim_producto, dim_tienda, dim_vendedor,
+             dim_fecha), nrow)
+\end{rcode}
+
+\begin{rsalida}
+[1] 200  50  10  25 365
+\end{rsalida}
+
+Construimos el día de la semana con un vector propio (\codigo{dias\_es}) en
+lugar de \codigo{wday(label = TRUE)}, porque este último depende del idioma
+de tu computadora: en una laptop configurada en inglés obtendrías
+\emph{Monday} y tu tablero mezclaría idiomas. Ahora la tabla de hechos:
+
+\begin{rcode}
+hechos_ventas <- transacciones %>%
+  select(transaccion_id, fecha, hora, cliente_id, producto_id,
+         tienda_id, vendedor_id, metodo_pago, cantidad, precio_venta,
+         total = total_transaccion) %>%
+  # Costo unitario vigente y banderas que vienen de los catálogos
+  left_join(select(productos, producto_id, costo_unitario = costo,
+                   activo), by = "producto_id") %>%
+  left_join(select(clientes, cliente_id, fecha_registro),
+            by = "cliente_id") %>%
+  mutate(
+    hora_dia          = hour(hora),                 # 8, 9, ..., 20
+    costo_total       = cantidad * costo_unitario,
+    margen_estimado   = total - costo_total,
+    bajo_costo        = precio_venta < costo_unitario,
+    producto_inactivo = !activo,
+    antes_registro    = fecha < fecha_registro
+  ) %>%
+  select(-activo, -fecha_registro)
+
+# Control: un join mal hecho puede duplicar filas sin avisar
+stopifnot(nrow(hechos_ventas) == nrow(transacciones))
+stopifnot(sum(hechos_ventas$total) == sum(transacciones$total_transaccion))
+
+hechos_ventas %>%
+  summarise(filas = n(), ventas = sum(total),
+            margen_estimado = sum(margen_estimado),
+            bajo_costo = sum(bajo_costo),
+            inactivos = sum(producto_inactivo),
+            antes_registro = sum(antes_registro))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 1 x 6
+  filas  ventas margen_estimado bajo_costo inactivos antes_registro
+  <int>   <dbl>           <dbl>      <int>     <int>          <int>
+1  1000 959993.         444637.        252       137            114
+\end{rsalida}
+
+Los dos \codigo{stopifnot()} son \termino{controles de conciliación}: si
+algún \codigo{left\_join()} duplicara filas (porque una llave estuviera
+repetida en el catálogo), el script se detendría en lugar de reportar ventas
+infladas. La tabla de hechos conserva las 1,000 transacciones y los
+\$959,993 de ventas, y las banderas coinciden con la auditoría. La
+Figura~\ref{fig:m09-estrella} muestra el modelo resultante.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    tabla/.style={draw, rounded corners=2pt, align=left, font=\scriptsize\ttfamily,
+                  inner sep=4pt, text width=3.5cm},
+    titulo/.style={font=\small\sffamily\bfseries, text=white},
+    rel/.style={thick, color=gristexto}]
+  \node[tabla, draw=acento, fill=acento!6, text width=4.1cm] (h) {%
+    {\sffamily\bfseries\color{acento}hechos\_ventas}\\[2pt]
+    transaccion\_id\\ fecha (FK)\\ cliente\_id (FK)\\ producto\_id (FK)\\
+    tienda\_id (FK)\\ vendedor\_id (FK)\\ hora, hora\_dia, metodo\_pago\\
+    cantidad, precio\_venta, total\\ costo\_total, margen\_estimado\\
+    bajo\_costo, producto\_inactivo,\\ antes\_registro};
+  \node[tabla, draw=primario, fill=primario!5, above left=0.2cm and 1.3cm of h.north west, anchor=south east] (c) {%
+    {\sffamily\bfseries\color{primario}dim\_cliente}\\[2pt]
+    cliente\_id (PK)\\ edad, genero, ciudad\\ segmento\_edad, es\_premium\\ con\_compras};
+  \node[tabla, draw=primario, fill=primario!5, above right=0.2cm and 1.3cm of h.north east, anchor=south west] (p) {%
+    {\sffamily\bfseries\color{primario}dim\_producto}\\[2pt]
+    producto\_id (PK)\\ categoria, marca\\ precio\_catalogo, costo\\ activo, stock\_actual\\ margen\_negativo};
+  \node[tabla, draw=primario, fill=primario!5, left=1.3cm of h] (f) {%
+    {\sffamily\bfseries\color{primario}dim\_fecha}\\[2pt]
+    fecha (PK)\\ mes, trimestre\\ semana\_iso\\ dia\_semana, fin\_semana};
+  \node[tabla, draw=primario, fill=primario!5, right=1.3cm of h] (t) {%
+    {\sffamily\bfseries\color{primario}dim\_tienda}\\[2pt]
+    tienda\_id (PK)\\ nombre, ciudad, zona\\ tipo, tamano\_m2\\ num\_empleados};
+  \node[tabla, draw=primario, fill=primario!5, below=0.5cm of h] (v) {%
+    {\sffamily\bfseries\color{primario}dim\_vendedor}\\[2pt]
+    vendedor\_id (PK)\\ departamento, puesto\\ salario\_mensual\\ depto\_ventas};
+  \draw[rel] (h) -- (c);
+  \draw[rel] (h) -- (p);
+  \draw[rel] (h) -- (f);
+  \draw[rel] (h) -- (t);
+  \draw[rel] (h) -- (v);
+\end{tikzpicture}
+\caption{Modelo en estrella de TechRetail: una tabla de hechos (naranja) y
+cinco dimensiones (azul).}
+\label{fig:m09-estrella}
+\end{figure}
+
+\subsection{Cargar: guardar el modelo}
+
+El resultado de la Fase~1 se guarda en dos formatos. Los archivos
+\termino{RDS} conservan los tipos de R (fechas, horas, factores) y son la
+entrada de las fases siguientes y del tablero. La base \termino{SQLite}
+permite que otras personas o herramientas (Power BI, Excel, Python) consulten
+los mismos datos con SQL.
+
+\begin{rcode}
+# ---- RDS: una lista con todas las tablas del modelo ----
+modelo <- list(hechos_ventas = hechos_ventas,
+               dim_cliente   = dim_cliente,
+               dim_producto  = dim_producto,
+               dim_tienda    = dim_tienda,
+               dim_vendedor  = dim_vendedor,
+               dim_fecha     = dim_fecha)
+saveRDS(modelo, "resultados/modelo_techretail.rds")
+
+# ---- SQLite: fechas y horas como texto para no perder el formato ----
+con <- dbConnect(RSQLite::SQLite(), "datos/techretail.sqlite")
+walk2(modelo, names(modelo), function(tabla, nombre) {
+  tabla <- tabla %>%
+    mutate(across(where(is.Date), as.character),
+           across(where(hms::is_hms), as.character),
+           across(where(is.factor), as.character))
+  dbWriteTable(con, nombre, tabla, overwrite = TRUE)
+})
+dbListTables(con)
+
+# Comprobación con SQL: ventas por zona directamente en la base
+dbGetQuery(con, "
+  SELECT t.zona, COUNT(*) AS transacciones,
+         ROUND(SUM(h.total), 0) AS ventas
+  FROM hechos_ventas h
+  JOIN dim_tienda t ON h.tienda_id = t.tienda_id
+  GROUP BY t.zona
+  ORDER BY ventas DESC")
+dbDisconnect(con)
+\end{rcode}
+
+\begin{rsalida}
+[1] "dim_cliente"   "dim_fecha"     "dim_producto"  "dim_tienda"   
+[5] "dim_vendedor"  "hechos_ventas"
+    zona transacciones ventas
+1  Norte           399 388941
+2 Centro           290 275878
+3  Oeste           109 105216
+4    Sur           108 101538
+5   Este            94  88420
+\end{rsalida}
+
+SQLite guarda las fechas como números si no las conviertes, por eso las
+pasamos a texto antes de escribir (Módulo~\ref{cap:bases-datos}). La consulta
+de comprobación es una buena costumbre: demuestra que la base quedó bien
+cargada y te da el primer resultado de negocio, la zona Norte (4 sucursales)
+concentra la mayor parte de las ventas.
+
+\begin{hazlotu}
+Agrega a \codigo{dim\_tienda} una columna \codigo{region} que agrupe las
+ciudades en ``Centro'' (CDMX, Puebla, Querétaro) y ``Norte-Occidente''
+(Guadalajara, Monterrey, Tijuana), vuelve a guardar el RDS y escribe en SQL
+la consulta de ventas por región.
+\end{hazlotu}
+
+% ============================================================================
+\section{Fase 2: KPIs y análisis exploratorio}
+\label{sec:m09-kpis}
+% ============================================================================
+
+Con el modelo listo, respondemos las preguntas descriptivas. La regla de esta
+fase es simple: \textbf{cada tabla o gráfica termina en una frase de negocio
+con números}. Las técnicas de agrupación son las del
+Módulo~\ref{cap:manipulacion}; las gráficas siguen los principios del
+Módulo~\ref{cap:visualizacion}, y las pruebas estadísticas, los del
+Módulo~\ref{cap:eda}.
+
+Primero armamos una \termino{vista analítica}: la tabla de hechos con los
+atributos de las dimensiones que vamos a usar. Es el equivalente a una
+``tabla plana'' de Excel, pero construida desde el modelo, así que todos los
+análisis parten de la misma fuente.
+
+\begin{rcode}
+ventas <- hechos_ventas %>%
+  left_join(select(dim_producto, producto_id, nombre_producto,
+                   categoria), by = "producto_id") %>%
+  left_join(select(dim_tienda, tienda_id, nombre_tienda, zona, tipo,
+                   tamano_m2), by = "tienda_id") %>%
+  left_join(select(dim_cliente, cliente_id, es_premium),
+            by = "cliente_id") %>%
+  left_join(select(dim_fecha, fecha, mes, dia_semana), by = "fecha")
+
+stopifnot(nrow(ventas) == nrow(hechos_ventas))   # conciliación
+\end{rcode}
+
+\subsection{KPIs globales}
+\label{sec:m09-kpis-globales}
+
+Un \termino{KPI} (indicador clave de desempeño) es una métrica que la
+dirección sigue para saber si va bien. Calcula los globales de 2023 y
+preséntalos ya formateados, como aparecerían en la primera diapositiva.
+
+\begin{rcode}
+kpis <- ventas %>%
+  summarise(ventas_totales  = sum(total),
+            transacciones   = n(),
+            ticket_promedio = mean(total),
+            unidades        = sum(cantidad),
+            clientes        = n_distinct(cliente_id),
+            margen          = sum(margen_estimado))
+
+tabla_kpis <- tibble(
+  kpi = c("Ventas totales", "Transacciones", "Ticket promedio",
+          "Unidades vendidas", "Unidades por transacción",
+          "Clientes activos", "Base de clientes activa",
+          "Venta anual por cliente activo", "Margen bruto estimado",
+          "Margen estimado (%)"),
+  valor = c(pesos(kpis$ventas_totales),
+            comma(kpis$transacciones),
+            dollar(kpis$ticket_promedio, accuracy = 0.01),
+            comma(kpis$unidades),
+            number(kpis$unidades / kpis$transacciones, accuracy = 0.01),
+            comma(kpis$clientes),
+            percent(kpis$clientes / nrow(dim_cliente), accuracy = 0.1),
+            pesos(kpis$ventas_totales / kpis$clientes),
+            pesos(kpis$margen),
+            percent(kpis$margen / kpis$ventas_totales, accuracy = 0.1))
+)
+tabla_kpis
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 10 x 2
+   kpi                            valor   
+   <chr>                          <chr>   
+ 1 Ventas totales                 $959,993
+ 2 Transacciones                  1,000   
+ 3 Ticket promedio                $959.99 
+ 4 Unidades vendidas              2,969   
+ 5 Unidades por transacción       2.97    
+ 6 Clientes activos               198     
+ 7 Base de clientes activa        99.0%   
+ 8 Venta anual por cliente activo $4,848  
+ 9 Margen bruto estimado          $444,637
+10 Margen estimado (%)            46.3%   
+\end{rsalida}
+
+\textbf{Hallazgo:} en 2023 TechRetail vendió \$959,993 en 1,000
+transacciones, con un ticket promedio de \$959.99 y casi 3 unidades por
+compra. 198 de los 200 clientes registrados compraron al menos una vez
+(99\%), y cada cliente activo dejó en promedio \$4,848 en el año. El margen
+bruto estimado es de 46.3\%, pero recuerda la auditoría: con el costo del
+catálogo en duda, ese número debe presentarse como \emph{estimado}.
+
+La Tabla~\ref{tab:m09-diccionario} es el \termino{diccionario de KPIs}: la
+definición exacta de cada indicador. Parece burocracia, pero evita la mitad
+de las discusiones de las juntas (``¿ticket promedio por transacción o por
+cliente?'').
+
+\begin{table}[H]
+\centering
+\small
+\caption{Diccionario de KPIs del proyecto.}
+\label{tab:m09-diccionario}
+\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\toprule
+KPI & Definición & Fuente \\
+\midrule
+Ventas totales & Suma de \codigo{total} (precio cobrado $\times$ cantidad) & hechos \\
+Ticket promedio & Ventas totales / número de transacciones & hechos \\
+Clientes activos & Clientes distintos con al menos una compra en el periodo & hechos \\
+Base activa & Clientes activos / clientes registrados & hechos + dim\_cliente \\
+Margen estimado & Ventas $-$ cantidad $\times$ costo unitario del catálogo & hechos + dim\_producto \\
+Crecimiento mensual & Ventas del mes / ventas del mes anterior $-$ 1 & hechos + dim\_fecha \\
+Ventas por m\textsuperscript{2} & Ventas de la sucursal / \codigo{tamano\_m2} & hechos + dim\_tienda \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Evolución mensual}
+\label{sec:m09-mensual}
+
+\begin{rcode}
+meses_es <- c("ene", "feb", "mar", "abr", "may", "jun",
+              "jul", "ago", "sep", "oct", "nov", "dic")
+
+ventas_mes <- ventas %>%
+  group_by(mes) %>%
+  summarise(ventas = sum(total), transacciones = n(),
+            ticket = mean(total), .groups = "drop") %>%
+  mutate(crecimiento = ventas / lag(ventas) - 1,          # vs mes previo
+         nombre_mes  = factor(meses_es[mes], levels = meses_es))
+
+ventas_mes %>%
+  transmute(nombre_mes, ventas = round(ventas), transacciones,
+            ticket = round(ticket), crecimiento = percent(crecimiento, 0.1))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 12 x 5
+   nombre_mes ventas transacciones ticket crecimiento
+   <fct>       <dbl>         <int>  <dbl> <chr>      
+ 1 ene         82560            98    842 <NA>       
+ 2 feb         65899            79    834 -20.2%     
+ 3 mar         90931            91    999 38.0%      
+ 4 abr         57038            71    803 -37.3%     
+ 5 may         93910            88   1067 64.6%      
+ 6 jun         88509            84   1054 -5.8%      
+ 7 jul         86456            83   1042 -2.3%      
+ 8 ago         78929            75   1052 -8.7%      
+ 9 sep         68856            86    801 -12.8%     
+10 oct         70004            74    946 1.7%       
+11 nov         80507            80   1006 15.0%      
+12 dic         96394            91   1059 19.7%      
+\end{rsalida}
+
+\begin{rcode}
+promedio_mes <- mean(ventas_mes$ventas)
+extremos <- ventas_mes %>% filter(ventas %in% range(ventas))
+
+ggplot(ventas_mes, aes(x = nombre_mes, y = ventas, group = 1)) +
+  geom_hline(yintercept = promedio_mes, linetype = "dashed",
+             color = color_gris, linewidth = 0.6) +
+  geom_line(color = color_principal, linewidth = 0.8) +
+  geom_point(color = color_principal, size = 2) +
+  geom_point(data = extremos, color = color_resalte, size = 3) +
+  geom_text(data = extremos, aes(label = pesos(ventas)),
+            vjust = -1.1, color = color_resalte, size = 3.5) +
+  annotate("text", x = 1, y = promedio_mes, vjust = -0.6, hjust = 0.2,
+           label = "Promedio", color = "#52514e", size = 3) +
+  scale_y_continuous(labels = dollar, limits = c(0, 110000)) +
+  labs(title = "Ventas mensuales de TechRetail, 2023",
+       subtitle = "Mucha variación de un mes a otro, sin tendencia clara",
+       x = NULL, y = "Ventas") +
+  tema_libro()
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m09-ventas-mensuales}
+\caption{Ventas mensuales con el mejor y el peor mes resaltados.}
+\label{fig:m09-ventas-mensuales}
+\end{figure}
+
+\textbf{Hallazgo:} diciembre fue el mejor mes (\$96,394) y abril el peor
+(\$57,038). El crecimiento mensual oscila entre $-37.3$\% (abril) y
+$+64.6$\% (mayo): los saltos son grandes pero no forman una tendencia; la
+línea sube y baja alrededor de un promedio de \$80,000 al mes. Para la
+dirección, esto significa que \emph{no hay evidencia de crecimiento ni de
+caída en 2023} y que comparar un mes contra el anterior genera falsas
+alarmas. Es mejor comparar contra el promedio o contra el mismo mes del año
+anterior (cuando exista).
+
+\begin{advertencia}
+Con un solo año no puedes afirmar que ``diciembre es temporada alta''. Un
+diciembre fuerte en un año puede ser azar; la estacionalidad se confirma
+cuando el patrón se repite al menos dos o tres años
+(Sección~\ref{sec:m09-pronostico}).
+\end{advertencia}
+
+\subsection{Categorías: ventas contra margen}
+\label{sec:m09-categorias}
+
+\begin{rcode}
+ventas_categoria <- ventas %>%
+  group_by(categoria) %>%
+  summarise(ventas = sum(total), margen = sum(margen_estimado),
+            .groups = "drop") %>%
+  mutate(participacion = ventas / sum(ventas),
+         pct_margen    = margen / ventas) %>%
+  arrange(desc(ventas))
+
+ventas_categoria %>%
+  mutate(across(c(ventas, margen), round),
+         across(c(participacion, pct_margen), ~ percent(.x, 0.1)))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 10 x 5
+   categoria   ventas margen participacion pct_margen
+   <chr>        <dbl>  <dbl> <chr>         <chr>     
+ 1 Belleza     182143  56054 19.0%         30.8%     
+ 2 Electrónica 132672  73067 13.8%         55.1%     
+ 3 Juguetes    125093  57714 13.0%         46.1%     
+ 4 Alimentos   121543  73870 12.7%         60.8%     
+ 5 Automotriz  104085  55538 10.8%         53.4%     
+ 6 Deportes     86171  48301 9.0%          56.1%     
+ 7 Hogar        63407  13079 6.6%          20.6%     
+ 8 Mascotas     57668  35423 6.0%          61.4%     
+ 9 Libros       57162  25757 6.0%          45.1%     
+10 Ropa         30048   5835 3.1%          19.4%     
+\end{rsalida}
+
+\begin{rcode}
+ventas_categoria %>%
+  mutate(grupo = if_else(pct_margen < 0.25, "Margen estimado < 25%",
+                         "Margen estimado de 25% o más"),
+         etiqueta = if_else(pct_margen < 0.25,
+                            str_c("margen ", percent(pct_margen, 1)), "")) %>%
+  ggplot(aes(x = ventas, y = fct_reorder(categoria, ventas),
+             fill = grupo)) +
+  geom_col(width = 0.7) +
+  geom_text(aes(label = etiqueta), hjust = -0.1, size = 3.3,
+            color = color_resalte) +
+  scale_fill_manual(values = c(color_resalte, color_gris)) +
+  scale_x_continuous(labels = dollar, expand = expansion(c(0, 0.18))) +
+  labs(title = "Ventas por categoría, 2023",
+       subtitle = "Belleza lidera en ventas, pero con margen bajo",
+       x = "Ventas", y = NULL, fill = NULL) +
+  tema_libro()
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m09-categorias}
+\caption{Ventas por categoría; en naranja, las de margen estimado bajo.}
+\label{fig:m09-categorias}
+\end{figure}
+
+\textbf{Hallazgo:} Belleza es la categoría que más vende (19\% de las
+ventas), pero su margen estimado es de solo 30.8\% por dos productos con
+costo mayor al precio de catálogo. Hogar y Ropa tienen los márgenes más bajos
+(alrededor de 20\%). En el otro extremo, Mascotas y Alimentos rinden más de
+60\% de margen. \textbf{Implicación:} crecer en Belleza sin corregir costos o
+precios sería vender más para ganar proporcionalmente menos; la primera
+acción es revisar los productos con margen negativo de la auditoría.
+
+\subsection{Sucursales y zonas}
+\label{sec:m09-tiendas}
+
+\begin{rcode}
+ventas_tienda <- ventas %>%
+  group_by(nombre_tienda, zona, tipo, tamano_m2) %>%
+  summarise(ventas = sum(total), transacciones = n(),
+            ticket = mean(total), .groups = "drop") %>%
+  arrange(desc(ventas))
+
+ventas_tienda %>% mutate(across(c(ventas, ticket), round))
+
+# Por zona: total y promedio por sucursal (las zonas tienen
+# distinto número de tiendas)
+ventas_tienda %>%
+  group_by(zona) %>%
+  summarise(tiendas = n(), ventas = round(sum(ventas)),
+            ventas_por_tienda = round(mean(ventas)), .groups = "drop") %>%
+  arrange(desc(ventas_por_tienda))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 10 x 7
+   nombre_tienda    zona   tipo  tamano_m2 ventas transacciones ticket
+   <chr>            <chr>  <chr>     <dbl>  <dbl>         <int>  <dbl>
+ 1 Sucursal Outlet  Norte  Outl~       350 114377           106   1079
+ 2 Sucursal Sur     Norte  Está~       600 105305           109    966
+ 3 Sucursal Plaza A Oeste  Prin~       700 105216           109    965
+ 4 Sucursal Express Centro Expr~       300 102791           108    952
+ 5 Sucursal Premium Sur    Prem~       800 101538           108    940
+ 6 Sucursal Norte   Norte  Está~       450  89024            99    899
+ 7 Sucursal Este    Este   Está~       400  88420            94    941
+ 8 Sucursal Centro  Centro Prin~       500  88414            87   1016
+ 9 Sucursal Oeste   Centro Está~       550  84672            95    891
+10 Sucursal Plaza B Norte  Está~       480  80236            85    944
+# A tibble: 5 x 4
+  zona   tiendas ventas ventas_por_tienda
+  <chr>    <int>  <dbl>             <dbl>
+1 Norte        4 388941            388941
+2 Centro       3 275878            275878
+3 Oeste        1 105216            105216
+4 Sur          1 101538            101538
+5 Este         1  88420             88420
+\end{rsalida}
+
+\begin{rcode}
+ventas_tienda %>%
+  mutate(tienda  = str_c(nombre_tienda, " (", tamano_m2, " m²)"),
+         formato = if_else(tamano_m2 < 400, "Menos de 400 m²",
+                           "400 m² o más")) %>%
+  ggplot(aes(x = ventas, y = fct_reorder(tienda, ventas),
+             fill = formato)) +
+  geom_col(width = 0.7) +
+  scale_fill_manual(values = c("Menos de 400 m²" = color_resalte,
+                               "400 m² o más" = color_gris)) +
+  scale_x_continuous(labels = dollar, expand = expansion(c(0, 0.05))) +
+  labs(title = "Ventas por sucursal, 2023",
+       subtitle = "Las dos tiendas más chicas están entre las 4 que más venden",
+       x = "Ventas", y = NULL, fill = "Tamaño") +
+  tema_libro()
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m09-tiendas}
+\caption{Ventas por sucursal; en naranja, los formatos de menos de
+400~m\textsuperscript{2}.}
+\label{fig:m09-tiendas}
+\end{figure}
+
+\textbf{Hallazgo:} la sucursal que más vende es la Outlet de Tijuana
+(\$114,377), una de las más pequeñas (350~m\textsuperscript{2}), y la
+Express de Querétaro, la más chica de todas, es cuarta. La Premium, con
+800~m\textsuperscript{2} y 40 empleados, queda en quinto lugar. Entre la
+mejor y la peor sucursal (Plaza B, \$80,236) hay una diferencia de 43\%. Por
+zona, la Norte vende más en total (\$388,941) solo porque tiene 4 tiendas;
+por sucursal, la zona Oeste (una tienda) es la más alta. \textbf{Implicación:}
+el tamaño no explica las ventas; la pregunta correcta es la productividad por
+m\textsuperscript{2} y por empleado (Reto~\ref{ej:p-2}), clave si la
+dirección evalúa abrir más formatos chicos.
+
+\subsection{Método de pago}
+\label{sec:m09-pago}
+
+\begin{rcode}
+ventas %>%
+  group_by(metodo_pago) %>%
+  summarise(transacciones = n(), ventas = sum(total),
+            ticket = mean(total), .groups = "drop") %>%
+  mutate(pct_ventas = percent(ventas / sum(ventas), 0.1),
+         across(c(ventas, ticket), round)) %>%
+  arrange(desc(ventas))
+
+# ¿El ticket difiere según el método de pago? (Módulo 4)
+kruskal.test(total ~ metodo_pago, data = ventas)$p.value
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 4 x 5
+  metodo_pago     transacciones ventas ticket pct_ventas
+  <chr>                   <int>  <dbl>  <dbl> <chr>     
+1 Tarjeta Crédito           350 351171   1003 36.6%     
+2 Efectivo                  315 303735    964 31.6%     
+3 Tarjeta Débito            233 220855    948 23.0%     
+4 Transferencia             102  84232    826 8.8%      
+[1] 0.2027074
+\end{rsalida}
+
+\textbf{Hallazgo:} la tarjeta de crédito es el método más usado (350
+transacciones, 36.6\% de las ventas) y tiene el ticket más alto (\$1,003);
+la transferencia es el menos usado (8.8\%) y su ticket es el más bajo
+(\$826). Sin embargo, la prueba de Kruskal-Wallis da un valor~$p$ de
+P_KRUSKAL: la diferencia de tickets \emph{no es estadísticamente
+significativa}. \textbf{Implicación:} no justifica, por sí sola, promociones
+para empujar el pago con crédito; sí vale la pena revisar las comisiones
+bancarias, porque 61\% de las ventas se paga con tarjeta.
+
+\subsection{Días y horas}
+\label{sec:m09-dia-hora}
+
+\begin{rcode}
+# Ventas por día de la semana (dia_semana ya es un factor ordenado)
+ventas %>%
+  group_by(dia_semana) %>%
+  summarise(transacciones = n(), ventas = round(sum(total)),
+            .groups = "drop")
+
+# Mapa de calor día x hora
+calor <- ventas %>%
+  count(dia_semana, hora_dia, wt = total, name = "ventas")
+
+ggplot(calor, aes(x = factor(hora_dia), y = fct_rev(dia_semana),
+                  fill = ventas)) +
+  geom_tile(color = "white", linewidth = 0.6) +
+  scale_fill_gradient(low = "#e3eefb", high = "#0f4c92",
+                      labels = dollar) +
+  labs(title = "Ventas por día de la semana y hora, 2023",
+       subtitle = "Sin horas pico claras: las celdas oscuras están dispersas",
+       x = "Hora del día", y = NULL, fill = "Ventas") +
+  tema_libro() +
+  theme(panel.grid.major = element_blank(),
+        legend.key.width = unit(1.5, "cm"))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 7 x 3
+  dia_semana transacciones ventas
+  <fct>              <int>  <dbl>
+1 lunes                136 128878
+2 martes               129 119364
+3 miércoles            155 141329
+4 jueves               146 145280
+5 viernes              158 161266
+6 sábado               130 115172
+7 domingo              146 148703
+\end{rsalida}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m09-dia-hora}
+\caption{Mapa de calor de ventas por día y hora (escala secuencial de un
+solo tono).}
+\label{fig:m09-dia-hora}
+\end{figure}
+
+\textbf{Hallazgo:} el viernes es el día con más ventas (\$161,266) y,
+contra lo que dicta la intuición del retail, el sábado es el de menos
+(\$115,172). El mapa de calor no muestra una franja horaria dominante: las
+celdas más oscuras aparecen dispersas. Ojo con la escala: 1,000
+transacciones repartidas en 91 celdas (7 días $\times$ 13 horas) son unas 11
+por celda, así que una sola venta grande pinta una celda de oscuro.
+\textbf{Implicación:} antes de mover turnos de personal con base en este
+mapa, conviene acumular más meses de datos; con estos números no hay una
+hora pico que justifique reforzar el personal.
+
+\subsection{Pareto de productos}
+\label{sec:m09-pareto}
+
+El \termino{principio de Pareto} (80/20) dice que en muchos negocios cerca
+del 20\% de los productos genera el 80\% de las ventas. ¿Se cumple en
+TechRetail?
+
+\begin{rcode}
+pareto <- ventas %>%
+  group_by(producto_id, nombre_producto, categoria) %>%
+  summarise(ventas = sum(total), .groups = "drop") %>%
+  arrange(desc(ventas)) %>%
+  mutate(rango         = row_number(),
+         pct_productos = rango / n(),
+         pct_acumulado = cumsum(ventas) / sum(ventas))
+
+pareto %>%
+  summarise(
+    ventas_top20pct  = percent(max(pct_acumulado[pct_productos <= 0.2]),
+                               0.1),
+    productos_al_80  = min(rango[pct_acumulado >= 0.8]),
+    mayor_vs_menor   = round(max(ventas) / min(ventas), 1))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 1 x 3
+  ventas_top20pct productos_al_80 mayor_vs_menor
+  <chr>                     <int>          <dbl>
+1 26.4%                        37            3.3
+\end{rsalida}
+
+\begin{rcode}
+ggplot(pareto, aes(x = pct_productos, y = pct_acumulado)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed",
+              color = color_gris, linewidth = 0.6) +
+  geom_hline(yintercept = 0.8, linetype = "dotted", color = color_gris) +
+  geom_vline(xintercept = 0.2, linetype = "dotted", color = color_gris) +
+  geom_line(color = color_principal, linewidth = 0.8) +
+  annotate("point", x = 0.2, y = 0.264, color = color_resalte, size = 3) +
+  annotate("text", x = 0.22, y = 0.23, hjust = 0, size = 3.4,
+           color = color_resalte,
+           label = "El 20% de los productos genera 26% de las ventas") +
+  annotate("text", x = 0.62, y = 0.52, hjust = 0, size = 3,
+           color = "#52514e", label = "Reparto perfectamente igual") +
+  scale_x_continuous(labels = percent) +
+  scale_y_continuous(labels = percent) +
+  labs(title = "Curva de Pareto de productos, 2023",
+       subtitle = "Las ventas están repartidas: no hay un grupo de productos estrella",
+       x = "Productos (ordenados de mayor a menor venta)",
+       y = "Ventas acumuladas") +
+  tema_libro()
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m09-pareto}
+\caption{Curva de Pareto: la curva azul está cerca de la diagonal de reparto
+igual.}
+\label{fig:m09-pareto}
+\end{figure}
+
+\textbf{Hallazgo:} los 10 productos más vendidos (20\% del catálogo) generan
+solo 26.4\% de las ventas, y se necesitan 37 productos (74\% del catálogo)
+para llegar al 80\%. El producto que más vende factura 3.3 veces lo que el
+que menos vende. \textbf{Implicación:} TechRetail \emph{no} depende de unos
+cuantos productos estrella; una estrategia de ``concentrar el inventario en
+el top 10'' dejaría fuera casi tres cuartas partes de las ventas. Es un
+resultado ``negativo'' igual de valioso que uno positivo: descarta una
+estrategia.
+
+\subsection{Desempeño de vendedores}
+\label{sec:m09-vendedores}
+
+\begin{rcode}
+ventas_vendedor <- ventas %>%
+  group_by(vendedor_id) %>%
+  summarise(ventas = sum(total), transacciones = n(),
+            .groups = "drop") %>%
+  left_join(dim_vendedor, by = "vendedor_id") %>%
+  arrange(desc(ventas))
+
+ventas_vendedor %>%
+  select(vendedor_id, departamento, puesto, ventas, transacciones,
+         salario_mensual) %>%
+  mutate(ventas = round(ventas)) %>%
+  slice(c(1:3, 23:25))           # los 3 mejores y los 3 últimos
+
+# ¿Venden más quienes ganan más? (correlación, Módulo 4)
+prueba_salario <- cor.test(ventas_vendedor$ventas,
+                           ventas_vendedor$salario_mensual)
+c(r = round(unname(prueba_salario$estimate), 3),
+  p_valor = round(prueba_salario$p.value, 3))
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 6 x 6
+  vendedor_id departamento puesto ventas transacciones salario_mensual
+        <dbl> <chr>        <chr>   <dbl>         <int>           <dbl>
+1           7 RRHH         Coord~  50470            45          14488.
+2           2 Atención al~ Asist~  50168            39          15293.
+3          11 Atención al~ Coord~  50017            48          30743.
+4          14 Ventas       Geren~  26430            33          38782.
+5           1 Marketing    Anali~  24281            25          17291.
+6          10 IT           Espec~  21678            24          11205.
+      r p_valor 
+ -0.138   0.510 
+\end{rsalida}
+
+\begin{rcode}
+ventas_vendedor %>%
+  mutate(grupo = if_else(depto_ventas, "Depto. de Ventas",
+                         "Otro departamento")) %>%
+  ggplot(aes(x = salario_mensual, y = ventas, color = grupo)) +
+  geom_point(size = 2.8) +
+  scale_color_manual(values = c("Depto. de Ventas" = color_resalte,
+                                "Otro departamento" = color_gris)) +
+  scale_x_continuous(labels = dollar) +
+  scale_y_continuous(labels = dollar) +
+  labs(title = "Ventas anuales contra salario mensual por vendedor",
+       subtitle = "Sin relación (r = -0.14, p = 0.51); dato de RR. HH. por validar",
+       x = "Salario mensual", y = "Ventas 2023", color = NULL) +
+  tema_libro()
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m09-vendedores}
+\caption{Ventas contra salario de los 25 vendedores.}
+\label{fig:m09-vendedores}
+\end{figure}
+
+\textbf{Hallazgo:} el mejor vendedor (id 7) vendió \$50,470 y el último
+(id 10) \$21,678, 2.3 veces menos. La correlación entre ventas y salario es
+prácticamente nula ($r = -0.14$, $p = 0.51$): ganar más no se asocia con
+vender más. \textbf{Implicación y cautela:} esto sugiere revisar el esquema
+de compensación (por ejemplo, comisiones sobre venta), pero recuerda que la
+auditoría mostró que 21 de los 25 ``vendedores'' figuran en otros
+departamentos. Antes de presentar este hallazgo, valida la llave con Recursos
+Humanos; si la llave está mal, la gráfica compara ventas de una persona con
+el salario de otra.
+
+\subsection{Clientes premium contra no premium}
+\label{sec:m09-premium}
+
+El programa premium tiene un costo (beneficios, descuentos). Si funciona,
+los clientes premium deberían gastar más. Es una pregunta de
+\termino{prueba de hipótesis} (Módulo~\ref{cap:eda}).
+
+\begin{rcode}
+gasto_cliente <- ventas %>%
+  group_by(cliente_id, es_premium) %>%
+  summarise(gasto = sum(total), compras = n(), .groups = "drop") %>%
+  mutate(grupo = if_else(es_premium, "Premium", "No premium"))
+
+gasto_cliente %>%
+  group_by(grupo) %>%
+  summarise(clientes = n(), gasto_promedio = round(mean(gasto)),
+            gasto_mediano = round(median(gasto)),
+            compras_promedio = round(mean(compras), 2), .groups = "drop")
+
+# Prueba t de Welch y, como respaldo, Wilcoxon (no paramétrica)
+t.test(gasto ~ grupo, data = gasto_cliente)
+wilcox.test(gasto ~ grupo, data = gasto_cliente)$p.value
+\end{rcode}
+
+\begin{rsalida}
+# A tibble: 2 x 5
+  grupo      clientes gasto_promedio gasto_mediano compras_promedio
+  <chr>         <int>          <dbl>         <dbl>            <dbl>
+1 No premium      126           4929          4525             5.18
+2 Premium          72           4708          4517             4.82
+
+	Welch Two Sample t-test
+
+data:  gasto by grupo
+t = 0.56874, df = 160.59, p-value = 0.5703
+alternative hypothesis: true difference in means between group No premium and group Premium is not equal to 0
+95 percent confidence interval:
+ -544.5031  984.9854
+sample estimates:
+mean in group No premium    mean in group Premium 
+                4928.536                 4708.294 
+
+[1] 0.8882566
+\end{rsalida}
+
+\begin{rcode}
+ggplot(gasto_cliente, aes(x = grupo, y = gasto)) +
+  geom_boxplot(fill = color_principal, alpha = 0.25, width = 0.5,
+               color = color_principal, outlier.shape = NA) +
+  geom_jitter(width = 0.15, alpha = 0.5, size = 1.5,
+              color = color_principal) +
+  stat_summary(fun = mean, geom = "point", shape = 18, size = 4,
+               color = color_resalte) +
+  scale_y_continuous(labels = dollar) +
+  labs(title = "Gasto anual por cliente: premium contra no premium",
+       subtitle = "Distribuciones casi idénticas (rombo naranja = promedio)",
+       x = NULL, y = "Gasto en 2023") +
+  tema_libro()
+\end{rcode}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{m09-premium}
+\caption{Gasto anual por cliente según el programa premium.}
+\label{fig:m09-premium}
+\end{figure}
+
+\textbf{Hallazgo:} los clientes premium gastaron en promedio GASTO_PREM
+contra GASTO_NOPREM de los no premium, y compraron con la misma frecuencia.
+La prueba $t$ da $p = $ P_T y la de Wilcoxon $p = $ P_W: \emph{no hay
+diferencia significativa}. \textbf{Implicación:} el programa premium, tal
+como está, no se traduce en más gasto. Es una recomendación directa para la
+dirección: rediseñar los beneficios (atarlos a metas de compra) o medir si
+el programa aporta otra cosa (por ejemplo, menor abandono) antes de seguir
+financiándolo.
+
+\begin{hazlotu}
+Repite la comparación premium contra no premium, pero con el
+\emph{ticket promedio} por transacción en lugar del gasto anual. ¿Cambia la
+conclusión? Después compara el gasto por \codigo{segmento\_edad} con
+\codigo{kruskal.test()}.
+\end{hazlotu}
+
+%%FIN_PARTE_2
