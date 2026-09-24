@@ -4,6 +4,7 @@
 
 \begin{solucion}{m4-1}
 Cargamos los datos y calculamos cada medida sobre \codigo{precio\_venta}.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -35,10 +36,11 @@ $-0.08$). El coeficiente de variación es 0.54, menor que el del ticket
 (0.79): el precio varía menos en términos relativos porque el ticket
 multiplica dos fuentes de variación (precio y cantidad). El 80\% central de
 los precios está entre \$77 y \$545.
-\end{solucion}
+
 
 \begin{solucion}{m4-2}
 Definimos la función \codigo{moda()} y luego armamos la tabla por día.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -82,9 +84,12 @@ domingo es segundo en ventas y solo tercero en transacciones; el orden no
 coincide exactamente, porque el ticket promedio cambia de un día a
 otro. Para programar personal importa el número de transacciones; para
 metas de venta, el monto.
-\end{solucion}
+
 
 \begin{solucion}{m4-3}
+Este es el código completo, con su salida y la interpretación.
+\end{solucion}
+
 \begin{rcode}
 library(tidyverse)
 empleados <- read_csv("datasets/empleados.csv", show_col_types = FALSE)
@@ -120,9 +125,12 @@ conviene la mediana. En IT y Operaciones pasa lo contrario (media menor que
 la mediana): hay salarios bajos que la jalan hacia abajo. Nota que algunos
 departamentos tienen muy pocos empleados (9 en Finanzas e IT), así que sus
 medidas son poco estables.
-\end{solucion}
+
 
 \begin{solucion}{m4-4}
+Este es el código completo, con su salida y la interpretación.
+\end{solucion}
+
 \begin{rcode}
 library(tidyverse)
 ventas <- read_csv("datasets/ventas_retail.csv", show_col_types = FALSE)
@@ -168,9 +176,12 @@ del IQR) y su $z$ apenas supera 3. Las tres son ventas de 10 unidades a precios 
 sin descuento: son ventas grandes \emph{legítimas}, no
 errores, así que se conservan. La asimetría de 0.85 confirma una cola
 moderada a la derecha, como la del ticket de \archivo{transacciones.csv}.
-\end{solucion}
+
 
 \begin{solucion}{m4-5}
+Este es el código completo, con su salida y la interpretación.
+\end{solucion}
+
 \begin{rcode}
 library(tidyverse)
 library(scales)
@@ -211,11 +222,12 @@ tercero creció 11.4\% y el cuarto bajó 1.4\%. En el año, las ventas quedaron
 1.2\% por debajo de
 la meta anual de \$520,000: la recuperación del segundo semestre no alcanzó
 para compensar el primero.
-\end{solucion}
+
 
 \begin{solucion}{m4-6}
 $H_0$: el número promedio de compras por cliente es igual en premium y no
 premium. $H_1$: es distinto. Usamos $\alpha = 0.05$.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -263,9 +275,12 @@ no hay evidencia de que los clientes premium compren con más frecuencia ni
 gasten más por ticket que los demás; el programa premium no está cambiando
 el comportamiento de compra}. Solo se incluyen los 198 clientes con al menos
 una compra.
-\end{solucion}
+
 
 \begin{solucion}{m4-7}
+Este es el código completo, con su salida y la interpretación.
+\end{solucion}
+
 \begin{rcode}
 library(tidyverse)
 transacciones <- read_csv("datasets/transacciones.csv",
@@ -315,9 +330,12 @@ Los ingresos están más concentrados en clientes que en productos (donde el
 20\% superior aportaba el 26.4\%), pero siguen lejos de la regla 80/20.
 Para la empresa significa que un programa de lealtad no puede enfocarse en
 unos cuantos clientes: la base de clientes valiosos es amplia.
-\end{solucion}
+
 
 \begin{solucion}{m4-8}
+Este es el código completo, con su salida y la interpretación.
+\end{solucion}
+
 \begin{rcode}
 # 1. Normal: ventas semanales
 pnorm(20000, mean = 18445, sd = 4591) -
@@ -351,10 +369,11 @@ dbinom(0, size = 150, prob = 0.03)            # P(ninguna)
 \end{enumerate}
 Observa los detalles de ``más de'' y ``o más'': $P(X > 8) = 1 - P(X \leq 8)$,
 pero $P(X \geq 8) = 1 - P(X \leq 7)$.
-\end{solucion}
+
 
 \begin{solucion}{m4-9}
 \textbf{1. Prueba A/B.} $H_0$: las dos tasas de conversión son iguales.
+\end{solucion}
 
 \begin{rcode}
 compras <- c(A = 180, B = 225)
@@ -407,9 +426,12 @@ sentido} aplicar \codigo{TukeyHSD()} buscando qué par es distinto: sería
 buscar diferencias donde la prueba global dice que no las hay (una forma de
 p-hacking). Además, los datos de salarios son simulados al azar, así que el
 resultado es el esperado.
-\end{solucion}
+
 
 \begin{solucion}{m4-10}
+Este es el código completo, con su salida y la interpretación.
+\end{solucion}
+
 \begin{rcode}
 library(tidyverse)
 set.seed(123)
@@ -489,4 +511,4 @@ Los residuos están centrados en cero (mediana cercana a 0), son más o menos
 simétricos y no guardan relación con los valores ajustados. En la gráfica
 deberías ver una nube sin patrón: el modelo lineal es adecuado dentro del
 rango de precios observado.
-\end{solucion}
+

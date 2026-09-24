@@ -1,21 +1,18 @@
-% ============================================================================
-% Soluciones del Módulo 5 - Bases de datos, SQL y ETL desde R
-% ============================================================================
+# ==========================================================================
+# sol-05.tex
+# Código del libro 'Business Intelligence con R y RStudio'
+# Generado automáticamente a partir de capitulos/sol-05.tex
+# Ejecuta este script con el directorio de trabajo en la carpeta
+# del curso (la que contiene datasets/).
+# ==========================================================================
 
-\begin{solucion}{m5-1}
-Creamos la base en memoria, cargamos el CSV con \codigo{dbWriteTable()} y
-exploramos. Primero los paquetes (en todas las soluciones de este módulo
-usamos los mismos):
-\end{solucion}
-
-\begin{rcode}
+# ---- Bloque 1 --------------------------------------------------------
 library(tidyverse)
 library(DBI)
 library(RSQLite)
 library(dbplyr)
-\end{rcode}
 
-\begin{rcode}
+# ---- Bloque 2 --------------------------------------------------------
 con <- dbConnect(RSQLite::SQLite(), ":memory:")
 
 productos <- read_csv("datasets/productos.csv", show_col_types = FALSE)
@@ -34,39 +31,8 @@ dbGetQuery(con, "
 ")
 
 dbDisconnect(con)
-\end{rcode}
 
-\begin{rsalida}
-[1] "productos"
- [1] "producto_id"     "nombre_producto" "categoria"      
- [4] "subcategoria"    "marca"           "precio_catalogo"
- [7] "costo"           "stock_actual"    "stock_minimo"   
-[10] "proveedor"       "activo"          "margen_pct"     
-[13] "estado_stock"   
-     categoria productos precio_promedio
-1      Belleza         9          474.54
-2  Electrónica         7          413.72
-3    Alimentos         6          354.92
-4     Juguetes         6          425.89
-5   Automotriz         5          365.35
-6     Deportes         4          452.79
-7       Libros         4          500.17
-8     Mascotas         4          388.89
-9        Hogar         3          361.51
-10        Ropa         2          357.82
-\end{rsalida}
-
-La tabla tiene 13 columnas. Belleza es la categoría con más productos (9) y
-Ropa la que menos (2). Libros tiene el precio de catálogo promedio más
-alto (\$500.17), aunque con solo 4 productos.
-
-
-\begin{solucion}{m5-2}
-El filtro combina dos condiciones con \codigo{AND}; el faltante es una
-columna calculada con alias, que podemos usar en el \codigo{ORDER BY}.
-\end{solucion}
-
-\begin{rcode}
+# ---- Bloque 3 --------------------------------------------------------
 con <- dbConnect(RSQLite::SQLite(), ":memory:")
 dbWriteTable(con, "productos",
              read_csv("datasets/productos.csv", show_col_types = FALSE))
@@ -90,32 +56,8 @@ dbGetQuery(con, "
   ORDER BY productos_en_alerta DESC
 ")
 dbDisconnect(con)
-\end{rcode}
 
-\begin{rsalida}
-  nombre_producto  categoria   proveedor stock_actual stock_minimo
-1     Producto 03 Automotriz Proveedor 3           22           26
-2     Producto 33  Alimentos Proveedor 1           42           45
-3     Producto 06   Juguetes Proveedor 1           36           38
-  faltante
-1        4
-2        3
-3        2
-    proveedor productos_en_alerta
-1 Proveedor 1                   2
-2 Proveedor 3                   1
-\end{rsalida}
-
-Solo tres productos activos están por debajo de su mínimo, todos por pocas
-piezas (el Producto 03 es el más urgente, con 4 faltantes). El Proveedor 1
-surte dos de ellos: es con quien conviene hablar primero.
-
-
-\begin{solucion}{m5-3}
-\codigo{HAVING} filtra los grupos después de agregarlos.
-\end{solucion}
-
-\begin{rcode}
+# ---- Bloque 4 --------------------------------------------------------
 con <- dbConnect(RSQLite::SQLite(), ":memory:")
 dbWriteTable(con, "empleados",
              read_csv("datasets/empleados.csv", show_col_types = FALSE) %>%
@@ -132,29 +74,8 @@ dbGetQuery(con, "
   ORDER BY salario_promedio DESC
 ")
 dbDisconnect(con)
-\end{rcode}
 
-\begin{rsalida}
-         departamento empleados salario_promedio salario_maximo
-1              Ventas        16         29031.76       43777.92
-2 Atención al Cliente        29         27918.75       44438.77
-3                RRHH        15         22955.96       42797.09
-\end{rsalida}
-
-Solo tres departamentos tienen 15 empleados o más. Ventas paga el salario
-promedio más alto (\$29\,031.76) y Atención al Cliente es el departamento
-más grande (29 personas).
-
-
-\begin{solucion}{m5-4}
-Reutilizamos la idea de \codigo{leer\_para\_bd()} del capítulo para
-guardar las fechas como texto ISO. En la parte (b), la condición de
-diciembre va \emph{dentro} del \codigo{ON} del \codigo{LEFT JOIN}: si la
-pusiéramos en el \codigo{WHERE}, eliminaríamos precisamente los productos
-sin pareja que buscamos.
-\end{solucion}
-
-\begin{rcode}
+# ---- Bloque 5 --------------------------------------------------------
 con <- dbConnect(RSQLite::SQLite(), ":memory:")
 leer_para_bd <- function(archivo) {
   read_csv(file.path("datasets", archivo), show_col_types = FALSE) %>%
@@ -188,44 +109,8 @@ dbGetQuery(con, "
   ORDER BY p.producto_id
 ")
 dbDisconnect(con)
-\end{rcode}
 
-\begin{rsalida}
-       ciudad tickets ventas ticket_promedio
-1        CDMX     398 383588          963.79
-2 Guadalajara     184 169260          919.89
-3     Tijuana     106 114377         1079.03
-4   Monterrey     109 105305          966.10
-5   Querétaro     108 102791          951.77
-6      Puebla      95  84672          891.29
-   producto_id nombre_producto   categoria
-1            5     Producto 05   Alimentos
-2           10     Producto 10       Hogar
-3           13     Producto 13        Ropa
-4           18     Producto 18      Libros
-5           23     Producto 23     Belleza
-6           25     Producto 25    Juguetes
-7           38     Producto 38   Alimentos
-8           40     Producto 40 Electrónica
-9           43     Producto 43  Automotriz
-10          45     Producto 45 Electrónica
-11          49     Producto 49     Belleza
-\end{rsalida}
-
-CDMX concentra las ventas (\$383\,588) porque ahí están cuatro de las diez
-tiendas, pero Tijuana, con una sola tienda (el Outlet), tiene el ticket
-promedio más alto (\$1\,079.03). En diciembre, 11 de los 50 productos no
-tuvieron ninguna venta; si además tienen mucho inventario, son candidatos a
-promoción.
-
-
-\begin{solucion}{m5-5}
-La tabla \codigo{ventas\_mal} guarda el número de días desde 1970 y
-\codigo{strftime()} lo malinterpreta; la tabla \codigo{ventas} guarda
-texto ISO y todo funciona.
-\end{solucion}
-
-\begin{rcode}
+# ---- Bloque 6 --------------------------------------------------------
 con <- dbConnect(RSQLite::SQLite(), ":memory:")
 ventas_r <- read_csv("datasets/ventas_retail.csv", show_col_types = FALSE)
 
@@ -250,36 +135,8 @@ dbGetQuery(con, "
   ORDER BY trimestre
 ")
 dbDisconnect(con)
-\end{rcode}
 
-\begin{rsalida}
-  fecha tipo mes
-1 19358 real  11
-2 19359 real  11
-       fecha tipo mes
-1 2023-01-01 text  01
-2 2023-01-02 text  01
-  trimestre   ventas descuento_prom dias_con_descuento
-1         1 126273.9           4.33                 45
-2         2 120716.9           4.51                 38
-3         3 134427.4           5.43                 49
-4         4 132498.3           4.84                 45
-\end{rsalida}
-
-En la tabla mal cargada, la fecha es un número (19358 son los días desde
-1970 del 1 de enero de 2023) y \codigo{strftime()} devuelve el mes
-equivocado (\codigo{11}) sin marcar error. En la tabla correcta, la fecha es
-texto y el mes es \codigo{01}. El tercer trimestre fue el de más ventas
-(\$134\,427.4) y también el de mayor descuento promedio (5.43\%).
-
-
-\begin{solucion}{m5-6}
-Los marcadores \codigo{:cliente}, \codigo{:desde} y \codigo{:hasta} se
-llenan con la lista \codigo{params}. El valor nunca se interpreta como
-SQL.
-\end{solucion}
-
-\begin{rcode}
+# ---- Bloque 7 --------------------------------------------------------
 con <- dbConnect(RSQLite::SQLite(), ":memory:")
 dbWriteTable(con, "transacciones",
              read_csv("datasets/transacciones.csv",
@@ -309,32 +166,8 @@ ventas_cliente(con, "5 OR 1=1", "2023-01-01", "2023-12-31")
 dbGetQuery(con, paste0("SELECT COUNT(*) AS compras FROM transacciones ",
                        "WHERE cliente_id = ", "5 OR 1=1"))
 dbDisconnect(con)
-\end{rcode}
 
-\begin{rsalida}
-  compras   gasto
-1       4 4560.68
-  compras    gasto
-1       9 10119.42
-  compras gasto
-1       0    NA
-  compras
-1    1000
-\end{rsalida}
-
-El cliente 5 hizo 4 compras por \$4\,560.68 en el primer semestre y 9 por
-\$10\,119.42 en el segundo. Con el texto \codigo{"5 OR 1=1"} la consulta
-parametrizada no encuentra nada (0 compras; la suma de cero filas es
-\codigo{NA}), mientras que la versión con \codigo{paste0()} habría
-devuelto las 1\,000 transacciones de todos los clientes.
-
-
-\begin{solucion}{m5-7}
-Con \paquete{dbplyr} construimos la consulta con verbos de dplyr; el
-trimestre ya viene como columna en la tabla.
-\end{solucion}
-
-\begin{rcode}
+# ---- Bloque 8 --------------------------------------------------------
 library(dbplyr)
 con <- dbConnect(RSQLite::SQLite(), ":memory:")
 dbWriteTable(con, "transacciones",
@@ -363,43 +196,8 @@ resultado_sql <- dbGetQuery(con, "
 
 all.equal(as.data.frame(resultado_dbplyr), resultado_sql)
 dbDisconnect(con)
-\end{rcode}
 
-\begin{rsalida}
-<SQL>
-SELECT
-  `metodo_pago`,
-  `trimestre`,
-  COUNT(*) AS `tickets`,
-  SUM(`total_transaccion`) AS `ventas`
-FROM `transacciones`
-GROUP BY `metodo_pago`, `trimestre`
-ORDER BY `metodo_pago`, `trimestre`
-# A tibble: 4 x 4
-  metodo_pago trimestre tickets ventas
-  <chr>       <chr>       <int>  <dbl>
-1 Efectivo    Q1             90 80565.
-2 Efectivo    Q2             73 71206.
-3 Efectivo    Q3             73 73187.
-4 Efectivo    Q4             79 78777.
-[1] TRUE
-\end{rsalida}
-
-El SQL generado es prácticamente idéntico al que escribirías a mano, y
-\codigo{all.equal()} devuelve \codigo{TRUE}: ambos caminos dan el mismo
-resultado. Convertimos el tibble con \codigo{as.data.frame()} porque
-\codigo{dbGetQuery()} devuelve un data frame simple y \codigo{all.equal()}
-también compara la clase.
-
-
-\begin{solucion}{m5-8}
-En (a) calculamos el gasto por cliente en una CTE y lo rankeamos dentro de
-cada ciudad. En (b), \codigo{SUM(ventas) OVER (ORDER BY ventas DESC)} da el
-acumulado y \codigo{SUM(ventas) OVER ()} (ventana vacía) el total de todas
-las filas.
-\end{solucion}
-
-\begin{rcode}
+# ---- Bloque 9 --------------------------------------------------------
 con <- dbConnect(RSQLite::SQLite(), ":memory:")
 dbWriteTable(con, "clientes",
              read_csv("datasets/clientes.csv", show_col_types = FALSE) %>%
@@ -444,40 +242,8 @@ pareto <- dbGetQuery(con, "
 head(pareto, 3)
 pareto %>% filter(pct_acumulado >= 80) %>% head(1)
 dbDisconnect(con)
-\end{rcode}
 
-\begin{rsalida}
-       ciudad             nombre gasto lugar
-1        CDMX        Carmen Cruz 10438     1
-2        CDMX Fernando Hernández  8242     2
-3 Guadalajara     Carmen Jiménez 11848     1
-4 Guadalajara      Alberto Reyes 11356     2
-5   Monterrey      Marta Ramírez  6261     1
-6   Monterrey   Isabel Hernández  5888     2
-  producto_id ventas posicion pct_acumulado
-1           6  34028        1           3.5
-2          19  28368        2           6.5
-3          31  25430        3           9.1
-  producto_id ventas posicion pct_acumulado
-1          22  16949       37          81.4
-\end{rsalida}
-
-En Guadalajara los dos mejores clientes gastaron más de \$11\,000 cada uno,
-mientras que en Monterrey el mejor apenas llega a \$6\,261. En la curva de
-Pareto, el 80\% de las ventas se alcanza hasta el producto en la posición
-37: se necesitan 37 de 50 productos (74\%). Las ventas están muy
-repartidas, lejos del clásico ``20\% de los productos genera el 80\% de las
-ventas''.
-
-
-\begin{solucion}{m5-9}
-Primero el DDL con llaves y reglas; luego la carga con
-\codigo{dbAppendTable()} (que respeta la estructura), la vista y el
-índice. La fecha es la llave primaria de los hechos porque hay una venta
-por día.
-\end{solucion}
-
-\begin{rcode}
+# ---- Bloque 10 --------------------------------------------------------
 con <- dbConnect(RSQLite::SQLite(), ":memory:")
 dbExecute(con, "PRAGMA foreign_keys = ON")
 dbExecute(con, "CREATE TABLE dim_producto (
@@ -519,48 +285,8 @@ dbGetQuery(con, paste("EXPLAIN QUERY PLAN", consulta))$detail
 dbExecute(con, "CREATE INDEX idx_tienda ON fact_ventas_diarias(tienda_id)")
 dbGetQuery(con, paste("EXPLAIN QUERY PLAN", consulta))$detail
 dbDisconnect(con)
-\end{rcode}
 
-\begin{rsalida}
-[1] 0
-[1] 0
-[1] 0
-[1] 0
-[1] 50
-[1] 10
-[1] 365
-[1] 0
-  trimestre      tipo dias ventas
-1         1  Estándar   46  54838
-2         1 Principal   14  30699
-3         1    Outlet   14  17226
-4         1   Premium   10  16706
-5         1   Express    6   6804
-[1] "SCAN fact_ventas_diarias"
-[1] 0
-[1] "SEARCH fact_ventas_diarias USING INDEX idx_tienda (tienda_id=?)"
-\end{rsalida}
-
-Los \codigo{[1] 0} son las instrucciones DDL y los \codigo{[1] 50},
-\codigo{10} y \codigo{365} las filas cargadas por \codigo{dbAppendTable()}.
-En el primer trimestre, las tiendas de tipo Estándar suman más ventas
-porque son seis. El plan pasa de \codigo{SCAN} (recorrer toda la tabla) a
-\codigo{SEARCH \ldots{} USING INDEX idx\_tienda} tras crear el índice.
-
-
-\begin{solucion}{m5-10}
-La transformación \emph{no} filtra cantidades negativas a propósito: la
-regla \codigo{CHECK} de la base es la última línea de defensa y queremos
-ver cómo actúa. La carga usa una tabla temporal y un \codigo{INSERT} que
-solo toma las fechas que aún no existen. ¿Por qué no \codigo{INSERT OR
-IGNORE}? Porque en SQLite \codigo{OR IGNORE} ignora en silencio
-\emph{cualquier} violación de restricción, no solo las llaves repetidas:
-también la de \codigo{CHECK}. El lote con cantidad negativa se
-``cargaría'' con estado OK y 0 filas nuevas, sin ningún error. Si lo
-pruebas, lo verás.
-\end{solucion}
-
-\begin{rcode}
+# ---- Bloque 11 --------------------------------------------------------
 con <- dbConnect(RSQLite::SQLite(), ":memory:")
 dbExecute(con, "CREATE TABLE fact_ventas_diarias (
   fecha TEXT PRIMARY KEY, producto_id INTEGER, cliente_id INTEGER,
@@ -646,27 +372,3 @@ dbGetQuery(con, "SELECT COUNT(*) AS filas, ROUND(SUM(total), 2) AS total
                  FROM fact_ventas_diarias")
 round(sum(ventas$total), 2)
 dbDisconnect(con)
-\end{rcode}
-
-\begin{rsalida}
-[1] 0
-[1] 0
-  id             lote leidas nuevas estado
-1  1 lote_ene_jun.csv    181    181     OK
-2  2 lote_abr_sep.csv    183     92     OK
-3  3 lote_oct_dic.csv     92     92     OK
-4  4 lote_oct_dic.csv     92      0     OK
-5  5    lote_malo.csv      1      0  ERROR
-                                mensaje
-1 CHECK constraint failed: cantidad > 0
-  filas    total
-1   365 513916.6
-[1] 513916.6
-\end{rsalida}
-
-La bitácora cuenta la historia: el segundo lote leyó 183 días pero solo
-cargó 92 (abril-junio ya estaban), el lote repetido no cargó nada y el
-lote malo terminó en \codigo{ERROR} porque la regla \codigo{CHECK} rechazó
-la cantidad negativa. La tabla final tiene exactamente 365 filas y el mismo
-total que el CSV: el ETL es idempotente, atómico y trazable.
-

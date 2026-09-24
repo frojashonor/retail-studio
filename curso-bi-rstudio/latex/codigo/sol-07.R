@@ -1,52 +1,20 @@
-% ============================================================================
-% SOLUCIONES DEL MÓDULO 7: MACHINE LEARNING PARA BUSINESS INTELLIGENCE
-% ============================================================================
+# ==========================================================================
+# sol-07.tex
+# Código del libro 'Business Intelligence con R y RStudio'
+# Generado automáticamente a partir de capitulos/sol-07.tex
+# Ejecuta este script con el directorio de trabajo en la carpeta
+# del curso (la que contiene datasets/).
+# ==========================================================================
 
-\begin{solucion}{m7-1}
-\textbf{Parte conceptual.}
-\begin{enumerate}[label=(\alph*)]
-  \item Estimar el ticket promedio de un cliente nuevo: \textbf{regresión}
-        (la respuesta es un número). Regresión lineal o random forest.
-  \item Detectar si un correo es una queja: \textbf{clasificación} (queja /
-        no queja). Regresión logística o random forest sobre variables del
-        texto (palabras clave).
-  \item Agrupar sucursales por su mezcla de ventas: \textbf{clustering}.
-        k-means con las variables escaladas.
-  \item Demanda semanal de pan de muerto: \textbf{serie de tiempo} con
-        estacionalidad anual muy marcada. Ingenuo estacional como línea base,
-        ETS o ARIMA.
-  \item Qué recomendar a quien compra una cafetera: \textbf{reglas de
-        asociación} (análisis de canasta) ordenadas por lift.
-\end{enumerate}
-
-\textbf{Parte práctica.} Ajustamos el modelo y extraemos el R² ajustado:
-\end{solucion}
-
-\begin{rcode}
+# ---- Bloque 1 --------------------------------------------------------
 library(tidyverse)
 ventas <- read_csv("datasets/ventas_retail.csv", show_col_types = FALSE)
 
 modelo <- lm(total ~ descuento_pct + dia_semana, data = ventas)
 round(summary(modelo)$r.squared, 4)
 round(summary(modelo)$adj.r.squared, 4)
-\end{rcode}
 
-\begin{rsalida}
-[1] 0.004
-[1] -0.0155
-\end{rsalida}
-
-El R² es de apenas 0.004 y el R² ajustado es negativo ($-0.0155$): el
-descuento y el día de la semana no explican el total de la venta. No hay
-señal, porque en el generador de datos el descuento y el día se eligieron al
-azar, independientemente del monto.
-
-
-\begin{solucion}{m7-2}
-Escribimos cada fórmula directamente con vectores:
-\end{solucion}
-
-\begin{rcode}
+# ---- Bloque 2 --------------------------------------------------------
 real       <- c(120, 95, 150, 80, 110, 130)
 pronostico <- c(110, 100, 140, 90, 115, 120)
 error <- real - pronostico
@@ -57,26 +25,8 @@ mape <- mean(abs(error) / real) * 100
 r2   <- 1 - sum(error^2) / sum((real - mean(real))^2)
 
 round(c(MAE = mae, RMSE = rmse, MAPE = mape, R2 = r2), 3)
-\end{rcode}
 
-\begin{rsalida}
-  MAE  RMSE  MAPE    R2 
-8.333 8.660 7.500 0.856 
-\end{rsalida}
-
-En promedio, el gerente se equivoca por 8.3 mil pesos por sucursal (MAE),
-que equivale a 7.5\% del valor real (MAPE). El RMSE (8.66) es apenas mayor que
-el MAE porque ningún error es mucho más grande que los demás (todos son de 5 o
-10 mil pesos). El R² de 0.856 indica que el pronóstico captura el 85.6\% de las
-diferencias entre sucursales.
-
-
-\begin{solucion}{m7-3}
-Los datos: 50 fraudes reales, de los que se detectaron 40 (VP = 40, FN = 10);
-950 legítimas, de las que 60 se marcaron como fraude (FP = 60, VN = 890).
-\end{solucion}
-
-\begin{rcode}
+# ---- Bloque 3 --------------------------------------------------------
 matriz <- matrix(c(890, 60, 10, 40), nrow = 2,
                  dimnames = list(Prediccion = c("Legítima", "Fraude"),
                                  Real = c("Legítima", "Fraude")))
@@ -93,33 +43,8 @@ round(c(exactitud     = (vp + vn) / (vp + vn + fp + fn),
 
 costo_errores <- fn * 5000 + fp * 100
 costo_errores
-\end{rcode}
 
-\begin{rsalida}
-          Real
-Prediccion Legítima Fraude
-  Legítima      890     10
-  Fraude         60     40
-    exactitud     precision  sensibilidad especificidad            F1 
-        0.930         0.400         0.800         0.937         0.533 
-[1] 56000
-\end{rsalida}
-
-La exactitud (93\%) parece alta, pero la precisión es de solo 40\%: de cada 10
-alertas, 6 son transacciones legítimas. La sensibilidad de 80\% indica que se
-detecta a 4 de cada 5 fraudes. El costo de los errores es de \$56{,}000:
-\$50{,}000 por los 10 fraudes no detectados y \$6{,}000 por las 60 revisiones
-innecesarias. Con estos costos, conviene bajar el umbral aunque aumenten las
-falsas alarmas: cada fraude detectado adicional ahorra lo mismo que 50
-revisiones.
-
-
-\begin{solucion}{m7-4}
-Calculamos el RFM, las calificaciones con \codigo{ntile()} (recordando que en
-recencia menos es mejor) y los niveles con \codigo{case\_when()}:
-\end{solucion}
-
-\begin{rcode}
+# ---- Bloque 4 --------------------------------------------------------
 library(tidyverse)
 transacciones <- read_csv("datasets/transacciones.csv",
                           show_col_types = FALSE)
@@ -146,29 +71,8 @@ niveles %>%
             ingresos = sum(monto), .groups = "drop") %>%
   mutate(pct_ingresos = round(100 * ingresos / sum(ingresos), 1)) %>%
   select(-ingresos)
-\end{rcode}
 
-\begin{rsalida}
-# A tibble: 3 x 4
-  nivel  clientes monto_prom pct_ingresos
-  <fct>     <int>      <dbl>        <dbl>
-1 Oro          39       8439         34.3
-2 Plata        70       5444         39.7
-3 Bronce       89       2807         26  
-\end{rsalida}
-
-Los 39 clientes Oro (20\% de los 198 compradores) generan el 34.3\% de los
-ingresos, con un monto promedio tres veces mayor que el de los Bronce (\$8{,}439
-contra \$2{,}807). Los Plata son el grupo con mayor peso en ingresos
-(39.7\%): son el candidato natural para programas que los conviertan en Oro.
-
-
-\begin{solucion}{m7-5}
-Construimos las variables por cliente, escalamos y calculamos la silueta
-promedio para $k$ de 2 a 6:
-\end{solucion}
-
-\begin{rcode}
+# ---- Bloque 5 --------------------------------------------------------
 library(tidyverse)
 library(cluster)
 transacciones <- read_csv("datasets/transacciones.csv",
@@ -191,25 +95,8 @@ siluetas <- map_dbl(2:6, function(k) {
 tibble(k = 2:6, silueta = round(siluetas, 3))
 k_elegido <- (2:6)[which.max(siluetas)]
 k_elegido
-\end{rcode}
 
-\begin{rsalida}
-# A tibble: 5 x 2
-      k silueta
-  <int>   <dbl>
-1     2   0.322
-2     3   0.325
-3     4   0.356
-4     5   0.326
-5     6   0.331
-[1] 4
-\end{rsalida}
-
-La silueta más alta es para $k = 4$ (0.356), aunque todas están entre 0.32 y
-0.36: la estructura de grupos es débil (datos aleatorios). El código guarda el
-$k$ elegido en \codigo{k\_elegido} para no escribirlo a mano.
-
-\begin{rcode}
+# ---- Bloque 6 --------------------------------------------------------
 set.seed(123)
 km <- kmeans(datos_esc, centers = k_elegido, nstart = 25)
 
@@ -233,33 +120,8 @@ perfil %>%
     TRUE ~ "Valor medio")) %>%
   arrange(desc(monto_total)) %>%
   select(segmento, everything(), -cluster)
-\end{rcode}
 
-\begin{rsalida}
-# A tibble: 4 x 6
-  segmento              clientes monto_total ticket tiendas productos
-  <chr>                    <int>       <dbl>  <dbl>   <dbl>     <dbl>
-1 Alto valor                  22       10159   1123     6.1       8.5
-2 Valor medio                 96        4999    873     4.7       5.6
-3 Ticket alto ocasional       39        4756   1547     2.7       3  
-4 Valor mínimo                41        1734    597     2.6       2.8
-\end{rsalida}
-
-Los nombres salen de reglas aplicadas al perfil: el mayor monto es ``Alto
-valor'' (22 clientes que compran en 6 tiendas distintas en promedio), el menor
-es ``Valor mínimo'', y entre los dos restantes, el de mayor ticket es ``Ticket
-alto ocasional'' (39 clientes que compran pocas veces, en pocas tiendas, pero
-con el ticket más alto: \$1{,}547). Este último grupo no se ve en un RFM
-clásico y sugiere una estrategia propia: aumentar su frecuencia con
-recordatorios, porque cada visita vale mucho.
-
-
-\begin{solucion}{m7-6}
-Reproducimos la simulación y la división del texto, y comparamos tres
-modelos:
-\end{solucion}
-
-\begin{rcode}
+# ---- Bloque 7 --------------------------------------------------------
 library(tidyverse)
 library(caret)
 
@@ -317,30 +179,8 @@ map_dbl(modelos, ~ calcular_auc(predict(.x, prueba, type = "response"),
   round(3)
 
 round(exp(coef(modelos[["Con cliente_nuevo"]])["cliente_nuevo"]), 2)
-\end{rcode}
 
-\begin{rsalida}
-          Original  Con cliente_nuevo Sin genero ni edad 
-             0.860              0.862              0.861 
-cliente_nuevo 
-         2.36 
-\end{rsalida}
-
-Agregar \codigo{cliente\_nuevo} sube el AUC de 0.860 a 0.862 y su razón de
-momios es 2.36: estar en los primeros 6 meses multiplica por 2.36 los momios
-de abandono, además del efecto de la antigüedad. La mejora en AUC es pequeña
-porque la antigüedad lineal ya capturaba parte del efecto, pero la variable
-tiene sentido de negocio (reforzar el \emph{onboarding}). Quitar género y edad
-casi no cambia el AUC (0.861): el modelo más justo y más simple predice igual
-de bien, así que es el que conviene usar.
-
-
-\begin{solucion}{m7-7}
-Reproducimos datos, división y modelo logístico, y recalculamos los costos con
-el nuevo precio del descuento:
-\end{solucion}
-
-\begin{rcode}
+# ---- Bloque 8 --------------------------------------------------------
 library(tidyverse)
 library(caret)
 
@@ -395,32 +235,8 @@ costos <- map_dfr(seq(0.05, 0.95, by = 0.05), function(u) {
            sum(pred & !real) * costo_fp + sum(!pred & real) * costo_fn)
 })
 costos %>% arrange(costo_total) %>% head(3)
-\end{rcode}
 
-\begin{rsalida}
-# A tibble: 3 x 3
-  umbral llamadas costo_total
-   <dbl>    <int>       <dbl>
-1   0.6        74      381700
-2   0.65       61      381800
-3   0.7        52      382100
-\end{rsalida}
-
-Con un descuento de \$800, el umbral óptimo sube de 0.15 a 0.6 y solo se
-llamaría a 74 clientes de prueba (costo total de \$381{,}700). La razón: cada
-llamada ahora es más cara y el ahorro al retener a un cliente (la mitad de
-\$3{,}000 menos \$800) es mucho menor, así que solo vale la pena llamar a
-quien tiene una probabilidad alta de irse. Observa que los tres mejores
-umbrales tienen costos casi idénticos: la curva de costos es plana en esa
-zona.
-
-
-\begin{solucion}{m7-8}
-Reproducimos la serie mensual, la agregamos a trimestres con
-\codigo{aggregate()} y comparamos los modelos:
-\end{solucion}
-
-\begin{rcode}
+# ---- Bloque 9 --------------------------------------------------------
 library(tidyverse)
 library(forecast)
 
@@ -453,29 +269,8 @@ comparacion <- map_dfr(pronosticos, function(p) {
   mutate(across(where(is.numeric), ~ round(.x, 1))) %>%
   arrange(MAPE)
 comparacion
-\end{rcode}
 
-\begin{rsalida}
-     Qtr1 Qtr2 Qtr3 Qtr4
-2021 4139 4765 4626 5822
-2022 4579 5229 5176 6240
-2023 4999 5757 5797 7156
-2024 5557 6200 6399 7468
-2025 6089 6903 6774 8305
-# A tibble: 3 x 4
-  modelo               MAE  RMSE  MAPE
-  <chr>              <dbl> <dbl> <dbl>
-1 ETS                 96.2  105.   1.4
-2 ARIMA              163.   196.   2.2
-3 Ingenuo estacional 612.   636.   8.6
-\end{rsalida}
-
-\codigo{aggregate(serie, nfrequency = 4, FUN = sum)} suma los tres meses de
-cada trimestre. En trimestres, ETS es el mejor modelo con un MAPE de 1.4\%,
-seguido de ARIMA (2.2\%); el ingenuo estacional se equivoca 8.6\% porque no
-considera el crecimiento. Reentrenamos el ganador con toda la serie:
-
-\begin{rcode}
+# ---- Bloque 10 --------------------------------------------------------
 # Reentrenamos el ganador (menor MAPE) con toda la serie trimestral
 ganador <- comparacion$modelo[1]
 modelo_final <- switch(ganador,
@@ -484,30 +279,8 @@ modelo_final <- switch(ganador,
                        snaive(serie_trim, h = 4))
 ganador
 forecast(modelo_final, h = 4)
-\end{rcode}
 
-\begin{rsalida}
-[1] "ETS"
-        Point Forecast    Lo 80    Hi 80    Lo 95    Hi 95
-2026 Q1       6504.441 6355.576 6653.305 6276.772 6732.109
-2026 Q2       7369.522 7200.758 7538.287 7111.419 7627.625
-2026 Q3       7303.435 7136.086 7470.783 7047.497 7559.372
-2026 Q4       8855.932 8652.896 9058.969 8545.414 9166.450
-\end{rsalida}
-
-El código elige el modelo automáticamente con \codigo{switch()} según el
-ganador. Para 2026 se esperan 6{,}504 unidades en el primer trimestre y 8{,}856
-en el cuarto (entre 8{,}653 y 9{,}059 con 80\% de confianza). Con datos
-trimestrales hay menos observaciones (20), pero los errores relativos son
-menores porque al sumar tres meses el ruido mensual se compensa.
-
-
-\begin{solucion}{m7-9}
-Reproducimos los tickets, marcamos por ticket si tiene cada producto y
-contamos:
-\end{solucion}
-
-\begin{rcode}
+# ---- Bloque 11 --------------------------------------------------------
 library(tidyverse)
 
 set.seed(123)
@@ -555,33 +328,8 @@ tres %>%
   mutate(soporte   = round(tickets_xy / n_total, 3),
          confianza = round(tickets_xy / tickets_x, 3),
          lift      = round(tickets_xy / tickets_x / soporte_funda, 2))
-\end{rcode}
 
-\begin{rsalida}
-# A tibble: 2 x 6
-  regla                 tickets_x tickets_xy soporte confianza  lift
-  <chr>                     <int>      <int>   <dbl>     <dbl> <dbl>
-1 Laptop+Mouse -> Funda       136         51   0.026     0.375  5.14
-2 Laptop -> Funda             225         82   0.042     0.364  5   
-\end{rsalida}
-
-Saber que el cliente ya lleva mouse casi no cambia la probabilidad de que
-lleve funda: la confianza pasa de 36.4\% a 37.5\% y el lift de 5.0 a 5.14.
-Tiene sentido, porque en la simulación la funda depende solo de la laptop.
-Una regla de tres productos solo aporta si su confianza es claramente mayor
-que la de la regla más simple; si no, quédate con la simple, que además tiene
-más soporte (4.2\% contra 2.6\% de los tickets). Nota: usamos
-\codigo{reframe()} en lugar de \codigo{summarise()} porque el resultado tiene
-dos filas.
-
-
-\begin{solucion}{m7-10}
-Organizamos el reto en funciones: una para simular clientes (la usamos para
-el histórico y para el lote nuevo), el entrenamiento con \paquete{caret}, la
-elección del modelo y la función de puntuación.
-\end{solucion}
-
-\begin{rcode}
+# ---- Bloque 12 --------------------------------------------------------
 library(tidyverse)
 library(caret)
 library(randomForest)
@@ -651,21 +399,8 @@ mejor <- list(Logistica = m_log, RandomForest = m_rf)[[
   names(which.max(auc_prueba))]]
 dir.create("resultados", showWarnings = FALSE)
 saveRDS(mejor, "resultados/modelo_churn_reto.rds")
-\end{rcode}
 
-\begin{rsalida}
-   Logistica RandomForest 
-       0.873        0.843 
-\end{rsalida}
-
-La regresión logística gana en prueba (AUC de 0.873 contra 0.843 del random
-forest), así que es el modelo que se guarda en
-\archivo{resultados/modelo\_churn\_reto.rds}. El código elige al ganador con
-\codigo{which.max()}: si mañana gana el bosque, el resto del sistema sigue
-funcionando igual, porque ambos modelos de \paquete{caret} se usan con
-\codigo{predict(..., type = "prob")}.
-
-\begin{rcode}
+# ---- Bloque 13 --------------------------------------------------------
 puntuar <- function(nuevos, modelo, top = 100) {
   nuevos %>%
     mutate(prob_churn = predict(modelo, newdata = nuevos,
@@ -689,24 +424,3 @@ top100 %>%
   mutate(across(c(prob_churn, perdida_esperada), ~ round(.x, 2))) %>%
   head(5)
 nrow(read_csv("resultados/top100_churn.csv", show_col_types = FALSE))
-\end{rcode}
-
-\begin{rsalida}
-# A tibble: 5 x 6
-  prioridad cliente_id plan    quejas_6m prob_churn perdida_esperada
-      <int> <chr>      <fct>       <int>      <dbl>            <dbl>
-1         1 N00330     Premium         3       0.94            6765.
-2         2 N00043     Premium         3       0.89            6399.
-3         3 N00814     Premium         2       0.87            6268.
-4         4 N00456     Premium         2       0.75            5368.
-5         5 N00904     Premium         1       0.67            4787.
-[1] 100
-\end{rsalida}
-
-La función carga el modelo guardado (como se haría en producción), calcula
-la pérdida esperada de cada cliente del lote y exporta los 100 más urgentes;
-releer el CSV confirma que tiene 100 filas. Los primeros lugares son clientes
-Premium con varias quejas y probabilidades de 0.67 a 0.94. Para ponerlo en
-producción faltaría programar el script (Módulo~\ref{cap:reportes}) y
-monitorear la deriva de las variables cada semana.
-

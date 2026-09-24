@@ -2392,7 +2392,10 @@ muy común cuando un sistema reenvía datos por seguridad. Nuestro ETL debe
 evitar cargar esas ventas dos veces.
 
 \begin{rcode}
-dir.create("datos/entrada", showWarnings = FALSE)
+# Carpeta de "archivos recibidos": se vacía para que el ejemplo dé el
+# mismo resultado aunque ejecutes el capítulo varias veces
+unlink("datos/entrada", recursive = TRUE)
+dir.create("datos/entrada", recursive = TRUE, showWarnings = FALSE)
 trans_origen <- extraer_transacciones("datasets/transacciones.csv")
 
 trans_origen %>% filter(fecha < as.Date("2023-07-01")) %>%
@@ -2404,8 +2407,7 @@ list.files("datos/entrada")
 \end{rcode}
 
 \begin{rsalida}
-[1] "ventas_2023_12_31.csv" "ventas_2023_s1.csv"   
-[3] "ventas_2023_s2.csv"   
+[1] "ventas_2023_s1.csv" "ventas_2023_s2.csv"
 \end{rsalida}
 
 \subsection{Transformar}

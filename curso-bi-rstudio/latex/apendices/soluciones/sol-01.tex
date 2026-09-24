@@ -6,6 +6,7 @@
 Guardamos cada dato en una variable para que el cálculo sea fácil de
 revisar y de modificar. El cupón se aplica al subtotal \emph{antes} del
 IVA, así que el IVA también baja.
+\end{solucion}
 
 \begin{rcode}
 # ---- Datos de la compra --------------------------------------------------
@@ -42,13 +43,14 @@ scales::dollar(total_cupon, accuracy = 0.01)
 El subtotal es de \$3,664 y con IVA el cliente pagaría \$4,250.24. Con el
 cupón paga \$3,825.22: ahorra \$425.02, que es justo el 10\% del total con
 IVA, porque el descuento reduce también la base del impuesto.
-\end{solucion}
+
 
 \begin{solucion}{m1-2}
 El punto de equilibrio responde: ¿cuánto hay que vender para que la
 utilidad bruta alcance a cubrir los gastos fijos? Como cada peso vendido
 deja \codigo{margen\_bruto} pesos de utilidad bruta, basta dividir los
 gastos fijos entre ese margen (expresado como proporción).
+\end{solucion}
 
 \begin{rcode}
 ingresos <- 612400
@@ -88,12 +90,13 @@ La sucursal tuvo un margen bruto de 38\% y un margen de operación de
 no perder dinero; vendió unos \$196,589 más que eso, es decir, está 47.3\% por
 encima de su punto de equilibrio: tiene un colchón cómodo si las ventas
 bajan.
-\end{solucion}
+
 
 \begin{solucion}{m1-3}
 Para los montos quitamos el signo de pesos y las comas con \codigo{gsub()}
 antes de convertir. Para las fechas indicamos el formato
 \codigo{"\%d/\%m/\%Y"}.
+\end{solucion}
 
 \begin{rcode}
 montos_texto <- c("$1,250.50", "$980.00", "$12,400.75", "$3,105.20")
@@ -129,11 +132,12 @@ Las cuatro facturas suman \$17,736.45. Observa la última: vence el 30 de
 marzo porque febrero de 2023 tuvo 28 días; R lleva el calendario por ti.
 Tres de las cuatro facturas vencen en sábado, algo que conviene saber si tu área de
 cobranza no trabaja fines de semana.
-\end{solucion}
+
 
 \begin{solucion}{m1-4}
 Creamos el vector con nombres y aplicamos las funciones de resumen. Para el
 crecimiento dividimos cada diferencia entre el mes anterior.
+\end{solucion}
 
 \begin{rcode}
 meses <- c("ene", "feb", "mar", "abr", "may", "jun",
@@ -175,11 +179,12 @@ Cinco meses superaron los 500 mil, todos en el segundo semestre salvo
 junio. Los mayores crecimientos mensuales fueron en mayo (+18.9\%) y marzo
 (+18.2\%), y diciembre cerró fuerte (+14.3\%), típico de la temporada
 navideña. El acumulado superó los 3 millones en julio.
-\end{solucion}
+
 
 \begin{solucion}{m1-5}
 La clave es usar \codigo{na.rm = TRUE} en los cálculos y
 \codigo{is.na()} para localizar los faltantes.
+\end{solucion}
 
 \begin{rcode}
 ventas_dias <- c(8200, 7650, NA, 9100, 10400, NA, 8800, 12100, NA, 9650)
@@ -223,11 +228,12 @@ no hubiera vendido nada esos días: subestimaría la venta en casi 30\%. Un
 \codigo{NA} significa ``no sabemos'', no ``cero''. Nota que
 \codigo{sum(ventas\_dias > 9000, na.rm = TRUE)} necesita el
 \codigo{na.rm}: la comparación con un \codigo{NA} da \codigo{NA}.
-\end{solucion}
+
 
 \begin{solucion}{m1-6}
 Combinamos \codigo{trimws()} y \codigo{toupper()} para limpiar, y
 \codigo{sprintf()} para los mensajes y los códigos.
+\end{solucion}
 
 \begin{rcode}
 nombres <- c("  ana LÓPEZ", "Carlos pérez ", "MARÍA gonzález")
@@ -265,11 +271,12 @@ sum(ciudades_limpias == "CDMX")
 \emph{PÉREZ}). Antes de limpiar habríamos contado un solo cliente en
 ``CDMX''; después de limpiar son dos. \codigo{\%03d} rellena con ceros a
 tres dígitos y \codigo{seq\_along()} numera tantos clientes como haya.
-\end{solucion}
+
 
 \begin{solucion}{m1-7}
 Creamos el data frame, agregamos las columnas calculadas con
 \codigo{ifelse()} y resumimos con \codigo{aggregate()}.
+\end{solucion}
 
 \begin{rcode}
 empleados <- data.frame(
@@ -335,11 +342,12 @@ de bonos (\$91,200), pero el departamento con mayor costo anual de nómina
 es Ventas (\$1,062,600), simplemente porque tiene cuatro personas contra
 dos de TI. Para comparar departamentos de distinto tamaño conviene mirar
 tanto el total como el promedio por persona.
-\end{solucion}
+
 
 \begin{solucion}{m1-8}
 Primero calculamos el cumplimiento de forma vectorizada; después lo usamos
 en el \codigo{ifelse()}, en el bucle y en el \codigo{while}.
+\end{solucion}
 
 \begin{rcode}
 vendedores <- c("Luis", "Marta", "Nora", "Oscar", "Paula", "Raul")
@@ -386,13 +394,14 @@ Tres vendedores están en verde, dos en amarillo (Luis y Paula, cerca de la
 meta) y Nora en rojo con 66\% de cumplimiento. Aun creciendo 8\% cada
 trimestre, Nora necesitaría 6 trimestres (año y medio) para llegar a la
 meta: es un caso para un plan de acompañamiento, no solo para esperar.
-\end{solucion}
+
 
 \begin{solucion}{m1-9}
 Las validaciones van al inicio de cada función, antes de los cálculos. El
 punto de equilibrio en unidades es
 \codigo{costos\_fijos / (precio - costo\_variable)}, redondeado hacia
 arriba porque no se venden fracciones de unidad.
+\end{solucion}
 
 \begin{rcode}
 # Precio final: aplica descuento (proporción) y luego IVA
@@ -443,11 +452,12 @@ precio_final(1000, descuento = 1.5)
 Error in precio_final(1000, descuento = 1.5) :
   El descuento debe estar entre 0 y 1 (0.15 = 15%)
 \end{rsalida}
-\end{solucion}
+
 
 \begin{solucion}{m1-10}
 Leemos el catálogo, buscamos los márgenes negativos (un problema de calidad
 de datos o de precios) y exportamos dos hojas.
+\end{solucion}
 
 \begin{rcode}
 library(readr)
@@ -517,11 +527,12 @@ hay que revisar antes de cualquier análisis de rentabilidad. Además, 4
 productos tienen stock bajo y ninguno está agotado. (Los datos del curso
 son simulados, por eso aparecen casos tan extremos; en una empresa real
 serían una alerta inmediata.)
-\end{solucion}
+
 
 \begin{solucion}{m1-11}
 Resumimos con \codigo{aggregate()} y \codigo{tapply()}, y usamos
 \codigo{\%in\%} para agrupar las dos tarjetas.
+\end{solucion}
 
 \begin{rcode}
 library(readr)
@@ -575,7 +586,7 @@ dos tarjetas juntas concentran el 59.6\% del dinero cobrado: la
 disponibilidad de terminales es crítica. El ticket promedio casi no cambia
 entre métodos. Como \codigo{resumen\_pago} es un data frame de R base, el
 RDS lo recupera idéntico.
-\end{solucion}
+
 
 \begin{solucion}{m1-12}
 Dividimos el problema en piezas: una función que resume una tienda, un
@@ -583,6 +594,7 @@ bucle que la aplica a las diez y, al final, el ranking y la exportación.
 Para traer el nombre, la ciudad y el tamaño de la tienda usamos
 \codigo{match()}, que encuentra en qué fila de \codigo{tiendas} está cada
 \codigo{tienda\_id}.
+\end{solucion}
 
 \begin{rcode}
 library(readr)
@@ -664,4 +676,4 @@ una lista de data frames de una fila; \codigo{do.call(rbind, lista)} los
 apila en una sola tabla. Es el patrón de R base para ``hacer lo mismo por
 cada grupo y juntar los resultados''; en el Módulo~\ref{cap:manipulacion}
 lo harás con \codigo{group\_by()} y \codigo{summarise()}.
-\end{solucion}
+

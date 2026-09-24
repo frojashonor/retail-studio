@@ -5,6 +5,7 @@
 \begin{solucion}{m2-1}
 Filtramos con dos condiciones, elegimos columnas y ordenamos; después
 resumimos el resultado con \codigo{summarise()}.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -41,11 +42,12 @@ La tienda 3 hizo 4 ventas con descuento de 10\% o más, que suman
 \codigo{summarise(total = sum(total))} el nombre nuevo puede coincidir con
 el de la columna: dentro de la función, \codigo{total} todavía es la
 columna original.
-\end{solucion}
+
 
 \begin{solucion}{m2-2}
 Combinamos tres condiciones en \codigo{filter()} (el producto activo y el
 stock bajo el mínimo) y calculamos el faltante con \codigo{mutate()}.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -79,12 +81,13 @@ que llamar primero al Proveedor 1 (5 unidades en dos productos), aunque el
 producto con el mayor faltante individual (Producto 03, 4 unidades) es del
 Proveedor 3. \codigo{filter(activo, \ldots)} funciona porque
 \codigo{activo} ya es lógica.
-\end{solucion}
+
 
 \begin{solucion}{m2-3}
 \codigo{case\_when()} evalúa las reglas en orden, así que basta con dar el
 límite superior de cada rango. El porcentaje se calcula después de
 \codigo{count()}.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -112,11 +115,12 @@ clientes %>%
 
 El grupo más grande es el de 60 años o más (64 clientes, 32\%) y el más
 chico el de 18 a 29 (33 clientes, 16.5\%): una base de clientes madura.
-\end{solucion}
+
 
 \begin{solucion}{m2-4}
 El promedio de una columna lógica es la proporción de \codigo{TRUE}: con
 \codigo{mean(es\_premium)} obtenemos directamente el porcentaje de premium.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -155,9 +159,12 @@ perfil_ciudad %>% slice_max(pct_premium, n = 1)
 Puebla y la CDMX tienen más clientes, pero Monterrey tiene la mayor
 proporción de premium: 71.4\% de sus 14 clientes. Es una plaza chica pero de
 alto valor.
-\end{solucion}
+
 
 \begin{solucion}{m2-5}
+Este es el código completo, con su salida y la interpretación.
+\end{solucion}
+
 \begin{rcode}
 library(tidyverse)
 transacciones <- read_csv("datasets/transacciones.csv",
@@ -188,9 +195,12 @@ transacciones %>%
 El viernes es el día con más transacciones (158) e ingresos (\$161,266,
 16.8\% del total), seguido del domingo; el sábado es el más flojo (12\%).
 Conviene reforzar el personal los viernes y domingos.
-\end{solucion}
+
 
 \begin{solucion}{m2-6}
+Este es el código completo, con su salida y la interpretación.
+\end{solucion}
+
 \begin{rcode}
 library(tidyverse)
 empleados <- read_csv("datasets/empleados.csv", show_col_types = FALSE)
@@ -231,11 +241,12 @@ días): la columna original dividía los días entre 365, mientras que
 casi no cambia con la antigüedad (entre \$27,228 y \$27,821): en estos datos
 simulados la antigüedad no se refleja en el sueldo, algo que en una empresa
 real merecería una revisión de política salarial.
-\end{solucion}
+
 
 \begin{solucion}{m2-7}
 Solo necesitamos del catálogo la categoría y el costo, así que los
 seleccionamos dentro del \emph{join}.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -279,11 +290,12 @@ Ropa y Hogar tienen los márgenes más bajos (19--21\%). Cuidado con el orden
 dentro de \codigo{summarise()}: si calculas \codigo{utilidad = sum(utilidad)}
 \emph{antes} de \codigo{sum(utilidad < 0)}, la segunda usaría la suma ya
 calculada y el conteo saldría 0.
-\end{solucion}
+
 
 \begin{solucion}{m2-8}
 Trabajamos con listas de clientes \emph{únicos} de cada tabla
 (\codigo{distinct()}) para que los conteos sean de clientes y no de ventas.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -316,11 +328,12 @@ clientes %>% anti_join(compradores, by = "cliente_id") %>%
 transacciones. Ningún cliente registrado quedó sin comprar en alguna de las
 dos: el resultado de (c) es una tabla vacía (0 filas), lo cual también es
 una respuesta válida.
-\end{solucion}
+
 
 \begin{solucion}{m2-9}
 Calculamos el porcentaje en formato largo (agrupado por tienda) y al final
 pivotamos a ancho.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -362,12 +375,13 @@ ingresos. En el otro extremo, la Sucursal Express cobra solo 18.8\% en
 efectivo y 47.6\% con tarjeta de crédito. Como los porcentajes se calcularon
 con el resultado agrupado por tienda (\codigo{.groups = "drop\_last"}),
 cada fila suma 100.
-\end{solucion}
+
 
 \begin{solucion}{m2-10}
 Primero completamos los meses faltantes; si no, \codigo{lag()} compararía
 contra el mes equivocado. \codigo{group\_by(tienda\_id)} hace que
 \codigo{lag()} y \codigo{cumsum()} reinicien en cada tienda.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -401,11 +415,12 @@ tienda_mes %>%
 La tabla completa tiene 120 filas (10 tiendas $\times$ 12 meses) gracias
 a \codigo{complete()}. La mayor caída fue la de la tienda 8 en agosto:
 \$12,373 menos que en julio, al vender solo \$781 en el mes.
-\end{solucion}
+
 
 \begin{solucion}{m2-11}
 Seguimos el mismo orden que en la sección~\ref{sec:m2-limpieza}:
 duplicados, texto, números y fechas, y al final reglas de negocio.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -456,11 +471,12 @@ lista_limpia %>%
 De 7 registros quedaron 4: se eliminaron el duplicado del id 2, el precio
 en cero (id 4) y el negativo (id 6). Las categorías quedaron unificadas y
 las fechas en un solo formato.
-\end{solucion}
+
 
 \begin{solucion}{m2-12}
 Construimos una tabla maestra, la validamos con \codigo{stopifnot()},
 calculamos las tres hojas y las exportamos con \paquete{writexl}.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -532,4 +548,4 @@ El archivo tiene las tres hojas. La Sucursal Outlet vuelve a ser la
 número uno (\$114,377 en transacciones), igual que en \codigo{ventas}. Usamos
 \codigo{with\_ties = FALSE} en \codigo{slice\_max()} para garantizar un solo
 producto por tienda aunque hubiera empates.
-\end{solucion}
+

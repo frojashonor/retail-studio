@@ -646,7 +646,10 @@ extraer_excel <- function(ruta, hoja) {
 }
 
 # ---- Bloque 44 --------------------------------------------------------
-dir.create("datos/entrada", showWarnings = FALSE)
+# Carpeta de "archivos recibidos": se vacía para que el ejemplo dé el
+# mismo resultado aunque ejecutes el capítulo varias veces
+unlink("datos/entrada", recursive = TRUE)
+dir.create("datos/entrada", recursive = TRUE, showWarnings = FALSE)
 trans_origen <- extraer_transacciones("datasets/transacciones.csv")
 
 trans_origen %>% filter(fecha < as.Date("2023-07-01")) %>%

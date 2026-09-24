@@ -754,7 +754,7 @@ base <- transacciones %>%
   left_join(tiendas %>%
               select(tienda_id, nombre_tienda, tipo, tamano_m2, empleados),
             by = "tienda_id") %>%
-  mutate(costo_total = cantidad * costo,                # costo de lo vendido
+  mutate(costo_total = cantidad * costo,               # costo de lo vendido
          utilidad    = total_transaccion - costo_total)  # utilidad bruta
 
 dim(base)

@@ -1,41 +1,54 @@
 # Progreso del libro LaTeX
 
-Estado al 23 de septiembre de 2026. El libro **todavía no compila completo**:
-faltan capítulos y el apéndice de soluciones.
+**Estado: terminado.** El libro compila completo en 798 páginas
+(`curso-bi-rstudio.pdf`) y todo su código pasó la verificación final.
 
-## Qué pasó
+## Contenido
 
-Los 11 redactores que escribían los capítulos en paralelo se detuvieron a la
-mitad porque se alcanzó el límite de uso de la sesión. Lo que alcanzaron a
-escribir está guardado en esta rama. Nada de lo que aparece abajo como
-"parcial" ha pasado todavía la verificación final (ejecutar todo el código y
-comparar las salidas impresas con las reales).
-
-## Estado por parte
-
-| Parte | Archivo | Estado | Hasta dónde llega |
+| Parte | Archivo | Bloques de código | Ejercicios |
 |---|---|---|---|
-| Estructura, estilos, portada | `preambulo.tex`, `portada.tex`, `curso-bi-rstudio.tex` | ✅ Terminado y probado | — |
-| Herramientas de verificación | `herramientas/*.py`, `*.sh` | ✅ Terminado y probado | — |
-| Introducción | `capitulos/00-introduccion.tex` | 🟡 Escrito, sin verificación final | Completo (13 secciones, 11 bloques de código) |
-| Módulo 1. Fundamentos | `capitulos/01-fundamentos.tex` | 🟡 Parcial | Secciones 1–8 (hasta listas y matrices). Faltan: control de flujo, funciones propias, paquetes, importar/exportar, ayuda, caso integral, errores comunes, resumen y ejercicios |
-| Módulo 2. dplyr y tidyr | `capitulos/02-manipulacion-datos.tex` | 🟡 Parcial | Hasta funciones de ventana. Faltan: lubridate, stringr, joins, tidyr, limpieza, caso integral, errores, resumen y ejercicios |
-| Módulo 3. ggplot2 | — | ❌ Sin capítulo | Solo existe un borrador del script de figuras (`herramientas/figuras/figuras-03.R`) |
-| Módulo 4. Estadística | `capitulos/04-analisis-exploratorio.tex` | 🟡 Parcial | Hasta Pareto/ABC (2 figuras hechas). Faltan: correlación, distribuciones, intervalos, pruebas de hipótesis, regresión, caso integral, resumen y ejercicios |
-| Módulo 5. Bases de datos | — | ❌ Sin empezar | — |
-| Módulo 6. Shiny | — | ❌ Sin capítulo | Las 3 apps ya existen en `codigo/apps/` pero aún no se verificaron |
-| Módulo 7. Machine learning | — | ❌ Sin empezar | — |
-| Módulo 8. Reportes | — | ❌ Sin capítulo | Reportes `.Rmd` y script de automatización en `codigo/reportes/`, aún sin verificar |
-| Módulo 9. Proyecto final | `capitulos/09-proyecto-final.tex` | 🟡 Parcial | Fases 1 y 2. Faltan: fases 3–6, script maestro, checklist y retos |
-| Apéndice A. Soluciones | `apendices/soluciones/` | ❌ Vacío | Ningún módulo alcanzó a escribir ejercicios ni soluciones |
-| Apéndice B. Referencia rápida | — | ❌ Sin empezar | — |
+| Introducción | `capitulos/00-introduccion.tex` | 13 | — |
+| Módulo 1. Fundamentos de R y RStudio | `capitulos/01-fundamentos.tex` | 98 | 12 |
+| Módulo 2. dplyr y tidyr | `capitulos/02-manipulacion-datos.tex` | 96 | 12 |
+| Módulo 3. Visualización con ggplot2 | `capitulos/03-visualizacion.tex` | 49 | 10 |
+| Módulo 4. Análisis exploratorio y estadística | `capitulos/04-analisis-exploratorio.tex` | 82 | 10 |
+| Módulo 5. Bases de datos, SQL y ETL | `capitulos/05-bases-datos.tex` | 71 | 10 |
+| Módulo 6. Dashboards con Shiny | `capitulos/06-dashboards-shiny.tex` | 42 | 8 |
+| Módulo 7. Machine learning para BI | `capitulos/07-machine-learning.tex` | 77 | 10 |
+| Módulo 8. Reportes con R Markdown | `capitulos/08-reportes.tex` | 21 | 8 |
+| Módulo 9. Proyecto final | `capitulos/09-proyecto-final.tex` | 40 | 8 |
+| Apéndice A. Soluciones | `apendices/soluciones/sol-01.tex` … `sol-09.tex` | 110 | 88 soluciones |
+| Apéndice B. Referencia rápida | `apendices/B-referencia-rapida.tex` | 12 | — |
 
-## Pasos siguientes
+Además: 3 apps Shiny en `codigo/apps/`, 4 archivos de reportes en
+`codigo/reportes/` y un script `.R` por módulo y por archivo de soluciones en
+`codigo/`.
 
-1. Terminar los módulos parciales (1, 2, 4, 9) a partir de donde se quedaron.
-2. Escribir los módulos 3, 5, 6, 7 y 8, y el apéndice B.
-3. Escribir los ejercicios de cada módulo y sus soluciones.
-4. Verificar cada capítulo con `herramientas/extraer_codigo.py --ejecutar` y
-   `herramientas/verificar_salidas.py`.
-5. Compilar el libro completo, revisarlo visualmente y generar
-   `curso-bi-rstudio.pdf`.
+## Verificación final
+
+Se hizo en una carpeta limpia, generando los datos desde cero con
+`datasets/generar_datasets.R`, igual que lo hará el lector.
+
+- **Ejecución:** los 20 archivos (10 capítulos, 9 de soluciones y el
+  apéndice B) se ejecutan de principio a fin sin errores con
+  `herramientas/extraer_codigo.py --ejecutar`. Se ejecutaron dos veces
+  seguidas en la misma carpeta, con el mismo resultado.
+- **Salidas:** `herramientas/verificar_salidas.py` comparó 594 salidas
+  impresas en el libro con la salida real de R; todas coinciden.
+- **Apps y reportes:** las 3 apps Shiny arrancan y pasan pruebas con
+  `testServer()`. El reporte ejecutivo se generó en HTML, PDF y Word, y
+  también para las 10 tiendas en un solo paso.
+- **LaTeX:** compila sin errores, sin referencias rotas, sin etiquetas
+  duplicadas y sin caracteres faltantes. Solo quedan 4 avisos de cajas anchas
+  en la portada, que no afectan cómo se ve.
+
+## Notas
+
+- Los módulos salieron más largos de lo planeado (entre 51 y 85 páginas los
+  centrales). Si se quiere un libro más corto, lo más fácil de recortar son
+  las salidas largas de R y algunos listados completos de las apps Shiny.
+- Algunos resultados con los datos simulados son "no significativos" o no
+  muestran patrón (por ejemplo, los clientes premium no gastan más). El libro
+  los presenta como resultados válidos y los aprovecha para enseñar.
+- Los nombres de días y meses dependen del idioma del sistema del lector; el
+  libro usa español.

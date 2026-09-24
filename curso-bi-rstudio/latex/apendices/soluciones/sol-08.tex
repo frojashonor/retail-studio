@@ -9,6 +9,7 @@ con \codigo{nrow()} y \codigo{sum()} sobre la columna lógica
 \codigo{es\_premium} (cada \codigo{TRUE} cuenta como 1). Como el archivo se
 guarda en \archivo{reportes/}, los datos se buscan también en
 \archivo{../datasets}.
+\end{solucion}
 
 \begin{textocodigo}[title=reportes/ej1-clientes.Rmd]
 ---
@@ -83,12 +84,13 @@ clientes %>%
 
 El reporte generado dice que hay 200 clientes, 73 premium
 (36.5\,\%), y la tabla empieza con Puebla (28 clientes) y CDMX (27).
-\end{solucion}
+
 
 \begin{solucion}{m8-2}
 Unimos las transacciones con la categoría del producto, resumimos, ordenamos
 \emph{antes} de formatear (porque al formatear las columnas se vuelven texto)
 y damos formato de negocio con \paquete{scales}.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -137,13 +139,14 @@ Belleza es la categoría que más vende: \$182,143, el 19.0\,\% del total, segui
 de Electrónica (13.8\,\%). Ropa queda al final con solo el 3.1\,\%. Observa
 la alineación: los números a la derecha permiten comparar magnitudes de un
 vistazo.
-\end{solucion}
+
 
 \begin{solucion}{m8-3}
 La función calcula primero el cumplimiento (\codigo{ventas / meta}) y con
 \codigo{if}/\codigo{else if}/\codigo{else} elige la frase. Para aplicarla a
 cada trimestre usamos \codigo{map\_chr()}, que llama a la función con cada
 valor de ventas.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -193,13 +196,14 @@ Los cuatro trimestres superaron la meta de \$220,000; el mejor fue Q4, con
 12.2\,\% por encima. Si cambias la meta a \$240,000, Q1, Q2 y Q3 pasan a
 ``Se alcanzó el \ldots'' sin tocar el texto: la frase depende solo de los
 datos.
-\end{solucion}
+
 
 \begin{solucion}{m8-4}
 El bloque \codigo{configuracion} fija las opciones globales; el bloque de
 cálculo lleva \codigo{include = FALSE}; la gráfica define su tamaño y su
 pie; y el bloque final usa \codigo{results = "asis"} para que el texto de
 \codigo{cat()} se convierta en una lista.
+\end{solucion}
 
 \begin{textocodigo}[title=reportes/ej4-opciones.Rmd]
 ---
@@ -276,11 +280,12 @@ cat(paste0("- **", top3$mes, "**: ", dollar(top3$ventas, accuracy = 1)),
 
 En el HTML y en el Word esas líneas aparecen como una lista con viñetas y
 los meses en negritas, sin recuadro gris ni \codigo{\#\#}.
-\end{solucion}
+
 
 \begin{solucion}{m8-5}
 El parámetro se declara en el YAML y se usa como \codigo{params\$categoria}
 en el filtro, en el título y en las frases.
+\end{solucion}
 
 \begin{textocodigo}[title=reportes/ej5-categoria.Rmd]
 ---
@@ -382,13 +387,14 @@ transacciones %>%
 Se obtienen \archivo{resultados/categoria\_ropa.html} y
 \archivo{resultados/categoria\_hogar.html}, cada uno con su título, su frase,
 su tabla y su gráfica.
-\end{solucion}
+
 
 \begin{solucion}{m8-6}
 \codigo{expand\_grid()} crea las 40 combinaciones; con \codigo{count()}
 contamos las transacciones por tienda y trimestre y las unimos con
 \codigo{left\_join()}. Si alguna combinación no tuviera transacciones,
 quedaría \codigo{NA}, que convertimos en 0 con \codigo{replace\_na()}.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -439,12 +445,13 @@ trimestre (16). Seis combinaciones quedan por debajo de 20 y se marcan con
 \codigo{generar = FALSE}, así que el bucle generaría 34 reportes; en el
 script de automatización bastaría con recorrer
 \codigo{filter(trabajos, generar)}.
-\end{solucion}
+
 
 \begin{solucion}{m8-7}
 \codigo{split()} divide el detalle en una lista con un data frame por
 tienda; los nombres de esa lista serán los nombres de las hojas. Con
 \codigo{c()} ponemos la hoja \codigo{Resumen} al principio.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -493,7 +500,7 @@ suman las 1,000 transacciones: no se perdió ni se duplicó ninguna. Observa
 que \codigo{split()} ordena las hojas alfabéticamente (Centro, Este,
 Express\ldots); si quisieras otro orden, reordena la lista antes de
 escribirla.
-\end{solucion}
+
 
 \begin{solucion}{m8-8}
 La función valida sus argumentos con \codigo{stop()}, igual que la plantilla
@@ -501,6 +508,7 @@ del reporte ejecutivo. El bucle envuelve cada llamada en
 \codigo{tryCatch()}: las filas exitosas se guardan en una lista de
 resultados y los errores en el registro, así que ninguna combinación inválida
 detiene el proceso.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -598,4 +606,4 @@ datos. En junio, cinco tiendas están en alerta y la Sucursal Outlet creció
 612.9\,\%: una variación tan grande con tan pocas transacciones merece
 revisar los datos antes de celebrarla. El texto final está listo para
 insertarse en un reporte con \codigo{results = "asis"}.
-\end{solucion}
+

@@ -6,6 +6,7 @@
 La recompra se mide sobre los clientes \emph{activos} (los que compraron al
 menos una vez). Para los días entre compras ordenamos las compras de cada
 cliente por fecha y restamos la fecha anterior con \codigo{lag()}.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -61,12 +62,13 @@ recompras ocurre entre 19 y 82 días) y 140 clientes volvieron alguna vez en
 30 días o menos. Una campaña de segunda compra aportaría poco; es más útil
 una campaña que \emph{acorte} el intervalo (por ejemplo, un cupón válido 30
 días) y medir si la mediana baja de 41 días.
-\end{solucion}
+
 
 \begin{solucion}{p-2}
 Unimos las ventas por sucursal con \archivo{tiendas.csv}, dividimos entre
 m\textsuperscript{2} y empleados y usamos \codigo{min\_rank(desc())} para
 los rankings.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -133,11 +135,12 @@ m\textsuperscript{2} (\$127). Si la dirección piensa en expansión, los
 formatos chicos producen casi el triple por metro cuadrado que los grandes;
 antes de decidir habría que agregar el costo de renta por
 m\textsuperscript{2}, que no está en los datos.
-\end{solucion}
+
 
 \begin{solucion}{p-3}
 La venta diaria promedio es el total de unidades de 2023 entre 365 días. La
 cobertura dice cuántos días alcanza el stock actual a ese ritmo.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -195,12 +198,13 @@ transacciones al año, TechRetail parece tener \emph{sobreinventario}, y los
 \codigo{stock\_minimo} están desalineados con la demanda real. Recomendación:
 recalcular mínimos a partir de la venta diaria (por ejemplo, 30 días de
 cobertura) y revisar si el stock se registra en unidades o en cajas.
-\end{solucion}
+
 
 \begin{solucion}{p-4}
 La cohorte es el mes de la primera compra. Para cada compra calculamos
 cuántos meses pasaron desde ese mes (\codigo{meses\_desde}) y contamos
 clientes distintos por cohorte y mes.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -266,12 +270,13 @@ clara. Ojo al interpretar: las cohortes tardías tienen muy pocos clientes
 (3 en junio o septiembre) y sus porcentajes serían puro ruido; por eso
 mostramos solo las del primer trimestre. En una empresa real las cohortes se
 definen con fecha de alta confiable y varios años de historia.
-\end{solucion}
+
 
 \begin{solucion}{p-5}
 La regla de Tukey marca como atípico lo que queda fuera de
 $[Q_1 - 1.5\,\mathrm{IQR},\ Q_3 + 1.5\,\mathrm{IQR}]$. La segunda regla
 compara el precio de cada transacción con la mediana del mismo producto.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -345,12 +350,13 @@ inconsistentes para un mismo producto. Los vendedores 23 y 24 concentran 9
 casos cada uno; antes de sacar conclusiones sobre personas, compáralo con su
 número total de transacciones (43 y 44), porque con 148 casos repartidos en
 25 vendedores, 9 por vendedor está dentro de lo esperable.
-\end{solucion}
+
 
 \begin{solucion}{p-6}
 Primero medimos si los descuentos se asocian con más unidades en
 \archivo{ventas\_retail.csv}; después simulamos diciembre con un descuento
 de 10\% y un aumento aleatorio de unidades.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -413,13 +419,14 @@ simulaciones; en promedio el ingreso de diciembre bajaría de \$96,394 a
 \$3,366. Y esto es ingreso: con márgenes estimados de 46\%, el efecto en
 utilidad sería peor. Recomendación: no lanzar un descuento general; probarlo
 primero en unas tiendas con un grupo de control.
-\end{solucion}
+
 
 \begin{solucion}{p-7}
 Las \termino{funciones de ventana} (\codigo{min\_rank()}, \codigo{lag()},
 \codigo{cumsum()}) calculan un valor por fila usando otras filas del mismo
 grupo. Primero completamos la tabla vendedor-mes con \codigo{complete()},
 para que un mes sin ventas cuente como cero.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -477,12 +484,13 @@ en octubre, el 2 en mayo y el 17 en marzo): pasar del lugar 23 o 24 al top 3
 de un mes a otro indica que el ranking mensual es muy volátil con pocas
 transacciones por vendedor (unas 3 o 4 al mes). Para evaluar desempeño
 conviene un ranking trimestral o un promedio móvil, no el mes aislado.
-\end{solucion}
+
 
 \begin{solucion}{p-8}
 La función arma las tres hojas como una lista con nombre y la escribe con
 \codigo{write\_xlsx()} de \paquete{writexl} (cada elemento de la lista es una
 hoja). \codigo{walk()} la aplica a las 10 tiendas.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -565,7 +573,8 @@ readxl::read_excel(file.path("resultados/gerentes", archivos[8]),
 \end{rsalida}
 
 \textbf{Interpretación:} se generaron los 10 archivos, uno por sucursal,
-con nombre ordenable (\archivo{tienda\_01\_\ldots}). La hoja
+con un nombre que se ordena solo, porque empieza con
+\archivo{tienda\_01}, \archivo{tienda\_02}, etc. La hoja
 \emph{Resumen} de la Sucursal Outlet muestra que vendió \$114,377 contra un
 promedio de \$95,999 por tienda, con un ticket de \$1,079 contra \$959. Ese
 formato de ``mi tienda contra la cadena'' es justo lo que un gerente
@@ -573,4 +582,4 @@ necesita. Para automatizarlo cada mes, combina esta función con la
 programación de tareas del Módulo~\ref{cap:reportes}. Si quieres dar formato
 (colores, anchos de columna) usa \paquete{openxlsx}, que no está instalado
 en este entorno.
-\end{solucion}
+

@@ -17,6 +17,15 @@ Al finalizar este curso serás capaz de:
 
 ---
 
+## 📘 Versión en libro (PDF)
+
+Todo el curso está también en un libro de 798 páginas, con código comentado,
+salidas reales de R, ejercicios y sus soluciones:
+[`latex/curso-bi-rstudio.pdf`](latex/curso-bi-rstudio.pdf).
+El código fuente LaTeX y cómo compilarlo están en [`latex/`](latex/README.md).
+
+---
+
 ## 📚 Estructura del Curso
 
 ### **NIVEL PRINCIPIANTE** 🌱

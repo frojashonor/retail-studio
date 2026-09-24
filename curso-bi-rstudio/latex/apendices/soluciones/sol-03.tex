@@ -5,6 +5,7 @@
 \begin{solucion}{m3-1}
 Contamos los tickets por tienda con \codigo{count()} y graficamos con
 \codigo{geom\_col()} en horizontal, ordenando con \codigo{fct\_reorder()}.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -51,9 +52,12 @@ s1
 tienda con más \emph{ingresos} es Outlet (106 tickets): vende un poco menos
 de tickets pero de mayor importe. Contar tickets e ingresos responde
 preguntas distintas (tráfico contra valor).
-\end{solucion}
+
 
 \begin{solucion}{m3-2}
+Este es el código completo, con su salida y la interpretación.
+\end{solucion}
+
 \begin{rcode}
 library(tidyverse)
 color_principal <- "#2a78d6"
@@ -86,7 +90,7 @@ alturas parecidas entre los 18 y los 75 años: la distribución es más o
 menos \emph{pareja} (uniforme), sin una edad dominante. Es lo esperable
 porque las edades se simularon al azar en ese rango; en una empresa real
 casi siempre verías una concentración en algún grupo de edad.
-\end{solucion}
+
 
 \begin{solucion}{m3-3}
 Los cuatro errores:
@@ -104,6 +108,7 @@ Los cuatro errores:
 \end{enumerate}
 (Además conviene agregar \codigo{.groups = "drop"}, aunque aquí no es
 obligatorio porque se agrupa por una sola columna.)
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -125,9 +130,12 @@ La versión corregida se ejecuta sin errores y muestra cuatro columnas
 azules con el eje en pesos. Para dejarla lista para la dirección faltaría
 ordenarla, ponerla horizontal y agregar títulos (lista de verificación de
 la sección~\ref{sec:m3-antes-despues}).
-\end{solucion}
+
 
 \begin{solucion}{m3-4}
+Este es el código completo, con su salida y la interpretación.
+\end{solucion}
+
 \begin{rcode}
 library(tidyverse)
 color_principal <- "#2a78d6"
@@ -173,12 +181,13 @@ s4
 queda muy por debajo con 71. Como abril también fue el peor mes en
 ingresos, la caída de ese mes se explica en buena parte por menos tráfico
 (menos tickets), no solo por tickets más pequeños.
-\end{solucion}
+
 
 \begin{solucion}{m3-5}
 \codigo{wday(fecha, label = TRUE, week\_start = 1)} devuelve el día como
 factor ordenado de lunes a domingo; así el eje queda en el orden correcto
 sin hacer nada más.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -241,9 +250,12 @@ sábado, el día más bajo. Pero recuerda el mapa de calor
 (figura~\ref{fig:m03-calor}): el viernes no es el mejor día \emph{todos}
 los meses. La diferencia anual existe, pero no es tan consistente como para
 basar en ella una estrategia sin más análisis.
-\end{solucion}
+
 
 \begin{solucion}{m3-6}
+Este es el código completo, con su salida y la interpretación.
+\end{solucion}
+
 \begin{rcode}
 library(tidyverse)
 library(scales)
@@ -289,9 +301,12 @@ tiene Ventas: su rango intercuartílico (\codigo{ric}, el ancho de la caja)
 es de \$22,089. Cuidado: algunos departamentos tienen
 solo 9 o 10 personas, así que un boxplot con tan pocos datos es
 orientativo; siempre acompáñalo del número de observaciones.
-\end{solucion}
+
 
 \begin{solucion}{m3-7}
+Este es el código completo, con su salida y la interpretación.
+\end{solucion}
+
 \begin{rcode}
 library(tidyverse)
 library(scales)
@@ -348,13 +363,14 @@ costo mayor a su precio: 10 de los 50 productos (20\%). Es un
 \emph{hallazgo de calidad de datos} o de negocio que hay que escalar: o el
 costo está mal capturado, o se están vendiendo productos con pérdida. Al
 área de compras le pedirías revisar primero estos diez productos.
-\end{solucion}
+
 
 \begin{solucion}{m3-8}
 La clave es dibujar dos capas con datos distintos: primero las siete
 tiendas en gris (con \codigo{group} para que cada una sea su propia línea y
 sin \codigo{color} en \codigo{aes()}, así no entran a la leyenda) y encima
 las tres líderes con \codigo{color = tienda}.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -421,12 +437,13 @@ Plaza A cierran prácticamente empatadas (\$105,305 y \$105,216). El
 primer lugar cambió de manos varias veces durante el año y Outlet lo tomó
 en noviembre. Como \codigo{top3} se calcula con código, la gráfica se
 actualiza sola si cambian los datos.
-\end{solucion}
+
 
 \begin{solucion}{m3-9}
 Dentro de una función, \codigo{\{\{ categoria \}\}} (se lee
 ``\emph{curly-curly}'') le dice a \paquete{ggplot2} y a \paquete{dplyr} que
 use la columna cuyo nombre recibió el argumento.
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -486,9 +503,12 @@ file.exists(c("resultados/ranking_pago.png",
 \textbf{Interpretación.} Con una sola función produces gráficas idénticas
 en estilo para cualquier tabla con una columna de categoría y otra de
 valor. Es el primer paso hacia un ``kit'' de gráficas del área de BI.
-\end{solucion}
+
 
 \begin{solucion}{m3-10}
+Este es el código completo, con su salida y la interpretación.
+\end{solucion}
+
 \begin{rcode}
 library(tidyverse)
 library(scales)
@@ -599,4 +619,4 @@ ggsave("resultados/premium_segmento.png", s_premium, width = 7,
         de mayor proporción premium (41\%); los Jóvenes son pocos (21), así
         que su 33\% premium se basa en muy pocos casos.
 \end{enumerate}
-\end{solucion}
+
