@@ -7,6 +7,7 @@
 \begin{solucion}{m6-1}
 Agregamos dos entradas a la \codigo{ui} y ampliamos el cálculo del
 \codigo{renderText()}. El IVA se aplica después del descuento.
+\end{solucion}
 
 \begin{rcode}
 library(shiny)
@@ -50,13 +51,13 @@ Sin IVA, 3 piezas de \$500 con 10\% de descuento cuestan \$1,350; con IVA,
 \begin{rnoejecutar}
 shinyApp(ui, server)
 \end{rnoejecutar}
-\end{solucion}
 
 \begin{solucion}{m6-2}
 Hay tres cambios en \archivo{app.R} de la app 02: (1) un argumento nuevo en
 \codigo{filtrar\_ventas()}, (2) la entrada en la barra lateral y (3) pasar
 la entrada al filtrar. Primero probamos la función modificada, de forma
 autocontenida:
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -109,11 +110,11 @@ datos_filtrados <- reactive({
 
 Si el usuario desmarca todas las casillas, \codigo{input\$pagos} vale
 \codigo{NULL} y, por nuestra convención, se muestran todos los métodos.
-\end{solucion}
 
 \begin{solucion}{m6-3}
 Primero la lógica. El margen bruto de cada transacción es lo cobrado menos
 el costo de las piezas vendidas (\codigo{costo * cantidad}):
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -181,13 +182,14 @@ output$kpi_pct_margen <- renderValueBox({
 \end{rnoejecutar}
 
 \codigo{isTRUE()} evita un error cuando el filtro no deja ventas (el margen
-sería 0 y el porcentaje \codigo{NaN}). Con la categoría Belleza y la tienda
-correspondiente puedes llegar a ver la caja en rojo.
-\end{solucion}
+sería 0 y el porcentaje \codigo{NaN}). Para ver la caja en rojo, elige la
+tienda Norte y la categoría Ropa: en 2023 esa combinación perdió
+\$2,520.
 
 \begin{solucion}{m6-4}
 El truco es que \emph{todas} las salidas dependan de un
 \codigo{eventReactive()} ligado al botón, y no directamente de los filtros.
+\end{solucion}
 
 \begin{rcode}
 library(shiny)
@@ -255,12 +257,12 @@ Norte (\$89,024 en 99 transacciones).
 \begin{rnoejecutar}
 shinyApp(ui, server)
 \end{rnoejecutar}
-\end{solucion}
 
 \begin{solucion}{m6-5}
 Primero la función de la gráfica. Con \codigo{wday(fecha, label = TRUE,
 week\_start = 1)} obtenemos el día como factor ordenado de lunes a domingo
 (en español, porque trabajamos con locale es\_MX):
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -330,13 +332,13 @@ output$graf_dias <- renderPlot({
 
 La función \codigo{grafica\_dias()} (con \codigo{ventas\_por\_dia()}) va en
 \archivo{R/funciones\_dashboard.R}, junto a las demás gráficas.
-\end{solucion}
 
 \begin{solucion}{m6-6}
 Para que la descarga contenga ``exactamente la tabla que se ve'', guardamos
 la tabla en un reactivo que usan \emph{tanto} la tabla como los dos botones.
 Así no hay forma de que diverjan. Probemos primero, autocontenido, lo que
 escribirá cada botón:
+\end{solucion}
 
 \begin{rcode}
 library(tidyverse)
@@ -413,13 +415,13 @@ testServer(shinyAppDir("mis-apps/02-mi-explorador"), {
   read_csv(output$bajar_csv, show_col_types = FALSE)   # 5 filas
 })
 \end{rnoejecutar}
-\end{solucion}
 
 \begin{solucion}{m6-7}
 El módulo recibe los datos como \emph{reactivo} (sin paréntesis al
 pasarlo) y el nombre de la columna como texto. Dentro, cada id pasa por
 \codigo{ns()}, así que las dos copias no chocan aunque ambas tengan un
 deslizador llamado \codigo{"n"}.
+\end{solucion}
 
 \begin{rcode}
 library(shiny)
@@ -507,11 +509,11 @@ deslizador. En la \codigo{ui} completa los ids reales son
 \begin{rnoejecutar}
 shinyApp(ui, server)
 \end{rnoejecutar}
-\end{solucion}
 
 \begin{solucion}{m6-8}
 Seguimos la receta del módulo: datos fuera del \codigo{server}, funciones
 de lógica probadas por separado y un servidor corto.
+\end{solucion}
 
 \begin{rcode}
 library(shiny)
@@ -660,4 +662,3 @@ dashboard:
 \begin{rnoejecutar}
 shinyApp(ui, server)
 \end{rnoejecutar}
-\end{solucion}

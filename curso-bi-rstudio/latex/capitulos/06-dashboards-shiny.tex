@@ -1247,12 +1247,12 @@ figura~\ref{fig:m6-maqueta-app02}.
   \node[zona, fill=gray!10, minimum width=3.2cm, minimum height=6.1cm,
         anchor=north west] at (0.2,6.4) {};
   \foreach \y/\t in {6.0/Tienda: [Todas \ding{116}], 5.0/Categorías: [ Todas ],
-                     4.0/Periodo: [01/01 a 31/12], 2.9/Medir por:\\ (o) Ventas\\ ( ) Unidades\\ ( ) Transacciones,
+                     4.0/{Periodo:\\ {[}01/01 a 31/12{]}}, 2.9/Medir por:\\ (o) Ventas\\ ( ) Unidades\\ ( ) Transacciones,
                      1.2/Productos en el top:\\ \textbf{---o---} 10} {
     \node[anchor=north west, align=left] at (0.35,\y) {\t};
   }
   % main
-  \node[anchor=west, font=\sffamily\bfseries] at (3.7,6.1)
+  \node[anchor=west, font=\sffamily\bfseries] at (3.7,6.3)
        {1,000 transacciones | Ventas: \$959,993};
   \draw[gristexto!60] (3.7,5.55) -- (12.8,5.55);
   \node[zona, fill=secundario!15, anchor=south west, minimum width=2.6cm,
@@ -1267,7 +1267,7 @@ figura~\ref{fig:m6-maqueta-app02}.
   \draw[gristexto] (3.9,0.8) -- (12.6,0.8);
   % callouts
   \node[text=acento, anchor=west] at (9.2,4.8) {\codigo{plotOutput("grafica")}};
-  \node[text=acento, anchor=west, font=\sffamily\scriptsize] at (3.75,6.45) {\codigo{textOutput("resumen")}};
+  \node[text=acento, anchor=east, font=\sffamily\scriptsize] at (12.8,6.8) {resumen: \codigo{textOutput("resumen")}};
 \end{tikzpicture}
 \caption{Maqueta de la app 02: filtros en la barra lateral, resumen arriba y
 resultados en dos pestañas.}
@@ -1680,7 +1680,7 @@ aparece en la figura~\ref{fig:m6-maqueta-app03}.
   }
   \fill[primario!60, opacity=0.6] (0,6.4) rectangle (3.2,6.8);
   \node[anchor=west, text=white, align=left] at (0.2,3.95) {Periodo:\\[1pt]
-    \colorbox{white}{\textcolor{black}{01/01/2023 a 31/12/2023}}};
+    \colorbox{white}{\textcolor{black}{01/01/23 a 31/12/23}}};
   \node[anchor=west, text=white, align=left] at (0.2,2.95) {Tiendas:\\[1pt]
     \colorbox{white}{\textcolor{black}{\makebox[2.3cm][l]{Todas}}}};
   \node[anchor=west, text=white, align=left] at (0.2,1.95) {Categorías:\\[1pt]
@@ -1704,7 +1704,7 @@ aparece en la figura~\ref{fig:m6-maqueta-app03}.
   \node[zona, fill=white, minimum width=3.4cm, minimum height=4.2cm,
         anchor=north west] at (9.85,5.45) {};
   \fill[primario] (9.85,5.45) rectangle (13.25,5.0);
-  \node[white, anchor=west, font=\sffamily\scriptsize] at (9.9,5.22) {Ventas por método de pago};
+  \node[white, anchor=west, font=\sffamily\scriptsize] at (9.9,5.22) {Método de pago};
   \foreach \y/\w in {4.4/2.6, 3.8/2.2, 3.2/2.0, 2.6/0.9} {
     \fill[primario!70] (10.2,\y) rectangle ++(\w,0.35);
   }

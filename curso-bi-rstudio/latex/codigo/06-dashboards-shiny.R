@@ -557,20 +557,6 @@ p_evolucion <- grafica_evolucion(datos)
 p_evolucion
 
 # ---- Bloque 31 --------------------------------------------------------
-grafica_metodo_pago <- function(datos) {
-  datos %>%
-    group_by(metodo_pago) %>%
-    summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
-    mutate(participacion = ventas / sum(ventas)) %>%
-    ggplot(aes(x = participacion,
-               y = reorder(metodo_pago, participacion))) +
-    geom_col(fill = color_principal, width = 0.7) +
-    scale_x_continuous(labels = label_percent(),
-                       expand = expansion(mult = c(0, 0.05))) +
-    labs(x = "% de las ventas", y = NULL) +
-    tema_dashboard()
-}
-
 grafica_barras <- function(resumen, etiqueta_y = NULL) {
   # resumen: columnas 'nombre' y 'ventas'; barras horizontales ordenadas
   ggplot(resumen, aes(x = ventas, y = reorder(nombre, ventas))) +
@@ -586,13 +572,6 @@ grafica_top_productos <- function(datos, n = 10) {
     group_by(nombre = nombre_producto) %>%
     summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
     slice_max(ventas, n = n, with_ties = FALSE) %>%
-    grafica_barras()
-}
-
-grafica_categorias <- function(datos) {
-  datos %>%
-    group_by(nombre = categoria) %>%
-    summarise(ventas = sum(total_transaccion), .groups = "drop") %>%
     grafica_barras()
 }
 
@@ -737,35 +716,8 @@ tabla_top_clientes(datos, n = 3)
 #             plotOutput("graf_pago", height = 300))
 #       )
 #     ),
-#     tabItem(tabName = "productos",
-#       fluidRow(
-#         box(title = "Top 10 productos", width = 6, status = "primary",
-#             plotOutput("graf_top_productos", height = 380)),
-#         box(title = "Ventas por categoría", width = 6, status = "primary",
-#             plotOutput("graf_categorias", height = 380))
-#       )
-#     ),
-#     tabItem(tabName = "tiendas",
-#       fluidRow(
-#         box(title = "Ventas por tienda", width = 7, status = "primary",
-#             plotOutput("graf_tiendas", height = 380)),
-#         box(title = "Indicadores por tienda", width = 5,
-#             status = "primary", tableOutput("tabla_tiendas"))
-#       )
-#     ),
-#     tabItem(tabName = "clientes",
-#       fluidRow(
-#         infoBoxOutput("info_clientes"),
-#         infoBoxOutput("info_premium"),
-#         infoBoxOutput("info_frecuencia")
-#       ),
-#       fluidRow(
-#         box(title = "Ventas por segmento", width = 6, status = "primary",
-#             plotOutput("graf_segmentos", height = 320)),
-#         box(title = "Top 10 clientes", width = 6, status = "primary",
-#             tableOutput("tabla_clientes"))
-#       )
-#     ),
+#     # ... pestañas "productos", "tiendas" y "clientes": misma idea,
+#     # ... una fluidRow() con dos box() cada una (ver app.R)
 #     tabItem(tabName = "datos",
 #       fluidRow(
 #         box(title = "Detalle de transacciones", width = 12,
@@ -833,36 +785,13 @@ tabla_top_clientes(datos, n = 3)
 #   output$graf_pago <- renderPlot({
 #     grafica_metodo_pago(datos_validos())
 #   }, res = 96)
-#   output$graf_top_productos <- renderPlot({
-#     grafica_top_productos(datos_validos())
-#   }, res = 96)
-#   output$graf_categorias <- renderPlot({
-#     grafica_categorias(datos_validos())
-#   }, res = 96)
-#   output$graf_tiendas <- renderPlot({
-#     grafica_tiendas(datos_validos())
-#   }, res = 96)
+#   # ... las demás gráficas siguen el mismo patrón de una línea ...
 #   output$tabla_tiendas <- renderTable(tabla_tiendas(datos_filtrados()))
-#
-#   output$info_clientes <- renderInfoBox({
-#     infoBox("Clientes activos", formato_numero(kpis()$clientes),
-#             icon = icon("users"), color = "blue")
-#   })
 #   output$info_premium <- renderInfoBox({
 #     infoBox("Clientes premium", formato_pct(kpis()$pct_premium),
 #             icon = icon("star"), color = "blue")
 #   })
-#   output$info_frecuencia <- renderInfoBox({
-#     infoBox("Compras por cliente",
-#             formato_numero(kpis()$compras_cliente, decimales = 1),
-#             icon = icon("repeat"), color = "blue")
-#   })
-#   output$graf_segmentos <- renderPlot({
-#     grafica_segmentos(datos_validos())
-#   }, res = 96)
-#   output$tabla_clientes <- renderTable(
-#     tabla_top_clientes(datos_filtrados()))
-#
+#   # ... infoBox de clientes y frecuencia, gráfica de segmentos ...
 #   output$tabla_detalle <- renderDT(tabla_detalle_dt(datos_filtrados()))
 #
 #   # 7. Servidor: descargas (respetan los filtros activos) ----------------

@@ -60,8 +60,8 @@ el resultado en una decisión}.
 \end{itemize}
 \end{concepto}
 
-Una advertencia honesta desde el principio: los datos del curso
-(\archivo{ventas\_retail.csv}, \archivo{transacciones.csv}, etc.) se generaron
+Una advertencia honesta desde el principio: los datos del curso (por
+ejemplo, \archivo{ventas\_retail.csv} o \archivo{transacciones.csv}) se generaron
 \emph{al azar}. Sirven perfectamente para la segmentación de clientes, porque
 ahí solo queremos \emph{describir} grupos, pero no tienen patrones que un modelo
 predictivo pueda aprender. Por eso, para predicción de ventas, abandono de
@@ -1556,8 +1556,8 @@ de regresión más usadas son:
 \small
 \caption{Métricas de error para regresión.}
 \label{tab:m7-metricas-reg}
-\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.3cm}
-                              >{\raggedright\arraybackslash}p{4.8cm}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.2cm}
+                              >{\raggedright\arraybackslash}p{5.4cm}
                               >{\raggedright\arraybackslash}X}
 \toprule
 \textbf{Métrica} & \textbf{Cálculo} & \textbf{Cómo se lee} \\
@@ -1573,7 +1573,7 @@ MAPE (error porcentual absoluto medio) &
   ``Nos equivocamos X\% en promedio''. Comparable entre negocios de distinto
   tamaño; falla si hay valores reales cercanos a cero. \\
 R² (coeficiente de determinación) &
-  $1 - \dfrac{\sum (\text{real} - \text{predicho})^2}{\sum (\text{real} - \text{promedio})^2}$ &
+  $1 - \dfrac{\sum (\text{real} - \text{pred.})^2}{\sum (\text{real} - \text{prom.})^2}$ &
   Proporción de la variación explicada: 1 es perfecto, 0 es igual a predecir
   siempre el promedio, negativo es peor que el promedio. \\
 \bottomrule
@@ -1923,7 +1923,7 @@ quejas, 62.5\%. Este tipo de tabla es la mejor forma de verificar, antes de
 modelar, que hay señal en los datos.
 
 Dividimos en entrenamiento (70\%) y prueba (30\%) de forma
-\textbf{estratificada} con \codigo{createDataPartition()}, para que ambos
+\textbf{estratificada} con la función \codigo{createDataPartition()}, para que ambos
 conjuntos tengan la misma proporción de abandono:
 
 \begin{rcode}
