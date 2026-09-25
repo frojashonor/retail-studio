@@ -28,101 +28,61 @@ El código fuente LaTeX y cómo compilarlo están en [`latex/`](latex/README.md)
 
 ## 📚 Estructura del Curso
 
-### **NIVEL PRINCIPIANTE** 🌱
+El material principal es el **libro**. Cada módulo tiene su capítulo, un script
+con todo su código (probado de principio a fin) y un script con las soluciones
+de sus ejercicios.
 
-#### **Módulo 1: Fundamentos de R y RStudio**
-- Instalación y configuración del entorno
-- Tipos de datos y estructuras
-- Operaciones básicas y funciones
-- Importación y exportación de datos
-- 📁 Carpeta: `modulo-01-fundamentos/`
+| Nivel | Módulo | Tema | Código del módulo | Soluciones |
+|---|---|---|---|---|
+| — | Intro | Cómo usar el curso, instalación, diccionario de datos | [`00-introduccion.R`](latex/codigo/00-introduccion.R) | — |
+| 🌱 Principiante | 1 | Fundamentos de R y RStudio | [`01-fundamentos.R`](latex/codigo/01-fundamentos.R) | [`sol-01.R`](latex/codigo/sol-01.R) |
+| 🌱 Principiante | 2 | Manipulación de datos con dplyr y tidyr | [`02-manipulacion-datos.R`](latex/codigo/02-manipulacion-datos.R) | [`sol-02.R`](latex/codigo/sol-02.R) |
+| 🌱 Principiante | 3 | Visualización con ggplot2 | [`03-visualizacion.R`](latex/codigo/03-visualizacion.R) | [`sol-03.R`](latex/codigo/sol-03.R) |
+| 🚀 Intermedio | 4 | Análisis exploratorio y estadística | [`04-analisis-exploratorio.R`](latex/codigo/04-analisis-exploratorio.R) | [`sol-04.R`](latex/codigo/sol-04.R) |
+| 🚀 Intermedio | 5 | Bases de datos, SQL y ETL | [`05-bases-datos.R`](latex/codigo/05-bases-datos.R) | [`sol-05.R`](latex/codigo/sol-05.R) |
+| 🚀 Intermedio | 6 | Dashboards con Shiny | [`06-dashboards-shiny.R`](latex/codigo/06-dashboards-shiny.R) + [`apps/`](latex/codigo/apps/) | [`sol-06.R`](latex/codigo/sol-06.R) |
+| 🎓 Avanzado | 7 | Machine learning para BI | [`07-machine-learning.R`](latex/codigo/07-machine-learning.R) | [`sol-07.R`](latex/codigo/sol-07.R) |
+| 🎓 Avanzado | 8 | Reportes automáticos con R Markdown | [`08-reportes.R`](latex/codigo/08-reportes.R) + [`reportes/`](latex/codigo/reportes/) | [`sol-08.R`](latex/codigo/sol-08.R) |
+| 🎯 Proyecto | 9 | Proyecto final: TechRetail México | [`09-proyecto-final.R`](latex/codigo/09-proyecto-final.R) | [`sol-09.R`](latex/codigo/sol-09.R) |
+| 📎 Apéndice | B | Referencia rápida, errores frecuentes y glosario | [`B-referencia-rapida.R`](latex/codigo/B-referencia-rapida.R) | — |
 
-#### **Módulo 2: Manipulación de Datos (dplyr & tidyr)**
-- Filtrar, seleccionar y ordenar datos
-- Crear nuevas columnas y transformaciones
-- Agrupar y resumir información
-- Unir datasets (joins)
-- Pivotar tablas
-- 📁 Carpeta: `modulo-02-manipulacion-datos/`
+### Scripts cortos de práctica
 
-#### **Módulo 3: Visualización de Datos (ggplot2)**
-- Gráficos de barras, líneas y dispersión
-- Histogramas y boxplots
-- Mapas de calor y gráficos de correlación
-- Personalización y temas profesionales
-- 📁 Carpeta: `modulo-03-visualizacion/`
-
----
-
-### **NIVEL INTERMEDIO** 🚀
-
-#### **Módulo 4: Análisis Exploratorio y Estadística**
-- Medidas de tendencia central y dispersión
-- Distribuciones de probabilidad
-- Pruebas de hipótesis
-- Correlaciones y regresiones lineales
-- Detección de outliers
-- 📁 Carpeta: `modulo-04-analisis-exploratorio/`
-
-#### **Módulo 5: Conexión a Bases de Datos y SQL**
-- Conectar a MySQL, PostgreSQL, SQL Server
-- Ejecutar consultas SQL desde R
-- Optimización de queries
-- ETL (Extract, Transform, Load)
-- 📁 Carpeta: `modulo-05-bases-datos/`
-
-#### **Módulo 6: Dashboards Interactivos (Shiny)**
-- Estructura básica de una app Shiny
-- Inputs y outputs reactivos
-- Dashboards con múltiples pestañas
-- Publicación de aplicaciones
-- 📁 Carpeta: `modulo-06-dashboards-shiny/`
+Las carpetas `modulo-01-fundamentos/`, `modulo-02-manipulacion-datos/`,
+`modulo-03-visualizacion/`, `modulo-07-machine-learning/` y `proyecto-final/`
+tienen scripts más cortos, de la primera versión del curso, con ejercicios
+"TU CÓDIGO AQUÍ" para practicar. Son un complemento: el contenido completo
+de cada módulo está en el libro y en `latex/codigo/`.
 
 ---
 
-### **NIVEL AVANZADO** 🎓
+## 📊 Datasets del curso
 
-#### **Módulo 7: Machine Learning para Business Intelligence**
-- Clustering (segmentación de clientes)
-- Clasificación (predicción de categorías)
-- Regresión (forecasting de ventas)
-- Series de tiempo
-- Análisis de canasta de compras
-- 📁 Carpeta: `modulo-07-machine-learning/`
+Los datos son simulados (con semilla fija, así que obtendrás los mismos
+números que el libro). Genéralos una sola vez con el directorio de trabajo en
+esta carpeta (`curso-bi-rstudio/`):
 
-#### **Módulo 8: Reportes Automáticos (RMarkdown)**
-- Crear reportes en PDF, HTML y Word
-- Integrar código, gráficos y texto
-- Parametrizar reportes
-- Automatización con scripts
-- 📁 Carpeta: `modulo-08-reportes/`
+```r
+source("datasets/generar_datasets.R")
+```
 
----
-
-## 📊 Datasets Incluidos
-
-En la carpeta `datasets/` encontrarás:
-- **ventas_retail.csv** - Datos de ventas de comercio minorista
-- **clientes.csv** - Base de clientes con información demográfica
-- **productos.csv** - Catálogo de productos
-- **empleados.csv** - Información de recursos humanos
-- **transacciones.csv** - Transacciones detalladas
+Se crean en `datasets/`:
+- **ventas_retail.csv** — una venta por día de 2023 (365 filas)
+- **transacciones.csv** — 1,000 transacciones con método de pago, hora, tienda y vendedor
+- **clientes.csv** — 200 clientes con datos demográficos
+- **productos.csv** — catálogo de 50 productos con precio, costo e inventario
+- **empleados.csv** — 100 empleados
+- **tiendas.csv** — 10 sucursales
+- **datos_empresa.xlsx** — muestra de todo lo anterior en un Excel con varias hojas
 
 ---
 
 ## 🎯 Proyecto Final Integrador
 
-Aplicarás todo lo aprendido en un caso real de Business Intelligence:
-**"Dashboard Ejecutivo de Retail Analytics"**
-
-Incluye:
-- Análisis de ventas y tendencias
-- Segmentación de clientes
-- Predicción de demanda
-- Dashboard interactivo
-- Reporte ejecutivo automatizado
-
-📁 Carpeta: `proyecto-final/`
+El Módulo 9 del libro aplica todo lo aprendido al caso **TechRetail México**:
+ETL y auditoría de calidad de datos, KPIs, segmentación de clientes,
+pronóstico, dashboard, reporte ejecutivo y presentación de resultados, con 8
+retos de extensión resueltos.
 
 ---
 
@@ -163,14 +123,17 @@ paquetes <- c(
   "shinydashboard", # Dashboards
   "DBI",            # Interfaz de bases de datos
   "RSQLite",        # SQLite
-  "odbc",           # Conexión ODBC
+  "dbplyr",         # dplyr sobre bases de datos
   "caret",          # Machine Learning
   "randomForest",   # Random Forest
   "cluster",        # Clustering
   "factoextra",     # Visualización de clustering
+  "rpart",          # Árboles de decisión
   "forecast",       # Series de tiempo
   "rmarkdown",      # Reportes
-  "knitr"           # Generación de reportes
+  "knitr",          # Generación de reportes
+  "skimr",          # Resúmenes rápidos
+  "corrplot"        # Matrices de correlación
 )
 
 # Instalar paquetes que no estén instalados
@@ -191,7 +154,7 @@ install.packages(setdiff(paquetes, rownames(installed.packages())))
 
 ## 📖 Recursos Adicionales
 
-- [R for Data Science](https://r4ds.had.co.nz/) - Libro gratuito online
+- [R for Data Science, 2.ª ed.](https://r4ds.hadley.nz/) - Libro gratuito online
 - [RStudio Cheatsheets](https://www.rstudio.com/resources/cheatsheets/) - Guías rápidas
 - [Stack Overflow](https://stackoverflow.com/questions/tagged/r) - Comunidad de ayuda
 - [R-bloggers](https://www.r-bloggers.com/) - Blog con tutoriales
@@ -200,6 +163,6 @@ install.packages(setdiff(paquetes, rownames(installed.packages())))
 
 ## 🎉 ¡Comencemos!
 
-Dirígete al **Módulo 1** para comenzar tu viaje en Business Intelligence con RStudio.
+Abre el [libro](latex/curso-bi-rstudio.pdf), sigue la introducción para preparar tu entorno y continúa con el **Módulo 1**.
 
 **¡Éxito en tu aprendizaje! 🚀📊**

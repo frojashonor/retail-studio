@@ -5,16 +5,22 @@ Dominar las herramientas fundamentales de tidyverse para manipular y transformar
 
 ## Contenido
 
-### 📝 Lecciones
+### 📘 En el libro
 
-1. **01_introduccion_dplyr.R** - Operaciones básicas con dplyr
-2. **02_filtrar_seleccionar.R** - filter() y select(): extraer datos específicos
-3. **03_transformar_datos.R** - mutate(): crear y modificar columnas
-4. **04_agrupar_resumir.R** - group_by() y summarise(): análisis agregados
-5. **05_unir_datos.R** - Joins: combinar múltiples tablas
-6. **06_pivotar_datos.R** - tidyr: reshape de datos (pivot)
-7. **07_pipeline_completo.R** - Encadenar operaciones con %>%
-8. **08_ejercicios_practicos.R** - Casos de negocio reales
+El contenido completo de este módulo es el **Módulo 2** del
+[libro del curso](../latex/curso-bi-rstudio.pdf):
+- Todo su código, probado de principio a fin: [`latex/codigo/02-manipulacion-datos.R`](../latex/codigo/02-manipulacion-datos.R)
+- Las soluciones de sus ejercicios: [`latex/codigo/sol-02.R`](../latex/codigo/sol-02.R)
+
+### 📝 Scripts cortos de práctica en esta carpeta
+
+Scripts de la primera versión del curso, con secciones "TU CÓDIGO AQUÍ" para
+practicar. Ejecútalos con el directorio de trabajo en esta carpeta.
+
+| Script | Tema |
+|---|---|
+| [`01_introduccion_dplyr.R`](01_introduccion_dplyr.R) | Los verbos de dplyr y el pipe %>% |
+| [`05_unir_datos.R`](05_unir_datos.R) | Joins: combinar ventas, productos, clientes y vendedores |
 
 ## ⏱️ Tiempo estimado
 6-8 horas de estudio y práctica
@@ -40,4 +46,4 @@ install.packages("tidyverse")  # Incluye dplyr, tidyr, y más
 - **tidy data**: Datos organizados y limpios
 
 ## 🚀 Comienza por aquí
-Abre el archivo `01_introduccion_dplyr.R` en RStudio.
+Lee el Módulo 2 del libro y ejecuta [`latex/codigo/02-manipulacion-datos.R`](../latex/codigo/02-manipulacion-datos.R) por partes en RStudio. Después practica con `01_introduccion_dplyr.R`.

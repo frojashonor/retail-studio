@@ -1,0 +1,13 @@
+# RStudio
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+
+# Datos y resultados que genera el propio curso al ejecutarse
+datasets/*.csv
+datasets/*.xlsx
+datos/
+resultados/
+*/datos/
+*/resultados/

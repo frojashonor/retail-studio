@@ -5,15 +5,24 @@ Aprender los conceptos básicos de R y familiarizarse con el entorno RStudio par
 
 ## Contenido
 
-### 📝 Lecciones
+### 📘 En el libro
 
-1. **01_introduccion_rstudio.R** - Primera experiencia con RStudio
-2. **02_tipos_datos.R** - Tipos de datos y estructuras básicas
-3. **03_vectores_listas.R** - Trabajando con vectores y listas
-4. **04_dataframes.R** - DataFrames: la estructura fundamental para BI
-5. **05_funciones_basicas.R** - Funciones esenciales
-6. **06_importar_exportar.R** - Leer y escribir datos
-7. **07_ejercicios_practica.R** - Ejercicios para practicar
+El contenido completo de este módulo es el **Módulo 1** del
+[libro del curso](../latex/curso-bi-rstudio.pdf):
+- Todo su código, probado de principio a fin: [`latex/codigo/01-fundamentos.R`](../latex/codigo/01-fundamentos.R)
+- Las soluciones de sus ejercicios: [`latex/codigo/sol-01.R`](../latex/codigo/sol-01.R)
+
+### 📝 Scripts cortos de práctica en esta carpeta
+
+Scripts de la primera versión del curso, con secciones "TU CÓDIGO AQUÍ" para
+practicar. Ejecútalos con el directorio de trabajo en esta carpeta.
+
+| Script | Tema |
+|---|---|
+| [`01_introduccion_rstudio.R`](01_introduccion_rstudio.R) | R como calculadora, variables, tipos y operadores lógicos |
+| [`02_tipos_datos.R`](02_tipos_datos.R) | Vectores, factores, matrices, listas y data frames |
+| [`03_funciones_basicas.R`](03_funciones_basicas.R) | Funciones matemáticas y de texto, condicionales, bucles, apply y funciones propias |
+| [`04_importar_exportar.R`](04_importar_exportar.R) | Leer y escribir CSV, Excel, TXT, RDS y RData |
 
 ## ⏱️ Tiempo estimado
 4-6 horas de estudio y práctica
@@ -30,4 +39,4 @@ Aprender los conceptos básicos de R y familiarizarse con el entorno RStudio par
 - [R Base Cheatsheet](https://iqss.github.io/dss-workshops/R/Rintro/base-r-cheat-sheet.pdf)
 
 ## 🚀 Comienza por aquí
-Abre el archivo `01_introduccion_rstudio.R` en RStudio y ejecuta línea por línea.
+Lee el Módulo 1 del libro y ejecuta [`latex/codigo/01-fundamentos.R`](../latex/codigo/01-fundamentos.R) por partes en RStudio. Después practica con `01_introduccion_rstudio.R`.

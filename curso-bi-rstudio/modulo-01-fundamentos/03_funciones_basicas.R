@@ -389,11 +389,11 @@ colnames(df_productos)[2] <- "precio_unitario"
 df_productos
 
 # Filtrar filas
-subset(df_productos, precio > 100)
+subset(df_productos, precio_unitario > 100)
 subset(df_productos, categoria == "Electrónica")
 
 # Agregar columna
-df_productos$ingresos <- df_productos$precio * df_productos$unidades
+df_productos$ingresos <- df_productos$precio_unitario * df_productos$unidades
 df_productos
 
 # Ordenar data frame

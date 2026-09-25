@@ -5,16 +5,21 @@ Aplicar técnicas de Machine Learning para resolver problemas reales de negocio:
 
 ## Contenido
 
-### 📝 Lecciones
+### 📘 En el libro
 
-1. **01_introduccion_ml.R** - Conceptos básicos de ML para BI
-2. **02_clustering_clientes.R** - Segmentación de clientes (K-means)
-3. **03_regresion_lineal.R** - Predicción de ventas
-4. **04_arboles_decision.R** - Clasificación y reglas de negocio
-5. **05_random_forest.R** - Predicciones robustas
-6. **06_series_tiempo.R** - Forecasting de demanda
-7. **07_analisis_cesta.R** - Market Basket Analysis
-8. **08_caso_practico.R** - Proyecto integrador de ML
+El contenido completo de este módulo es el **Módulo 7** del
+[libro del curso](../latex/curso-bi-rstudio.pdf):
+- Todo su código, probado de principio a fin: [`latex/codigo/07-machine-learning.R`](../latex/codigo/07-machine-learning.R)
+- Las soluciones de sus ejercicios: [`latex/codigo/sol-07.R`](../latex/codigo/sol-07.R)
+
+### 📝 Scripts cortos de práctica en esta carpeta
+
+Scripts de la primera versión del curso, con secciones "TU CÓDIGO AQUÍ" para
+practicar. Ejecútalos con el directorio de trabajo en esta carpeta.
+
+| Script | Tema |
+|---|---|
+| [`02_clustering_clientes.R`](02_clustering_clientes.R) | Segmentación de clientes con k-means, de principio a fin |
 
 ## ⏱️ Tiempo estimado
 10-12 horas de estudio y práctica
@@ -90,4 +95,4 @@ install.packages("arules")       # Market basket analysis
 9. **Implementar** - Usar en producción
 
 ## 🚀 Comienza por aquí
-Abre el archivo `01_introduccion_ml.R` en RStudio.
+Lee el Módulo 7 del libro y ejecuta [`latex/codigo/07-machine-learning.R`](../latex/codigo/07-machine-learning.R) por partes en RStudio. Después practica con `02_clustering_clientes.R`.

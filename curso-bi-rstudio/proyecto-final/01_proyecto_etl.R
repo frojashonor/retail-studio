@@ -17,6 +17,11 @@ library(tidyverse)    # Suite completa de data science
 library(lubridate)    # Manejo de fechas
 library(scales)       # Formateo de números
 
+# Fecha de corte fija: los datos cubren 2023, así que medimos antigüedad y
+# recencia al 1 de enero de 2024. Usar Sys.Date() haría que los resultados
+# cambiaran cada día que ejecutes el script.
+fecha_corte <- as.Date("2024-01-01")
+
 # Configurar directorio de trabajo
 # setwd("tu_ruta/curso-bi-rstudio/proyecto-final")
 
@@ -98,7 +103,7 @@ clientes_clean <- clientes %>%
   # Convertir fecha de registro
   mutate(
     fecha_registro = as.Date(fecha_registro),
-    antiguedad_dias = as.numeric(Sys.Date() - fecha_registro),
+    antiguedad_dias = as.numeric(fecha_corte - fecha_registro),
     antiguedad_años = round(antiguedad_dias / 365, 1)
   ) %>%
   # Estandarizar ciudades (mayúsculas)
@@ -167,7 +172,7 @@ cat("✓ Empleados limpiados:", nrow(empleados_clean), "registros\n")
 tiendas_clean <- tiendas %>%
   mutate(
     fecha_apertura = as.Date(fecha_apertura),
-    años_operacion = as.numeric(difftime(Sys.Date(), fecha_apertura, units = "days")) / 365,
+    años_operacion = as.numeric(difftime(fecha_corte, fecha_apertura, units = "days")) / 365,
     años_operacion = round(años_operacion, 1),
     # Productividad aproximada (ventas por m2)
     categoria_tamaño = case_when(
@@ -338,7 +343,7 @@ analisis_clientes <- data_warehouse %>%
     .groups = "drop"
   ) %>%
   mutate(
-    dias_desde_ultima_compra = as.numeric(Sys.Date() - ultima_compra),
+    dias_desde_ultima_compra = as.numeric(fecha_corte - ultima_compra),
     categoria_cliente = case_when(
       total_gastado > 50000 ~ "VIP",
       total_gastado > 20000 ~ "Oro",

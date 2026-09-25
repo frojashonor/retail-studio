@@ -320,7 +320,7 @@ gc()  # Garbage collection
 - [r/rstats en Reddit](https://www.reddit.com/r/rstats/)
 
 ### Tutoriales
-- [R for Data Science (libro gratuito)](https://r4ds.had.co.nz/)
+- [R for Data Science, 2.ª ed. (libro gratuito)](https://r4ds.hadley.nz/)
 - [Datacamp: Intro to R](https://www.datacamp.com/courses/free-introduction-to-r)
 - [Coursera: R Programming](https://www.coursera.org/learn/r-programming)
 

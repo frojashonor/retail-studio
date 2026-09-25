@@ -264,14 +264,18 @@ ggplot(perfil_largo, aes(x = cluster, y = valor, fill = cluster)) +
 
 # Basándonos en los perfiles, podemos nombrar los clusters:
 
-clientes <- clientes %>%
-  mutate(segmento = case_when(
-    cluster == 1 ~ "Clientes Básicos",
-    cluster == 2 ~ "Clientes Premium",
-    cluster == 3 ~ "Clientes Estándar"
-  ))
+# OJO: k-means numera los clusters al azar (1, 2, 3 pueden cambiar de una
+# ejecución a otra). Por eso NO asignamos nombres por número de cluster:
+# ordenamos los clusters por su valor total promedio y nombramos según ese
+# orden (el de menor valor = Básicos, el de mayor valor = Premium).
+nombres_segmento <- perfil_clusters %>%
+  arrange(valor_total_promedio) %>%
+  mutate(segmento = c("Clientes Básicos", "Clientes Estándar",
+                      "Clientes Premium")) %>%
+  select(cluster, segmento)
 
-# Nota: Los números de cluster pueden variar, ajusta según tus resultados
+clientes <- clientes %>%
+  left_join(nombres_segmento, by = "cluster")
 
 # Ver distribución de segmentos
 table(clientes$segmento)

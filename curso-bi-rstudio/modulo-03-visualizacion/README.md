@@ -5,16 +5,21 @@ Crear visualizaciones profesionales y efectivas para reportes de Business Intell
 
 ## Contenido
 
-### 📝 Lecciones
+### 📘 En el libro
 
-1. **01_introduccion_ggplot2.R** - Fundamentos de la gramática de gráficos
-2. **02_graficos_barras.R** - Gráficos de barras y columnas
-3. **03_graficos_lineas.R** - Series de tiempo y tendencias
-4. **04_graficos_dispersion.R** - Scatter plots y correlaciones
-5. **05_graficos_distribucion.R** - Histogramas, boxplots y densidad
-6. **06_personalizar_graficos.R** - Temas, colores y etiquetas
-7. **07_graficos_multiples.R** - Facets y paneles
-8. **08_graficos_avanzados.R** - Heatmaps, combinaciones y más
+El contenido completo de este módulo es el **Módulo 3** del
+[libro del curso](../latex/curso-bi-rstudio.pdf):
+- Todo su código, probado de principio a fin: [`latex/codigo/03-visualizacion.R`](../latex/codigo/03-visualizacion.R)
+- Las soluciones de sus ejercicios: [`latex/codigo/sol-03.R`](../latex/codigo/sol-03.R)
+
+### 📝 Scripts cortos de práctica en esta carpeta
+
+Scripts de la primera versión del curso, con secciones "TU CÓDIGO AQUÍ" para
+practicar. Ejecútalos con el directorio de trabajo en esta carpeta.
+
+| Script | Tema |
+|---|---|
+| [`01_introduccion_ggplot2.R`](01_introduccion_ggplot2.R) | Barras, líneas, dispersión, histogramas, boxplots, temas y exportar |
 
 ## ⏱️ Tiempo estimado
 8-10 horas de estudio y práctica
@@ -77,4 +82,4 @@ install.packages("plotly")       # Gráficos interactivos
 4. **Estética** - Profesional y atractivo
 
 ## 🚀 Comienza por aquí
-Abre el archivo `01_introduccion_ggplot2.R` en RStudio.
+Lee el Módulo 3 del libro y ejecuta [`latex/codigo/03-visualizacion.R`](../latex/codigo/03-visualizacion.R) por partes en RStudio. Después practica con `01_introduccion_ggplot2.R`.

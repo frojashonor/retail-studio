@@ -66,7 +66,7 @@ ggplot(data = ventas_mes, aes(x = mes_num, y = ventas)) +
 
 # Agregar color y tamaño
 ggplot(data = ventas_mes, aes(x = mes_num, y = ventas)) +
-  geom_line(color = "blue", size = 1.2) +
+  geom_line(color = "blue", linewidth = 1.2) +
   geom_point(color = "red", size = 3)
 
 # ============================================================================
@@ -130,7 +130,7 @@ ggplot(ventas_mes, aes(x = mes)) +
   # Barras de ventas
   geom_col(aes(y = ventas), fill = "steelblue", alpha = 0.7) +
   # Línea de meta
-  geom_line(aes(y = meta, group = 1), color = "red", size = 1.2) +
+  geom_line(aes(y = meta, group = 1), color = "red", linewidth = 1.2) +
   geom_point(aes(y = meta), color = "red", size = 3) +
   scale_y_continuous(
     labels = dollar_format(prefix = "$", big.mark = ",")
@@ -250,8 +250,8 @@ ggplot(salarios, aes(x = salario)) +
 
 # Con línea de densidad
 ggplot(salarios, aes(x = salario)) +
-  geom_histogram(aes(y = ..density..), bins = 20, fill = "steelblue", alpha = 0.7) +
-  geom_density(color = "red", size = 1.2) +
+  geom_histogram(aes(y = after_stat(density)), bins = 20, fill = "steelblue", alpha = 0.7) +
+  geom_density(color = "red", linewidth = 1.2) +
   scale_x_continuous(labels = dollar_format(prefix = "$", big.mark = ",")) +
   labs(
     title = "Distribución de Salarios",
@@ -323,7 +323,7 @@ p + theme_dark()
 # Crear un gráfico
 mi_grafico <- ggplot(ventas_mes, aes(x = mes, y = ventas)) +
   geom_col(fill = "steelblue") +
-  geom_line(aes(y = meta, group = 1), color = "red", size = 1.2) +
+  geom_line(aes(y = meta, group = 1), color = "red", linewidth = 1.2) +
   scale_y_continuous(labels = dollar_format(prefix = "$", big.mark = ",")) +
   labs(
     title = "Ventas vs Meta 2024",
@@ -380,7 +380,7 @@ mes_max <- ventas_mes[which.max(ventas_mes$ventas), ]
 
 ggplot(ventas_mes, aes(x = mes_num, y = ventas)) +
   geom_area(fill = "lightblue", alpha = 0.5) +
-  geom_line(color = "darkblue", size = 1.2) +
+  geom_line(color = "darkblue", linewidth = 1.2) +
   geom_point(data = mes_max, aes(x = mes_num, y = ventas),
             color = "red", size = 5) +
   scale_y_continuous(labels = dollar_format(prefix = "$", big.mark = ",")) +

@@ -33,7 +33,10 @@ Desarrollar un dashboard ejecutivo completo que incluya:
    - Dashboard interactivo con Shiny
    - Automatización de análisis
 
-## Estructura del Proyecto
+## Estructura sugerida para tu proyecto
+
+Esta es la organización que te recomendamos para **tu** versión del proyecto
+(el Módulo 9 del libro la explica y muestra el script maestro):
 
 ```
 proyecto-final/
@@ -271,20 +274,29 @@ Revisa los módulos anteriores del curso para referencia
 
 ## Comenzar el Proyecto
 
-1. **Genera los datasets**:
+1. **Lee el Módulo 9 del libro** ([`latex/curso-bi-rstudio.pdf`](../latex/curso-bi-rstudio.pdf)):
+   resuelve el caso completo paso a paso y trae 8 retos de extensión con sus
+   soluciones. Su código completo está en
+   [`latex/codigo/09-proyecto-final.R`](../latex/codigo/09-proyecto-final.R).
+
+2. **Genera los datasets** (una sola vez, desde la carpeta del curso):
    ```r
-   source("../datasets/generar_datasets.R")
+   source("datasets/generar_datasets.R")
    ```
 
-2. **Ejecuta el script maestro**:
+3. **Ejecuta el ETL de ejemplo** de esta carpeta, con el directorio de trabajo
+   en `proyecto-final/`:
    ```r
-   source("scripts/05_master.R")
+   source("01_proyecto_etl.R")
    ```
 
-3. **Lanza el dashboard**:
+4. **Lanza el dashboard ejecutivo** (Módulo 6), desde la carpeta del curso:
    ```r
-   shiny::runApp("dashboard")
+   shiny::runApp("latex/codigo/apps/03-dashboard-ejecutivo")
    ```
+
+5. **Genera el reporte ejecutivo** (Módulo 8) con
+   [`latex/codigo/reportes/generar_reportes.R`](../latex/codigo/reportes/generar_reportes.R).
 
 ## ¡Buena Suerte! 🚀
 
